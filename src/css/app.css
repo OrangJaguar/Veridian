@@ -29,7 +29,7 @@
       --glow-wrong: rgba(239, 68, 68, 0.15);
     }
 
-    body.dark {
+    html.dark body, html.dark, body.dark {
       --bg: #000000;
       --surface: #111111;
       --surface-hover: #1f1f1f;
