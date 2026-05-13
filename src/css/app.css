@@ -597,14 +597,18 @@
     .agenda-dot-spacer { width: 10px; flex-shrink: 0; }
     .agenda-icon-btn {
       background: none;
-      border: none;
+      border: 1px solid var(--border);
       color: var(--text-main);
       cursor: pointer;
-      opacity: 0.72;
-      padding: 0.25rem 0.4rem;
-      font-size: 0.95rem;
+      opacity: 0.85;
+      padding: 0.3rem 0.45rem;
       line-height: 1;
       border-radius: var(--radius);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
     }
     .agenda-icon-btn:hover { opacity: 1; background: var(--surface-hover); }
     .agenda-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 0.35rem; }
@@ -668,8 +672,9 @@
     }
     .calendar-range-label { font-weight: 700; color: var(--text-main); margin-right: auto; }
     .calendar-week-grid-wrap {
-      flex: 1;
+      flex: 1 1 auto;
       min-height: 0;
+      height: 0;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       background: var(--surface);
