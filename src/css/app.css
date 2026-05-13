@@ -511,7 +511,7 @@
       text-align: center;
       font-size: 2rem;
       font-weight: 700;
-      color: #ffffff;
+      color: var(--text-main);
       font-variant-numeric: tabular-nums;
       padding: 0.5rem 0;
     }
@@ -519,7 +519,7 @@
       text-align: center;
       font-size: 2.75rem;
       font-weight: 700;
-      color: #ffffff;
+      color: var(--text-main);
       font-variant-numeric: tabular-nums;
       padding: 0.75rem 0 1rem;
     }
