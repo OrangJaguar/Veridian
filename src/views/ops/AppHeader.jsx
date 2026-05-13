@@ -1,44 +1,44 @@
-import React from 'react';
-import { useAxiomStore } from '../../store/useAxiomStore';
-
-const NAV_ITEMS = [
-  { id: 'dashboard',  label: 'Dashboard',  icon: '⊞' },
-  { id: 'agenda',     label: 'Agenda',     icon: '✓' },
-  { id: 'calendar',   label: 'Calendar',   icon: '▦' },
-  { id: 'journal',    label: 'Journal',    icon: '✎' },
-  { id: 'focus',      label: 'Focus',      icon: '◎' },
-  { id: 'flashcards', label: 'Flashcards', icon: '⬡' },
-  { id: 'quiz',       label: 'Quiz',       icon: '?' },
-  { id: 'typing',     label: 'Typing',     icon: '⌨' },
-  { id: 'editor',     label: 'Editor',     icon: '≡' },
-  { id: 'mastery',    label: 'Mastery',    icon: '★' },
-];
-
-export default function AppHeader() {
-  const { opsView, setOpsView, setMode } = useAxiomStore();
-
+export function AppHeader() {
   return (
-    <header className="axiom-header">
-      <div className="axiom-logo" onClick={() => setMode('cmd')} title="Switch to CMD mode">
-        <span className="axiom-logo-text">AXIOM</span>
-        <span className="axiom-logo-tag">OPS</span>
-      </div>
-      <nav className="axiom-nav">
-        {NAV_ITEMS.map(item => (
-          <button
-            key={item.id}
-            className={`axiom-nav-btn ${opsView === item.id ? 'active' : ''}`}
-            onClick={() => setOpsView(item.id)}
-            title={item.label}
-          >
-            <span className="axiom-nav-icon">{item.icon}</span>
-            <span className="axiom-nav-label">{item.label}</span>
+    <header>
+      <h1 id="logoText" title="Return to Dashboard">
+        Axiom
+      </h1>
+      <button id="cmdMenuBtn" type="button" className="cmd-menu-btn hidden" title="Open CMD menu">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
+      <div className="header-controls">
+        <div className="mode-switch" title="Toggle CMD/OPS">
+          <button id="modeCmdBtn" type="button" className="mode-switch-btn">
+            CMD
           </button>
-        ))}
-      </nav>
-      <div className="axiom-header-actions">
-        <button className="axiom-mode-btn" onClick={() => setMode('cmd')}>CMD</button>
+          <button id="modeOpsBtn" type="button" className="mode-switch-btn active">
+            OPS
+          </button>
+        </div>
+        <button id="profileBtn" type="button" className="profile-btn" title="Profile">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M20 21a8 8 0 0 0-16 0" />
+            <circle cx="12" cy="8" r="4" />
+          </svg>
+        </button>
+        <div id="profileMenu" className="profile-dropdown hidden">
+          <button id="openSettingsBtn" type="button" className="profile-item">
+            Settings
+          </button>
+          <button id="logoutBtn" type="button" className="profile-item logout">
+            Log out
+          </button>
+        </div>
       </div>
     </header>
   );
+}
+
+export function AppFooter() {
+  return <footer>Copyright © 2026 Developed by Sanskar Gupta. All Rights Reserved. v3.0</footer>;
 }
