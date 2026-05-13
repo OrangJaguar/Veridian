@@ -1,0 +1,22 @@
+{
+  "name": "UserTelemetry",
+  "type": "object",
+  "properties": {
+    "daily": {
+      "type": "object"
+    },
+    "timeEngagedSec": {
+      "type": "number"
+    },
+    "globalCorrect": {
+      "type": "number"
+    },
+    "globalAnswered": {
+      "type": "number"
+    },
+    "cardsFlipped": {
+      "type": "number"
+    }
+  },
+  "required": []
+}

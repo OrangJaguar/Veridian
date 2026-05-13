@@ -1,0 +1,19 @@
+{
+  "name": "UserJournalEntry",
+  "type": "object",
+  "properties": {
+    "dateKey": {
+      "type": "string",
+      "description": "YYYY-MM-DD local date"
+    },
+    "content": {
+      "type": "string"
+    },
+    "updatedAt": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "dateKey"
+  ]
+}

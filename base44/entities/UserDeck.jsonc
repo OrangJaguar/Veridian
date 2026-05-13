@@ -1,0 +1,30 @@
+{
+  "name": "UserDeck",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "rawText": {
+      "type": "string"
+    },
+    "parsedItems": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "lastEdited": {
+      "type": "number"
+    },
+    "deckId": {
+      "type": "string",
+      "description": "client-side stable ID"
+    }
+  },
+  "required": [
+    "title",
+    "rawText",
+    "deckId"
+  ]
+}

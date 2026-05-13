@@ -10,7 +10,7 @@ import { PREFS_KEY } from '../lib/constants-storage';
 import { CmdPanel } from '../views/cmd/CmdPanel';
 
 // Module imports
-import { bootSystem, saveDeck, deleteDeck, applyTelemetryDelta, normalizeTelemetryDailyMap, heuristicParse } from './axiom-init';
+import { bootSystem, saveDeck, deleteDeck, applyTelemetryDelta, normalizeTelemetryDailyMap, heuristicParse, onUserSignedIn } from './axiom-init';
 import { loadAgendaData, saveAgendaData, ensureAgendaDnDDelegates, createAgendaItemElement, toggleAgendaItemComplete, deleteAgendaItem, addAgendaItem, updateAgendaItem, openAgendaModalEdit, openAgendaModalNewTask, closeAgendaModal, renderAgendaLists } from './axiom-agenda';
 import { loadCalendarData, saveCalendarData, bindCalendarDragGlobal, renderCalendarWeek, bindCalendarChrome, openCalendarModalForEdit, openCalendarModalForNew, closeCalendarModal, openCalendarDayModal, closeCalendarDayModal, openCalendarMonthModal, closeCalendarMonthModal, renderCalendarMonthGrid, normalizeCalendarEvent, toDateTimeLocalKey, getCalendarRepeatDaysFromUI, updateCalendarRepeatDaysVisibility, syncCalendarColorSwatches, setCalendarRepeatDays, getDebriefItemsForToday } from './axiom-calendar';
 import { loadJournalData, saveJournalData, renderJournalView, renderJournalList, flushActiveJournalToStorage, saveActiveJournalEntryImmediate, closeJournalEntryModal, openJournalMonthModal, closeJournalMonthModal, renderJournalMonthGrid } from './axiom-journal';
@@ -32,7 +32,6 @@ export function runAxiomApp() {
     profileBtn: document.getElementById('profileBtn'),
     profileMenu: document.getElementById('profileMenu'),
     openSettingsBtn: document.getElementById('openSettingsBtn'),
-    logoutBtn: document.getElementById('logoutBtn'),
     settingsCenterModal: document.getElementById('settingsCenterModal'),
     themeToggle: document.getElementById('themeToggle'),
     hapticToggle: document.getElementById('hapticToggle'),
@@ -393,7 +392,7 @@ export function runAxiomApp() {
 
   els.profileBtn.addEventListener('click', (e) => { e.stopPropagation(); els.profileMenu.classList.toggle('hidden'); });
   els.openSettingsBtn.addEventListener('click', () => { els.profileMenu.classList.add('hidden'); els.settingsCenterModal.classList.remove('hidden'); });
-  els.logoutBtn.addEventListener('click', () => { els.profileMenu.classList.add('hidden'); alert("Logged out."); });
+  // logout is handled by AxiomLayout React layer (axiomAccountSection)
   els.modeCmdBtn.addEventListener('click', () => { S.appMode = 'cmd'; updateHeaderModeUI(); renderDashboard(); });
   els.modeOpsBtn.addEventListener('click', () => { flushActiveJournalToStorage(); S.appMode = 'ops'; updateHeaderModeUI(); renderDashboard(); });
   els.cmdMenuBtn.addEventListener('click', (e) => { e.stopPropagation(); if (S.appMode !== 'cmd') return; els.cmdSidebarOverlay.classList.toggle('hidden'); });
@@ -779,7 +778,21 @@ export function runAxiomApp() {
     }
   });
 
+  // --- Auth hook for AxiomLayout React layer ---
+  window.__axiomOnSignedIn = async (user) => {
+    await onUserSignedIn(user, S, els, {
+      loadAgendaData, loadCalendarData, loadJournalData,
+      renderDashboard, updateHeaderModeUI,
+      applySettingsToUI: () => { /* handled by axiom-init */ }
+    });
+  };
+
   // --- Boot ---
-  bootSystem(els, { ensureCmdSchedule, loadAgendaData, loadCalendarData, loadJournalData, ensureAgendaDnDDelegates: () => ensureAgendaDnDDelegates(els.cmdContent, _renderAgendaLists), bindCalendarDragGlobal, tickFocusPomodoro, updateHeaderModeUI, renderDashboard });
+  bootSystem(els, {
+    ensureCmdSchedule, loadAgendaData, loadCalendarData, loadJournalData,
+    ensureAgendaDnDDelegates: () => ensureAgendaDnDDelegates(els.cmdContent, _renderAgendaLists),
+    bindCalendarDragGlobal, tickFocusPomodoro, updateHeaderModeUI, renderDashboard,
+    onUserLoaded: (user) => { if (window.__axiomAuthCallbacks?.onUserLoaded) window.__axiomAuthCallbacks.onUserLoaded(user); }
+  });
   setInterval(updateCmdDashboard, 1000);
 }

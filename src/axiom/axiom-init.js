@@ -4,6 +4,8 @@ import { toLocalDateKey, parseLocalDateKey, getTodayKey, addDays } from '../lib/
 import { applyTheme, applySettingsToUI } from '../lib/modals/settings-ui';
 import { saveDecks } from '../lib/ops/deck-storage';
 import { saveTelemetry } from '../lib/ops/telemetry-storage';
+import { loadAllFromCloud, migrateLocalToCloud, setCloudUser, isCloudEnabled } from '../lib/cloudSync';
+import { base44 } from '../api/base44Client';
 
 export function sumTelemetryDay(dayObj) {
   if (!dayObj || typeof dayObj !== 'object') return 0;
@@ -105,7 +107,7 @@ export function deleteDeck(id, renderDashboard) {
   renderDashboard();
 }
 
-export function bootSystem(els, callbacks) {
+function loadFromLocalStorage() {
   if (localStorage.getItem(PREFS_KEY)) S.prefs = JSON.parse(localStorage.getItem(PREFS_KEY));
   if (localStorage.getItem(DECKS_KEY)) S.decks = JSON.parse(localStorage.getItem(DECKS_KEY));
   if (localStorage.getItem(TELEMETRY_KEY)) S.telemetry = JSON.parse(localStorage.getItem(TELEMETRY_KEY));
@@ -114,6 +116,9 @@ export function bootSystem(els, callbacks) {
   if (typeof S.telemetry.globalCorrect !== 'number') S.telemetry.globalCorrect = 0;
   if (typeof S.telemetry.globalAnswered !== 'number') S.telemetry.globalAnswered = 0;
   if (typeof S.telemetry.cardsFlipped !== 'number') S.telemetry.cardsFlipped = 0;
+}
+
+function finalizeBoot(els, callbacks) {
   S.telemetry.daily = normalizeTelemetryDailyMap(S.telemetry.daily);
   const todayBucket = S.telemetry.daily[getTodayKey()] || {};
   S.telemetryTodayBaseline = {
@@ -140,5 +145,74 @@ export function bootSystem(els, callbacks) {
   applySettingsToUI(els);
   applyTheme();
   callbacks.updateHeaderModeUI();
+  callbacks.renderDashboard();
+}
+
+export async function bootSystem(els, callbacks) {
+  // Always load local first for instant paint
+  loadFromLocalStorage();
+  finalizeBoot(els, callbacks);
+
+  // Then check if user is logged in
+  try {
+    const isAuthed = await base44.auth.isAuthenticated();
+    if (isAuthed) {
+      const user = await base44.auth.me();
+      setCloudUser(user);
+      await loadAllFromCloud(S);
+      // Re-normalize after cloud load
+      S.telemetry.daily = normalizeTelemetryDailyMap(S.telemetry.daily);
+      const todayBucket = S.telemetry.daily[getTodayKey()] || {};
+      S.telemetryTodayBaseline = {
+        timeEngagedSec: Number(todayBucket.timeEngagedSec || 0),
+        correctAnswered: Number(todayBucket.correctAnswered || 0),
+        questionsAnswered: Number(todayBucket.questionsAnswered || 0),
+        cardsFlipped: Number(todayBucket.cardsFlipped || 0)
+      };
+      callbacks.loadAgendaData();
+      callbacks.loadCalendarData();
+      callbacks.loadJournalData();
+      applySettingsToUI(els);
+      applyTheme();
+      callbacks.renderDashboard();
+      callbacks.onUserLoaded(user);
+    } else {
+      callbacks.onUserLoaded(null);
+    }
+  } catch (e) {
+    callbacks.onUserLoaded(null);
+  }
+}
+
+export async function onUserSignedIn(user, S, els, callbacks) {
+  setCloudUser(user);
+  // Capture local state snapshot for migration
+  const localSnapshot = {
+    decks: [...S.decks],
+    agendaTasks: [...S.agendaTasks],
+    calendarEvents: [...S.calendarEvents],
+    journalEntries: { ...S.journalEntries },
+    telemetry: { ...S.telemetry, daily: { ...S.telemetry.daily } }
+  };
+  const localPrefs = { ...S.prefs };
+
+  // Migrate local → cloud (merge)
+  await migrateLocalToCloud(localSnapshot, localPrefs);
+
+  // Now load full cloud state
+  await loadAllFromCloud(S);
+  S.telemetry.daily = normalizeTelemetryDailyMap(S.telemetry.daily);
+  const todayBucket = S.telemetry.daily[getTodayKey()] || {};
+  S.telemetryTodayBaseline = {
+    timeEngagedSec: Number(todayBucket.timeEngagedSec || 0),
+    correctAnswered: Number(todayBucket.correctAnswered || 0),
+    questionsAnswered: Number(todayBucket.questionsAnswered || 0),
+    cardsFlipped: Number(todayBucket.cardsFlipped || 0)
+  };
+  callbacks.loadAgendaData();
+  callbacks.loadCalendarData();
+  callbacks.loadJournalData();
+  applySettingsToUI(els);
+  applyTheme();
   callbacks.renderDashboard();
 }

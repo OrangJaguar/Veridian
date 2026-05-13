@@ -2,6 +2,7 @@ import { CALENDAR_EVENTS_KEY } from '../lib/constants-storage';
 import { S } from '../lib/state';
 import { addDays, toLocalDateKey, parseLocalDateKey } from '../lib/utils-date';
 import { escapeHtml } from '../lib/utils-text';
+import { cloudSaveCalendarEvent, cloudDeleteCalendarEvent, isCloudEnabled } from '../lib/cloudSync';
 
 export function loadCalendarData() {
   try {
@@ -13,6 +14,15 @@ export function loadCalendarData() {
 
 export function saveCalendarData() {
   localStorage.setItem(CALENDAR_EVENTS_KEY, JSON.stringify(S.calendarEvents));
+}
+
+export async function saveCalendarDataCloud(changedEvent) {
+  saveCalendarData();
+  if (isCloudEnabled() && changedEvent) await cloudSaveCalendarEvent(changedEvent).catch(() => {});
+}
+
+export async function deleteCalendarEventCloud(eventId) {
+  if (isCloudEnabled()) await cloudDeleteCalendarEvent(eventId).catch(() => {});
 }
 
 export function toDateTimeLocalKey(dateObj) {

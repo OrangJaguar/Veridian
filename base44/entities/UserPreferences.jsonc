@@ -1,0 +1,25 @@
+{
+  "name": "UserPreferences",
+  "type": "object",
+  "properties": {
+    "themeDark": {
+      "type": "boolean"
+    },
+    "haptics": {
+      "type": "boolean"
+    },
+    "audio": {
+      "type": "boolean"
+    },
+    "strictMode": {
+      "type": "boolean"
+    },
+    "agendaTaskOrder": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    }
+  },
+  "required": []
+}

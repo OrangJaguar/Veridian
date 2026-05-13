@@ -1,0 +1,42 @@
+{
+  "name": "UserCalendarEvent",
+  "type": "object",
+  "properties": {
+    "eventId": {
+      "type": "number"
+    },
+    "title": {
+      "type": "string"
+    },
+    "start": {
+      "type": "string"
+    },
+    "end": {
+      "type": "string"
+    },
+    "allDay": {
+      "type": "boolean"
+    },
+    "color": {
+      "type": "string"
+    },
+    "repeatRule": {
+      "type": "string"
+    },
+    "repeatDays": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "eventId",
+    "title",
+    "start",
+    "end"
+  ]
+}

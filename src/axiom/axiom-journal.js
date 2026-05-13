@@ -2,6 +2,7 @@ import { JOURNAL_ENTRIES_KEY } from '../lib/constants-storage';
 import { S } from '../lib/state';
 import { addDays, toLocalDateKey, parseLocalDateKey, getTodayKey } from '../lib/utils-date';
 import { stripJournalHtml, journalPreviewForQuery, escapeHtml } from '../lib/utils-text';
+import { cloudSaveJournalEntry, isCloudEnabled } from '../lib/cloudSync';
 
 export function loadJournalData() {
   try {
@@ -13,6 +14,13 @@ export function loadJournalData() {
 
 export function saveJournalData() {
   localStorage.setItem(JOURNAL_ENTRIES_KEY, JSON.stringify(S.journalEntries));
+}
+
+export async function saveJournalEntryCloud(dateKey) {
+  saveJournalData();
+  if (isCloudEnabled() && dateKey && S.journalEntries[dateKey]) {
+    await cloudSaveJournalEntry(dateKey, S.journalEntries[dateKey]).catch(() => {});
+  }
 }
 
 export function journalApplyEntryContent(dayKey, html) {

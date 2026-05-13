@@ -27,11 +27,10 @@ export function AppHeader() {
           </svg>
         </button>
         <div id="profileMenu" className="profile-dropdown hidden">
+          <div id="axiomAccountSection" />
+          <div style={{ height: '1px', background: 'var(--border)', margin: '0.25rem 0' }} />
           <button id="openSettingsBtn" type="button" className="profile-item">
             Settings
-          </button>
-          <button id="logoutBtn" type="button" className="profile-item logout">
-            Log out
           </button>
         </div>
       </div>

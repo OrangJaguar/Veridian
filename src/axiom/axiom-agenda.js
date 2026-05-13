@@ -1,6 +1,7 @@
 import { AGENDA_TASKS_KEY, AGENDA_TASK_ORDER_KEY, DEFAULT_AGENDA_TASKS } from '../lib/constants-storage';
 import { S } from '../lib/state';
 import { escapeHtml } from '../lib/utils-text';
+import { cloudSaveTask, cloudDeleteTask, isCloudEnabled } from '../lib/cloudSync';
 
 export function loadAgendaData() {
   try {
@@ -19,6 +20,15 @@ export function loadAgendaData() {
 export function saveAgendaData() {
   localStorage.setItem(AGENDA_TASKS_KEY, JSON.stringify(S.agendaTasks));
   localStorage.setItem(AGENDA_TASK_ORDER_KEY, JSON.stringify(S.agendaTaskOrder));
+}
+
+export async function saveAgendaDataCloud(changedTask) {
+  saveAgendaData();
+  if (isCloudEnabled() && changedTask) await cloudSaveTask(changedTask).catch(() => {});
+}
+
+export async function deleteAgendaItemCloud(taskId) {
+  if (isCloudEnabled()) await cloudDeleteTask(taskId).catch(() => {});
 }
 
 function toDatetimeLocalValue(d) {

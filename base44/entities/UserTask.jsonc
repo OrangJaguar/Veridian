@@ -1,0 +1,45 @@
+{
+  "name": "UserTask",
+  "type": "object",
+  "properties": {
+    "taskId": {
+      "type": "number"
+    },
+    "title": {
+      "type": "string"
+    },
+    "due": {
+      "type": "string"
+    },
+    "priority": {
+      "type": "string"
+    },
+    "class": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "task",
+        "event"
+      ]
+    },
+    "completed": {
+      "type": "boolean"
+    },
+    "completedAt": {
+      "type": "string"
+    },
+    "sortOrder": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "taskId",
+    "title",
+    "type"
+  ]
+}
