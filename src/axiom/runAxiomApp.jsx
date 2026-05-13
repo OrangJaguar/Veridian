@@ -1210,15 +1210,12 @@ export function runAxiomApp() {
     function renderCalendarWeek() {
       if (S.appMode !== 'cmd' || S.cmdActiveView !== 'calendar') return;
       const weekDays = getWeekDays(S.calendarAnchorDate);
-      const start = weekDays[0];
-      const end = weekDays[6];
-      const label = `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+      const [start, end] = [weekDays[0], weekDays[6]];
       const labelEl = document.getElementById('calendarRangeLabel');
-      if (labelEl) labelEl.textContent = label;
+      if (labelEl) labelEl.textContent = `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
       const grid = document.getElementById('calendarWeekGrid');
       if (!grid) return;
       const wrap = document.getElementById('calendarWeekGridWrap');
-
       const eventsByDay = getCalendarEventsForWeek(S.calendarAnchorDate);
       grid.innerHTML = '';
       const corner = document.createElement('div');
@@ -1239,15 +1236,17 @@ export function runAxiomApp() {
       timeCol.style.gridColumn = '1';
       timeCol.style.gridRow = '2';
       for (let h = 1; h <= 24; h++) {
-        const label = document.createElement('div');
-        label.className = 'calendar-time-label';
-        const hour = h === 24 ? 0 : h;
-        const dt = new Date();
-        dt.setHours(hour, 0, 0, 0);
-        label.textContent = dt.toLocaleTimeString('en-US', { hour: 'numeric' });
-        timeCol.appendChild(label);
+        const lbl = document.createElement('div');
+        lbl.className = 'calendar-time-label';
+        const dt = new Date(); dt.setHours(h === 24 ? 0 : h, 0, 0, 0);
+        lbl.textContent = dt.toLocaleTimeString('en-US', { hour: 'numeric' });
+        timeCol.appendChild(lbl);
       }
       grid.appendChild(timeCol);
+      const hlWrap = document.createElement('div');
+      hlWrap.className = 'calendar-hour-lines';
+      for (let h = 0; h < 23; h++) { const hl = document.createElement('div'); hl.className = 'calendar-hour-line'; hl.style.top = `${h*56}px`; hlWrap.appendChild(hl); }
+      grid.appendChild(hlWrap);
       weekDays.forEach((day, idx) => {
         const key = toLocalDateKey(day);
         const lane = document.createElement('div');
@@ -2619,11 +2618,7 @@ export function runAxiomApp() {
       els.typingMaskedAnswer.innerHTML = `${before}<span class="typing-blank-wrap"><span class="typing-reveal${isSkipped ? ' skipped' : ''}">${revealEsc}</span><span class="typing-blank-line"></span></span>${after}`;
     }
 
-    function toMmSs(totalSec) {
-      const m = Math.floor(totalSec / 60).toString().padStart(2, '0');
-      const s = Math.floor(totalSec % 60).toString().padStart(2, '0');
-      return `${m}:${s}`;
-    }
+    function toMmSs(t) { return `${Math.floor(t/60).toString().padStart(2,'0')}:${Math.floor(t%60).toString().padStart(2,'0')}`; }
 
     function ensureMasteryCardStats(cardId, frontText) {
       if (!S.state.masteryTimingByCard[cardId]) {
