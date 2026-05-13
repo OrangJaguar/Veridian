@@ -1,6 +1,6 @@
 /** HTML escaping and journal preview helpers (no app state). */
 
-export function escapeHtml(str: string | undefined | null): string {
+export function escapeHtml(str) {
   return (str || '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -8,24 +8,24 @@ export function escapeHtml(str: string | undefined | null): string {
     .replace(/"/g, '&quot;');
 }
 
-export function stripJournalHtml(html: string | undefined | null): string {
+export function stripJournalHtml(html) {
   const div = document.createElement('div');
   div.innerHTML = html || '';
   return (div.textContent || '').trim();
 }
 
-export function escapeRegExp(str: string): string {
+export function escapeRegExp(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-export function firstSentencePreview(text: string | undefined | null): string {
+export function firstSentencePreview(text) {
   const clean = stripJournalHtml(text || '').replace(/\s+/g, ' ').trim();
   if (!clean) return 'No entry yet';
   const parts = clean.split(/(?<=[.!?])\s+/);
   return (parts[0] || clean).slice(0, 180);
 }
 
-export function journalPreviewForQuery(content: string, query: string): string {
+export function journalPreviewForQuery(content, query) {
   const clean = stripJournalHtml(content || '').replace(/\s+/g, ' ').trim();
   if (!clean) return 'No entry yet';
   if (!query) return escapeHtml(firstSentencePreview(clean));

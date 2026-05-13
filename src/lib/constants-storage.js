@@ -40,7 +40,7 @@ export const CMD_SCHEDULE_DEFAULT = {
     { mod: 14, start: '13:56', end: '14:17', cls: 'Chamber Orchestra', group: null },
     { mod: 15, start: '14:21', end: '14:42', cls: 'Chamber Orchestra', group: null },
   ],
-  exceptions: [] as unknown[],
+  exceptions: [],
 };
 
 export const AGENDA_TASKS_KEY = 'axiom_agenda_tasks';

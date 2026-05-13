@@ -1,12 +1,6 @@
-import type { CmdActiveView } from '../../lib/types';
 import { S } from '../../lib/state';
 
-type CmdPanelProps = {
-  view: CmdActiveView | string;
-  journalStorageExpanded?: boolean;
-};
-
-export function CmdPanel({ view, journalStorageExpanded }: CmdPanelProps) {
+export function CmdPanel({ view, journalStorageExpanded }) {
   const journalExpanded = journalStorageExpanded ?? S.journalStorageExpanded;
 
   switch (view) {
@@ -214,7 +208,7 @@ function CmdCalendar() {
   );
 }
 
-function CmdJournal({ expanded }: { expanded: boolean }) {
+function CmdJournal({ expanded }) {
   return (
     <div id="journalShell" className={`journal-shell${expanded ? ' storage-expanded' : ''}`}>
       <section className="journal-main">
