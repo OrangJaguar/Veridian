@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import '../css/app.css';
 import { runAxiomApp } from '../axiom/runAxiomApp';
 import { AppHeader, AppFooter } from '../views/ops/AppHeader';
 import {
