@@ -23,3 +23,22 @@ export function parseLocalDateKey(dateKey) {
 export function getTodayKey() {
   return toLocalDateKey(new Date());
 }
+
+export function formatDate(dateStr, style = 'short') {
+  if (!dateStr) return '';
+  const d = dateStr instanceof Date ? dateStr : new Date(dateStr);
+  if (isNaN(d)) return dateStr;
+  if (style === 'long') return d.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  if (style === 'short') return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return d.toLocaleDateString();
+}
+export function getTodayISO() {
+  return new Date().toISOString().split('T');
+}
+export function isOverdue(dateStr) {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return d < today;
+}
