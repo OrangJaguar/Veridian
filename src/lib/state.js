@@ -1,6 +1,6 @@
 // Mutable global state singleton used by the imperative engine (runAxiomApp)
 export const S = {
-  appMode: 'ops',
+  appMode: 'cmd',
   cmdActiveView: 'dashboard',
 
   prefs: {
