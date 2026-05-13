@@ -1,4 +1,4 @@
-    :root {
+:root {
       --bg: #ffffff;
       --surface: #f4f4f5;
       --surface-hover: #e4e4e7;
@@ -1041,8 +1041,8 @@
     .focus-tab.active { background: #d6d8e6; color: #000000; }
     .focus-card {
       --focus-clock-size: clamp(3.4rem, min(10.5vmin, 9.5vw), 5.85rem);
-      background: #000000;
-      border: 1px solid #151515;
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: 16px;
       width: 100%;
       flex-shrink: 0;
@@ -1095,9 +1095,9 @@
     .focus-zone-context {
       flex: 1;
       min-height: 0;
-      border: 1px solid #2a2a2a;
+      border: 1px solid var(--border);
       border-radius: 12px;
-      background: #0d0d0d;
+      background: var(--bg);
       padding: 0.55rem;
       overflow: auto;
       display: flex;
@@ -1105,15 +1105,15 @@
       gap: 0.4rem;
     }
     .focus-zone-item {
-      border: 1px solid #242424;
+      border: 1px solid var(--border);
       border-radius: 10px;
-      background: #111;
+      background: var(--surface);
       padding: 0.45rem 0.52rem;
-      color: #e8ebff;
+      color: var(--text-main);
       font-size: 0.83rem;
       text-align: left;
     }
-    .focus-zone-item .meta { color: #aab1cc; font-size: 0.72rem; margin-top: 0.15rem; }
+    .focus-zone-item .meta { color: var(--text-muted); font-size: 0.72rem; margin-top: 0.15rem; }
     .focus-pomodoro-controls {
       flex-shrink: 0;
       width: 100%;
@@ -1134,13 +1134,13 @@
       justify-content: center;
       padding-top: 0;
     }
-    .focus-label { color: #cfd2de; font-size: 1.8rem; font-weight: 700; letter-spacing: 0.03em; }
+    .focus-label { color: var(--text-main); font-size: 1.8rem; font-weight: 700; letter-spacing: 0.03em; }
     .segment-clock {
-      color: #e8ebff;
+      color: var(--text-main);
       font-family: var(--font-mono);
       font-size: var(--focus-clock-size);
       letter-spacing: 0.08em;
-      text-shadow: 0 0 10px rgba(224, 227, 255, 0.9), 0 0 24px rgba(168, 175, 218, 0.55);
+      text-shadow: none;
       line-height: 1;
     }
     .ampm-stack {
@@ -1151,9 +1151,9 @@
       margin-left: calc(var(--focus-clock-size) * 0.14);
     }
     .ampm-pill {
-      border: 1px solid #2f3340;
-      background: #111111;
-      color: #7f8698;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-muted);
       border-radius: calc(var(--focus-clock-size) * 0.11);
       padding: calc(var(--focus-clock-size) * 0.07) calc(var(--focus-clock-size) * 0.13);
       font-size: calc(var(--focus-clock-size) * 0.26);
@@ -1162,15 +1162,15 @@
       text-align: center;
       line-height: 1.1;
     }
-    .ampm-pill.active { background: #d6d8e6; color: #ffffff; border-color: #d6d8e6; }
+    .ampm-pill.active { background: var(--text-main); color: var(--bg); border-color: var(--text-main); }
     .focus-top-controls { display: flex; align-items: center; justify-content: center; gap: 0.75rem 1rem; flex-wrap: wrap; }
-    .focus-top-controls label { color: #cfd2de; font-weight: 700; font-size: 0.95rem; }
+    .focus-top-controls label { color: var(--text-main); font-weight: 700; font-size: 0.95rem; }
     .focus-top-controls input {
       width: 70px;
-      background: #0e0e0e;
-      border: 1px solid #2f3340;
+      background: var(--bg);
+      border: 1px solid var(--border);
       border-radius: 12px;
-      color: #ffffff;
+      color: var(--text-main);
       text-align: center;
       padding: 0.5rem 0.4rem;
       font-size: 1.2rem;
@@ -1178,10 +1178,10 @@
     }
     .focus-actions { display: flex; gap: 0.7rem; }
     .focus-btn {
-      background: #0f0f0f;
-      border: 1px solid #2f3340;
+      background: var(--bg);
+      border: 1px solid var(--border);
       border-radius: 12px;
-      color: #ffffff;
+      color: var(--text-main);
       padding: 0.55rem 1.25rem;
       font-weight: 700;
       cursor: pointer;
@@ -1402,4 +1402,3 @@
     .review-q { font-weight: 500; color: var(--text-main); font-size: 0.95rem; flex-grow: 1; padding-right: 1rem;}
     .review-tta { font-size: 0.75rem; font-family: var(--font-mono); color: var(--text-muted); background: var(--bg); padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid var(--border); white-space: nowrap;}
     .review-a { color: var(--text-muted); margin-top: 0.5rem; }
-
