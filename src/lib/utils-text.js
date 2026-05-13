@@ -1,40 +1,43 @@
-export function generateId() {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+/** HTML escaping and journal preview helpers (no app state). */
+
+export function escapeHtml(str: string | undefined | null): string {
+  return (str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
-export function truncate(str, maxLen = 80) {
-  if (str.length <= maxLen) return str;
-  return str.slice(0, maxLen - 1) + '…';
+export function stripJournalHtml(html: string | undefined | null): string {
+  const div = document.createElement('div');
+  div.innerHTML = html || '';
+  return (div.textContent || '').trim();
 }
 
-export function capitalize(str) {
-  if (!str) return '';
-  return str.charAt(0).toUpperCase() + str.slice(1);
+export function escapeRegExp(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-export function wordCount(str) {
-  return str.trim().split(/\s+/).filter(Boolean).length;
+export function firstSentencePreview(text: string | undefined | null): string {
+  const clean = stripJournalHtml(text || '').replace(/\s+/g, ' ').trim();
+  if (!clean) return 'No entry yet';
+  const parts = clean.split(/(?<=[.!?])\s+/);
+  return (parts[0] || clean).slice(0, 180);
 }
 
-export function formatWPM(wpm) {
-  return `${Math.round(wpm)} WPM`;
-}
-
-export function formatAccuracy(acc) {
-  return `${Math.round(acc)}%`;
-}
-
-export const TYPING_SAMPLES = [
-  "The quick brown fox jumps over the lazy dog.",
-  "To be or not to be, that is the question.",
-  "All that glitters is not gold.",
-  "In the beginning was the Word, and the Word was with God.",
-  "It was the best of times, it was the worst of times.",
-  "The only way to do great work is to love what you do.",
-  "Success is not final, failure is not fatal: it is the courage to continue that counts.",
-  "Two roads diverged in a wood, and I took the one less traveled by.",
-];
-
-export function getRandomTypingSample() {
-  return TYPING_SAMPLES[Math.floor(Math.random() * TYPING_SAMPLES.length)];
+export function journalPreviewForQuery(content: string, query: string): string {
+  const clean = stripJournalHtml(content || '').replace(/\s+/g, ' ').trim();
+  if (!clean) return 'No entry yet';
+  if (!query) return escapeHtml(firstSentencePreview(clean));
+  const re = new RegExp(escapeRegExp(query), 'i');
+  const match = clean.match(re);
+  if (!match || match.index == null) return escapeHtml(firstSentencePreview(clean));
+  const start = Math.max(0, match.index - 26);
+  const end = Math.min(clean.length, match.index + match[0].length + 26);
+  const seg = clean.slice(start, end);
+  const localIdx = match.index - start;
+  const before = escapeHtml(seg.slice(0, localIdx));
+  const hit = escapeHtml(seg.slice(localIdx, localIdx + match[0].length));
+  const after = escapeHtml(seg.slice(localIdx + match[0].length));
+  return `${start > 0 ? '...' : ''}${before}<mark class="journal-match-mark">${hit}</mark>${after}${end < clean.length ? '...' : ''}`;
 }
