@@ -737,8 +737,8 @@
           to bottom,
           transparent 0,
           transparent 55px,
-          rgba(255,255,255,0.06) 55px,
-          rgba(255,255,255,0.06) 56px
+          rgba(255,255,255,0.15) 55px,
+          rgba(255,255,255,0.15) 56px
         );
       cursor: crosshair;
     }
@@ -748,8 +748,8 @@
           to bottom,
           transparent 0,
           transparent 55px,
-          rgba(9,9,11,0.08) 55px,
-          rgba(9,9,11,0.08) 56px
+          rgba(9,9,11,0.15) 55px,
+          rgba(9,9,11,0.15) 56px
         );
     }
     .calendar-event {
