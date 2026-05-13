@@ -469,7 +469,7 @@
       gap: 0.35rem;
     }
     .cmd-title { color: var(--text-muted); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-    .cmd-value { color: #ffffff; font-size: 2rem; font-weight: 700; letter-spacing: 0.02em; }
+    .cmd-value { color: var(--text-main); font-size: 2rem; font-weight: 700; letter-spacing: 0.02em; }
     .cmd-value-sm { color: #ffffff; font-size: 0.95rem; font-weight: 700; }
     .cmd-value.cmd-clickable {
       cursor: pointer;
