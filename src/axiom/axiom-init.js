@@ -4,7 +4,7 @@ import { toLocalDateKey, parseLocalDateKey, getTodayKey, addDays } from '../lib/
 import { applyTheme, applySettingsToUI } from '../lib/modals/settings-ui';
 import { saveDecks } from '../lib/ops/deck-storage';
 import { saveTelemetry } from '../lib/ops/telemetry-storage';
-import { loadAllFromCloud, migrateLocalToCloud, setCloudUser, isCloudEnabled } from '../lib/cloudSync';
+import { loadAllFromCloud, setCloudUser, isCloudEnabled } from '../lib/cloudSync';
 import { base44 } from '../api/base44Client';
 
 export function sumTelemetryDay(dayObj) {
@@ -186,20 +186,8 @@ export async function bootSystem(els, callbacks) {
 
 export async function onUserSignedIn(user, S, els, callbacks) {
   setCloudUser(user);
-  // Capture local state snapshot for migration
-  const localSnapshot = {
-    decks: [...S.decks],
-    agendaTasks: [...S.agendaTasks],
-    calendarEvents: [...S.calendarEvents],
-    journalEntries: { ...S.journalEntries },
-    telemetry: { ...S.telemetry, daily: { ...S.telemetry.daily } }
-  };
-  const localPrefs = { ...S.prefs };
 
-  // Migrate local → cloud (merge)
-  await migrateLocalToCloud(localSnapshot, localPrefs);
-
-  // Now load full cloud state
+  // Load cloud state — do NOT migrate local data to cloud to avoid overwriting real account data
   await loadAllFromCloud(S);
   S.telemetry.daily = normalizeTelemetryDailyMap(S.telemetry.daily);
   const todayBucket = S.telemetry.daily[getTodayKey()] || {};
