@@ -1,4 +1,4 @@
-import { PREFS_KEY, DECKS_KEY, TELEMETRY_KEY } from '../lib/constants-storage';
+import { PREFS_KEY, DECKS_KEY, TELEMETRY_KEY, AGENDA_TASKS_KEY, AGENDA_TASK_ORDER_KEY, CALENDAR_EVENTS_KEY, JOURNAL_ENTRIES_KEY } from '../lib/constants-storage';
 import { S } from '../lib/state';
 import { toLocalDateKey, parseLocalDateKey, getTodayKey, addDays } from '../lib/utils-date';
 import { applyTheme, applySettingsToUI } from '../lib/modals/settings-ui';
@@ -107,6 +107,17 @@ export function deleteDeck(id, renderDashboard) {
   renderDashboard();
 }
 
+function flushCloudStateToLocalStorage() {
+  // After loading from cloud, write S state to localStorage so that
+  // loadAgendaData/loadCalendarData/loadJournalData re-read the correct data.
+  localStorage.setItem(AGENDA_TASKS_KEY, JSON.stringify(S.agendaTasks));
+  localStorage.setItem(CALENDAR_EVENTS_KEY, JSON.stringify(S.calendarEvents));
+  localStorage.setItem(JOURNAL_ENTRIES_KEY, JSON.stringify(S.journalEntries));
+  localStorage.setItem(DECKS_KEY, JSON.stringify(S.decks));
+  localStorage.setItem(PREFS_KEY, JSON.stringify(S.prefs));
+  localStorage.setItem(TELEMETRY_KEY, JSON.stringify(S.telemetry));
+}
+
 function loadFromLocalStorage() {
   if (localStorage.getItem(PREFS_KEY)) S.prefs = JSON.parse(localStorage.getItem(PREFS_KEY));
   if (localStorage.getItem(DECKS_KEY)) S.decks = JSON.parse(localStorage.getItem(DECKS_KEY));
@@ -169,6 +180,8 @@ export async function bootSystem(els, callbacks) {
         questionsAnswered: Number(todayBucket.questionsAnswered || 0),
         cardsFlipped: Number(todayBucket.cardsFlipped || 0)
       };
+      // Flush cloud state to localStorage so load* functions read cloud data
+      flushCloudStateToLocalStorage();
       callbacks.loadAgendaData();
       callbacks.loadCalendarData();
       callbacks.loadJournalData();
@@ -189,6 +202,8 @@ export async function onUserSignedIn(user, S, els, callbacks) {
 
   // Load cloud state — do NOT migrate local data to cloud to avoid overwriting real account data
   await loadAllFromCloud(S);
+  // Flush cloud state to localStorage so load* functions read cloud data
+  flushCloudStateToLocalStorage();
   S.telemetry.daily = normalizeTelemetryDailyMap(S.telemetry.daily);
   const todayBucket = S.telemetry.daily[getTodayKey()] || {};
   S.telemetryTodayBaseline = {
