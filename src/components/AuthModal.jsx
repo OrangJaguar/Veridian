@@ -6,6 +6,9 @@ export default function AuthModal({ onClose, onSuccess }) {
   const [step, setStep] = useState('form'); // 'form' | 'verify'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [name, setName] = useState('');
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
@@ -57,6 +60,7 @@ export default function AuthModal({ onClose, onSuccess }) {
         const user = await base44.auth.me();
         onSuccess(user);
       } else {
+        if (password !== confirmPassword) { setError('Passwords do not match.'); setLoading(false); return; }
         await base44.auth.register({ email, password, full_name: name });
         setInfo('Code sent! Check your email.');
         setStep('verify');
@@ -191,7 +195,7 @@ export default function AuthModal({ onClose, onSuccess }) {
               {/* Tabs */}
               <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', background: 'var(--surface)', borderRadius: '999px', padding: '3px', border: '1px solid var(--border)' }}>
                 {['login', 'signup'].map(t => (
-                  <button key={t} onClick={() => { setTab(t); resetMessages(); }}
+                  <button key={t} onClick={() => { setTab(t); resetMessages(); setConfirmPassword(''); setShowPassword(false); setShowConfirmPassword(false); }}
                     style={{ flex: 1, border: 'none', borderRadius: '999px', padding: '0.45rem', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', background: tab === t ? 'var(--primary)' : 'transparent', color: tab === t ? 'var(--primary-fg)' : 'var(--text-muted)', transition: 'all 0.15s' }}>
                     {t === 'login' ? 'Sign In' : 'Sign Up'}
                   </button>
@@ -211,8 +215,48 @@ export default function AuthModal({ onClose, onSuccess }) {
                 </div>
                 <div className="agenda-modal-field" style={{ margin: 0 }}>
                   <label>Password</label>
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={tab === 'signup' ? 'Min. 8 characters' : '••••••••'} required minLength={tab === 'signup' ? 8 : 1} />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder={tab === 'signup' ? 'Min. 8 characters' : '••••••••'}
+                      required
+                      minLength={tab === 'signup' ? 8 : 1}
+                      style={{ paddingRight: '2.5rem' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(v => !v)}
+                      style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1rem', lineHeight: 1, padding: 0 }}
+                    >
+                      {showPassword ? '🙈' : '👁'}
+                    </button>
+                  </div>
                 </div>
+                {tab === 'signup' && (
+                  <div className="agenda-modal-field" style={{ margin: 0 }}>
+                    <label>Confirm Password</label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={e => setConfirmPassword(e.target.value)}
+                        placeholder="Re-enter password"
+                        required
+                        minLength={8}
+                        style={{ paddingRight: '2.5rem' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(v => !v)}
+                        style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '1rem', lineHeight: 1, padding: 0 }}
+                      >
+                        {showConfirmPassword ? '🙈' : '👁'}
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <button type="submit" className="btn btn-primary" disabled={loading}
                   style={{ marginTop: '0.25rem', width: '100%', justifyContent: 'center' }}>
                   {loading ? 'Please wait…' : tab === 'login' ? 'Sign In' : 'Create Account'}
