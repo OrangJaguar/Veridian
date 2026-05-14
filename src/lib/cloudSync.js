@@ -23,7 +23,7 @@ export async function cloudSaveDeck(deck) {
   const existing = await base44.entities.UserDeck.filter({ deckId: deck.id });
   const payload = { deckId: deck.id, title: deck.title, rawText: deck.rawText, parsedItems: deck.parsedItems, lastEdited: deck.lastEdited };
   if (existing.length > 0) await base44.entities.UserDeck.update(existing[0].id, payload);
-  else await base44.entities.UserDeck.create(payload);
+  else await base44.entities.UserDeck.create({ ...payload, userEmail: _currentUser?.email || '' });
 }
 
 export async function cloudDeleteDeck(deckId) {
@@ -45,7 +45,7 @@ export async function cloudSaveTask(task) {
   const existing = await base44.entities.UserTask.filter({ taskId: task.id });
   const payload = { taskId: task.id, title: task.title, due: task.due || '', priority: task.priority || '', class: task.class || '', notes: task.notes || '', type: task.type, completed: !!task.completed, completedAt: task.completedAt || '' };
   if (existing.length > 0) await base44.entities.UserTask.update(existing[0].id, payload);
-  else await base44.entities.UserTask.create(payload);
+  else await base44.entities.UserTask.create({ ...payload, userEmail: _currentUser?.email || '' });
 }
 
 export async function cloudDeleteTask(taskId) {
@@ -72,7 +72,7 @@ export async function cloudSaveCalendarEvent(evt) {
   const existing = await base44.entities.UserCalendarEvent.filter({ eventId: evt.id });
   const payload = { eventId: evt.id, title: evt.title, start: evt.start, end: evt.end, allDay: !!evt.allDay, color: evt.color || '#7f8aa5', repeatRule: evt.repeatRule || 'none', repeatDays: evt.repeatDays || [], notes: evt.notes || '' };
   if (existing.length > 0) await base44.entities.UserCalendarEvent.update(existing[0].id, payload);
-  else await base44.entities.UserCalendarEvent.create(payload);
+  else await base44.entities.UserCalendarEvent.create({ ...payload, userEmail: _currentUser?.email || '' });
 }
 
 export async function cloudDeleteCalendarEvent(eventId) {
@@ -101,7 +101,7 @@ export async function cloudSaveJournalEntry(dateKey, entry) {
   const existing = await base44.entities.UserJournalEntry.filter({ dateKey });
   const payload = { dateKey, content: entry.content || '', updatedAt: entry.updatedAt || Date.now() };
   if (existing.length > 0) await base44.entities.UserJournalEntry.update(existing[0].id, payload);
-  else await base44.entities.UserJournalEntry.create(payload);
+  else await base44.entities.UserJournalEntry.create({ ...payload, userEmail: _currentUser?.email || '' });
 }
 
 // ─── Telemetry ────────────────────────────────────────────────────────────────
@@ -118,7 +118,7 @@ export async function cloudSaveTelemetry(telemetry) {
   const records = await base44.entities.UserTelemetry.list();
   const payload = { daily: telemetry.daily, timeEngagedSec: telemetry.timeEngagedSec, globalCorrect: telemetry.globalCorrect, globalAnswered: telemetry.globalAnswered, cardsFlipped: telemetry.cardsFlipped };
   if (records.length > 0) await base44.entities.UserTelemetry.update(records[0].id, payload);
-  else await base44.entities.UserTelemetry.create(payload);
+  else await base44.entities.UserTelemetry.create({ ...payload, userEmail: _currentUser?.email || '' });
 }
 
 // ─── Preferences ─────────────────────────────────────────────────────────────
@@ -135,7 +135,7 @@ export async function cloudSavePreferences(prefs) {
   const records = await base44.entities.UserPreferences.list();
   const payload = { themeDark: !!prefs.themeDark, haptics: !!prefs.haptics, audio: !!prefs.audio, strictMode: !!prefs.strictMode };
   if (records.length > 0) await base44.entities.UserPreferences.update(records[0].id, payload);
-  else await base44.entities.UserPreferences.create(payload);
+  else await base44.entities.UserPreferences.create({ ...payload, userEmail: _currentUser?.email || '' });
 }
 
 // ─── Migration: local → cloud ─────────────────────────────────────────────────

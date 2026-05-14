@@ -2,6 +2,10 @@
   "name": "UserDeck",
   "type": "object",
   "properties": {
+    "userEmail": {
+      "type": "string",
+      "description": "Email of the owning user"
+    },
     "title": {
       "type": "string"
     },

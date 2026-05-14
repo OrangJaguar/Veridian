@@ -2,6 +2,10 @@
   "name": "UserPreferences",
   "type": "object",
   "properties": {
+    "userEmail": {
+      "type": "string",
+      "description": "Email of the owning user"
+    },
     "themeDark": {
       "type": "boolean"
     },
