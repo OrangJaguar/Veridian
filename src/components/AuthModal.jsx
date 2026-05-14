@@ -62,12 +62,13 @@ export default function AuthModal({ onClose, onSuccess }) {
         setStep('verify');
       }
     } catch (err) {
-      const msg = err?.message || err?.data?.message || 'Something went wrong.';
-      if (/verif|otp|code/i.test(msg)) {
+      const msg = err?.response?.data?.message || err?.data?.message || err?.message || 'Something went wrong.';
+      const msgStr = typeof msg === 'string' ? msg : 'Something went wrong.';
+      if (/verif|otp|code/i.test(msgStr)) {
         setInfo('Check your email for a verification code.');
         setStep('verify');
       } else {
-        setError(msg);
+        setError(msgStr);
       }
     } finally {
       setLoading(false);
@@ -81,11 +82,15 @@ export default function AuthModal({ onClose, onSuccess }) {
     resetMessages();
     setLoading(true);
     try {
-      await base44.auth.verifyOtp(email, otpCode);
+      const response = await base44.auth.verifyOtp({ email, otpCode });
+      // verifyOtp doesn't auto-set the token, so do it manually
+      const token = response?.access_token || response?.token || response?.data?.access_token;
+      if (token) base44.auth.setToken(token);
       const user = await base44.auth.me();
       onSuccess(user);
     } catch (err) {
-      setError(err?.message || err?.data?.message || 'Invalid code. Try again.');
+      const msg = err?.response?.data?.message || err?.data?.message || err?.message || 'Invalid code. Try again.';
+      setError(typeof msg === 'string' ? msg : 'Invalid code. Try again.');
     } finally {
       setLoading(false);
     }
@@ -99,7 +104,8 @@ export default function AuthModal({ onClose, onSuccess }) {
       await base44.auth.resendOtp(email);
       setInfo('New code sent!');
     } catch (err) {
-      setError(err?.message || 'Could not resend code.');
+      const msg = err?.response?.data?.message || err?.data?.message || err?.message || 'Could not resend code.';
+      setError(typeof msg === 'string' ? msg : 'Could not resend code.');
     } finally {
       setLoading(false);
     }
