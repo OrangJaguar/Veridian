@@ -416,7 +416,7 @@ export function bindCalendarDragGlobal() {
         else if (st.mode === 'resize-start') { const startDiff = st.startMin - st.origStartMin; baseStart = new Date(baseStart.getTime() + startDiff * 60000); if (Math.round((baseEnd - baseStart) / 60000) < 15) baseStart = new Date(baseEnd.getTime() - 15 * 60000); }
         else { const endDiff = st.endMin - st.origEndMin; baseEnd = new Date(baseEnd.getTime() + endDiff * 60000); if (Math.round((baseEnd - baseStart) / 60000) < 15) baseEnd = new Date(baseStart.getTime() + 15 * 60000); }
         S.calendarEvents[idx] = normalizeCalendarEvent({ ...current, start: toDateTimeLocalKey(baseStart), end: toDateTimeLocalKey(baseEnd) });
-        saveCalendarData();
+        saveCalendarDataCloud(S.calendarEvents[idx]);
       }
       renderCalendarWeek(); return;
     }

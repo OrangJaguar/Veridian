@@ -152,7 +152,7 @@ export function toggleAgendaItemComplete(id, renderAgendaLists, renderCalendarWe
       window.setTimeout(() => {
         item.completed = true; item.completedAt = new Date().toISOString();
         S.agendaTaskOrder = S.agendaTaskOrder.filter(oid => oid !== id);
-        saveAgendaData(); renderAgendaLists();
+        saveAgendaDataCloud(item); renderAgendaLists();
       }, 520);
       return;
     }
@@ -160,26 +160,28 @@ export function toggleAgendaItemComplete(id, renderAgendaLists, renderCalendarWe
   item.completed = !item.completed;
   if (item.completed) { item.completedAt = new Date().toISOString(); S.agendaTaskOrder = S.agendaTaskOrder.filter(oid => oid !== id); }
   else { delete item.completedAt; if (!S.agendaTaskOrder.includes(id)) S.agendaTaskOrder.push(id); }
-  saveAgendaData(); renderAgendaLists(); renderCalendarWeek();
+  saveAgendaDataCloud(item); renderAgendaLists(); renderCalendarWeek();
 }
 
 export function deleteAgendaItem(id, renderAgendaLists, renderCalendarWeek) {
   S.agendaTasks = S.agendaTasks.filter(t => t.id !== id);
   S.agendaTaskOrder = S.agendaTaskOrder.filter(oid => oid !== id);
-  saveAgendaData(); renderAgendaLists(); renderCalendarWeek();
+  saveAgendaData();
+  deleteAgendaItemCloud(id);
+  renderAgendaLists(); renderCalendarWeek();
 }
 
 export function addAgendaItem(itemData, type, renderAgendaLists, renderCalendarWeek) {
   const newItem = { id: Date.now(), title: itemData.title, due: itemData.due, priority: itemData.priority || '', class: itemData.class || '', notes: itemData.notes || '', type, completed: false, createdAt: new Date().toISOString() };
   S.agendaTasks.push(newItem); S.agendaTaskOrder.push(newItem.id);
-  saveAgendaData(); renderAgendaLists(); renderCalendarWeek();
+  saveAgendaDataCloud(newItem); renderAgendaLists(); renderCalendarWeek();
 }
 
 export function updateAgendaItem(id, itemData, renderAgendaLists, renderCalendarWeek) {
   const taskIndex = S.agendaTasks.findIndex(t => t.id === id);
   if (taskIndex === -1) return;
   S.agendaTasks[taskIndex] = { ...S.agendaTasks[taskIndex], ...itemData };
-  saveAgendaData(); renderAgendaLists(); renderCalendarWeek();
+  saveAgendaDataCloud(S.agendaTasks[taskIndex]); renderAgendaLists(); renderCalendarWeek();
 }
 
 export function openAgendaModalEdit(id) {

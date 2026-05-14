@@ -12,7 +12,7 @@ import { CmdPanel } from '../views/cmd/CmdPanel';
 // Module imports
 import { bootSystem, saveDeck, deleteDeck, applyTelemetryDelta, normalizeTelemetryDailyMap, heuristicParse, onUserSignedIn } from './axiom-init';
 import { loadAgendaData, saveAgendaData, ensureAgendaDnDDelegates, createAgendaItemElement, toggleAgendaItemComplete, deleteAgendaItem, addAgendaItem, updateAgendaItem, openAgendaModalEdit, openAgendaModalNewTask, closeAgendaModal, renderAgendaLists } from './axiom-agenda';
-import { loadCalendarData, saveCalendarData, bindCalendarDragGlobal, renderCalendarWeek, bindCalendarChrome, openCalendarModalForEdit, openCalendarModalForNew, closeCalendarModal, openCalendarDayModal, closeCalendarDayModal, openCalendarMonthModal, closeCalendarMonthModal, renderCalendarMonthGrid, normalizeCalendarEvent, toDateTimeLocalKey, getCalendarRepeatDaysFromUI, updateCalendarRepeatDaysVisibility, syncCalendarColorSwatches, setCalendarRepeatDays, getDebriefItemsForToday } from './axiom-calendar';
+import { loadCalendarData, saveCalendarData, saveCalendarDataCloud, deleteCalendarEventCloud, bindCalendarDragGlobal, renderCalendarWeek, bindCalendarChrome, openCalendarModalForEdit, openCalendarModalForNew, closeCalendarModal, openCalendarDayModal, closeCalendarDayModal, openCalendarMonthModal, closeCalendarMonthModal, renderCalendarMonthGrid, normalizeCalendarEvent, toDateTimeLocalKey, getCalendarRepeatDaysFromUI, updateCalendarRepeatDaysVisibility, syncCalendarColorSwatches, setCalendarRepeatDays, getDebriefItemsForToday } from './axiom-calendar';
 import { loadJournalData, saveJournalData, renderJournalView, renderJournalList, flushActiveJournalToStorage, saveActiveJournalEntryImmediate, closeJournalEntryModal, openJournalMonthModal, closeJournalMonthModal, renderJournalMonthGrid } from './axiom-journal';
 import { initAudio, playSoundEffect, triggerHaptic, triggerVisualGlow, triggerNeutralGlow, formatTimeFriendly, formatTime, toMmSs, shuffle, generateQuizData, generateFlashcardData, buildTypingQueue, renderMaskedAnswerWithReveal, ensureMasteryCardStats, showMasterySummary, enumerateDates } from './axiom-ops';
 
@@ -433,7 +433,7 @@ export function runAxiomApp() {
     const nextEvent = normalizeCalendarEvent({ id: idVal ? Number(idVal) : Date.now(), title: document.getElementById('calendarFieldTitle').value.trim(), start: document.getElementById('calendarFieldStart').value, end: document.getElementById('calendarFieldEnd').value, color: document.getElementById('calendarFieldColor').value || '#7f8aa5', repeatRule: document.getElementById('calendarFieldRepeat').value, repeatDays: getCalendarRepeatDaysFromUI(), notes: document.getElementById('calendarFieldNotes').value });
     if (new Date(nextEvent.end) <= new Date(nextEvent.start)) { alert('End time must be after start time.'); return; }
     if (idVal) { const idx = S.calendarEvents.findIndex(ei => String(ei.id) === String(idVal)); if (idx >= 0) S.calendarEvents[idx] = nextEvent; } else { S.calendarEvents.push(nextEvent); }
-    saveCalendarData(); closeCalendarModal(); renderCalendarWeek();
+    saveCalendarDataCloud(nextEvent); closeCalendarModal(); renderCalendarWeek();
   });
   document.getElementById('calendarModalCancel').addEventListener('click', closeCalendarModal);
   document.querySelectorAll('[data-calendar-modal-close]').forEach(btn => { btn.addEventListener('click', closeCalendarModal); });
@@ -441,7 +441,7 @@ export function runAxiomApp() {
   document.querySelectorAll('.calendar-repeat-day-chip').forEach(ch => { ch.addEventListener('click', () => ch.classList.toggle('active')); });
   document.querySelectorAll('.calendar-color-swatch').forEach(sw => { sw.addEventListener('click', () => { const v = sw.dataset.color; document.getElementById('calendarFieldColor').value = v; syncCalendarColorSwatches(v); }); });
   document.getElementById('calendarFieldColor').addEventListener('input', (e) => syncCalendarColorSwatches(e.target.value));
-  document.getElementById('calendarDeleteBtn').addEventListener('click', () => { const idVal = document.getElementById('calendarEventId').value; if (!idVal) return; S.calendarEvents = S.calendarEvents.filter(ei => String(ei.id) !== String(idVal)); saveCalendarData(); closeCalendarModal(); renderCalendarWeek(); });
+  document.getElementById('calendarDeleteBtn').addEventListener('click', () => { const idVal = document.getElementById('calendarEventId').value; if (!idVal) return; S.calendarEvents = S.calendarEvents.filter(ei => String(ei.id) !== String(idVal)); saveCalendarData(); deleteCalendarEventCloud(idVal); closeCalendarModal(); renderCalendarWeek(); });
   const calendarModalEl = document.getElementById('calendarEventModal');
   if (calendarModalEl) calendarModalEl.addEventListener('click', (e) => { if (e.target === calendarModalEl) closeCalendarModal(); });
   document.querySelectorAll('[data-calendar-day-close]').forEach(btn => { btn.addEventListener('click', closeCalendarDayModal); });
