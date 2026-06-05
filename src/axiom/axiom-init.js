@@ -4,7 +4,7 @@ import { toLocalDateKey, parseLocalDateKey, getTodayKey, addDays } from '../lib/
 import { applyTheme, applySettingsToUI } from '../lib/modals/settings-ui';
 import { saveDecks } from '../lib/ops/deck-storage';
 import { saveTelemetry } from '../lib/ops/telemetry-storage';
-import { loadAllFromCloud, setCloudUser, isCloudEnabled } from '../lib/cloudSync';
+import { loadAllFromCloud, setCloudUser } from '../lib/cloudSync';
 import { base44 } from '../api/base44Client';
 
 export function sumTelemetryDay(dayObj) {
@@ -142,14 +142,12 @@ export async function bootSystem(els, callbacks) {
   loadFromLocalStorage();
   finalizeBoot(els, callbacks);
 
-  // Then check if user is logged in
   try {
     const isAuthed = await base44.auth.isAuthenticated();
     if (isAuthed) {
       const user = await base44.auth.me();
       setCloudUser(user);
       await loadAllFromCloud(S);
-      // Re-normalize after cloud load
       S.telemetry.daily = normalizeTelemetryDailyMap(S.telemetry.daily);
       const todayBucket = S.telemetry.daily[getTodayKey()] || {};
       S.telemetryTodayBaseline = {
@@ -172,8 +170,6 @@ export async function bootSystem(els, callbacks) {
 
 export async function onUserSignedIn(user, S, els, callbacks) {
   setCloudUser(user);
-
-  // Load cloud state — do NOT migrate local data to cloud to avoid overwriting real account data
   await loadAllFromCloud(S);
   S.telemetry.daily = normalizeTelemetryDailyMap(S.telemetry.daily);
   const todayBucket = S.telemetry.daily[getTodayKey()] || {};
