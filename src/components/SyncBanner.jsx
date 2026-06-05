@@ -8,7 +8,7 @@ export default function SyncBanner({ onSignIn }) {
 
   return (
     <div
-      id="axiomSyncBanner"
+      id="veridianSyncBanner"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{

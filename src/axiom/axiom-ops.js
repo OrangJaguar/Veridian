@@ -146,7 +146,7 @@ export function showMasterySummary(els) {
     div.innerHTML = `<div class="review-meta-bar"><div class="review-q">${idx + 1}. ${r.front}</div><div class="review-tta">${r.totalSec.toFixed(1)}s</div></div><div class="review-a">${quality}<br>Recall: ${r.recallSec.toFixed(1)}s · Typing: ${r.typingSec.toFixed(1)}s · Total: ${r.totalSec.toFixed(1)}s<br>Attempts: ${r.totalAttempts} · Typing mistakes: ${r.typingWrongAttempts} · Skips: ${r.typingSkippedCount} · Recall retries: ${r.recallAgainCount}</div>`;
     els.masteryReviewContainer.appendChild(div);
   });
-  S.state.masteryCopyText = `Axiom Mastery Results\nMastered: ${rows.length}/${rows.length}\nTotal Time: ${toMmSs(S.state.masterySessionSeconds)}\n\n${rows.map(r => `${r.front} | ${r.initiallySkipped ? 'Recovered from skip' : (r.struggled ? 'Mastered with retries' : 'Clean mastery')} | Recall ${r.recallSec.toFixed(1)}s | Typing ${r.typingSec.toFixed(1)}s | Total ${r.totalSec.toFixed(1)}s | Attempts ${r.totalAttempts} | Typing mistakes ${r.typingWrongAttempts} | Skips ${r.typingSkippedCount} | Recall retries ${r.recallAgainCount}`).join('\n')}`;
+  S.state.masteryCopyText = `Veridian Mastery Results\nMastered: ${rows.length}/${rows.length}\nTotal Time: ${toMmSs(S.state.masterySessionSeconds)}\n\n${rows.map(r => `${r.front} | ${r.initiallySkipped ? 'Recovered from skip' : (r.struggled ? 'Mastered with retries' : 'Clean mastery')} | Recall ${r.recallSec.toFixed(1)}s | Typing ${r.typingSec.toFixed(1)}s | Total ${r.totalSec.toFixed(1)}s | Attempts ${r.totalAttempts} | Typing mistakes ${r.typingWrongAttempts} | Skips ${r.typingSkippedCount} | Recall retries ${r.recallAgainCount}`).join('\n')}`;
 }
 
 export function enumerateDates(start, end) {

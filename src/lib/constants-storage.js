@@ -1,92 +1,20 @@
 // localStorage keys and static defaults
 
-export const PREFS_KEY = 'axiom_preferences';
-export const DECKS_KEY = 'axiom_decks';
-export const TELEMETRY_KEY = 'axiom_telemetry';
-export const CMD_SCHEDULE_KEY = 'axiom_cmd_schedule';
+export const PREFS_KEY = 'veridian_preferences';
+export const DECKS_KEY = 'veridian_decks';
+export const TELEMETRY_KEY = 'veridian_telemetry';
 
-export const CMD_SCHEDULE_DEFAULT = {
-  weekday: [
-    { mod: 1, start: '07:55', end: '08:18', cls: 'AP Chemistry', group: null },
-    { mod: 2, start: '08:22', end: '08:45', cls: 'AP Chemistry', group: null },
-    { mod: 3, start: '08:49', end: '09:18', cls: 'AP Chemistry', group: null },
-    { mod: 4, start: '09:22', end: '09:45', cls: 'AP Chemistry', group: null },
-    { mod: 5, start: '09:49', end: '10:12', cls: 'AP Calculus BC', group: null },
-    { mod: 6, start: '10:16', end: '10:39', cls: 'AP Calculus BC', group: null },
-    { mod: 7, start: '10:43', end: '11:06', cls: 'AP American Studies', group: null },
-    { mod: 8, start: '11:10', end: '11:33', cls: 'AP American Studies', group: null },
-    { mod: 9, start: '11:37', end: '12:00', cls: 'AP American Studies', group: null },
-    { mod: 10, start: '12:04', end: '12:27', cls: 'AP American Studies', group: null },
-    { mod: 11, start: '12:31', end: '12:54', cls: 'Lunch', group: null },
-    { mod: 12, start: '12:58', end: '13:21', cls: 'Guidance Help', group: null },
-    { mod: 13, start: '13:25', end: '13:48', cls: 'Guidance Help', group: null },
-    { mod: 14, start: '13:52', end: '14:15', cls: 'Chamber Orchestra', group: null },
-    { mod: 15, start: '14:19', end: '14:42', cls: 'Chamber Orchestra', group: null },
-  ],
-  wednesday: [
-    { mod: 1, start: '08:20', end: '08:41', cls: 'AP Chemistry', group: null },
-    { mod: 2, start: '08:45', end: '09:06', cls: 'AP Chemistry', group: null },
-    { mod: 3, start: '09:10', end: '09:32', cls: 'AP Chemistry', group: null },
-    { mod: 4, start: '09:36', end: '09:57', cls: 'AP Chemistry', group: null },
-    { mod: 5, start: '10:01', end: '10:22', cls: 'AP Calculus BC', group: null },
-    { mod: 6, start: '10:26', end: '10:47', cls: 'AP Calculus BC', group: null },
-    { mod: 7, start: '10:51', end: '11:14', cls: 'AP American Studies', group: null },
-    { mod: 8, start: '11:18', end: '11:41', cls: 'AP American Studies', group: null },
-    { mod: 9, start: '11:45', end: '12:08', cls: 'AP American Studies', group: null },
-    { mod: 10, start: '12:12', end: '12:35', cls: 'AP American Studies', group: null },
-    { mod: 11, start: '12:39', end: '13:02', cls: 'Lunch', group: null },
-    { mod: 12, start: '13:06', end: '13:27', cls: 'Guidance Help', group: null },
-    { mod: 13, start: '13:31', end: '13:52', cls: 'Guidance Help', group: null },
-    { mod: 14, start: '13:56', end: '14:17', cls: 'Chamber Orchestra', group: null },
-    { mod: 15, start: '14:21', end: '14:42', cls: 'Chamber Orchestra', group: null },
-  ],
-  exceptions: [],
-};
-
-export const AGENDA_TASKS_KEY = 'axiom_agenda_tasks';
-export const AGENDA_TASK_ORDER_KEY = 'axiom_agenda_task_order';
-export const CALENDAR_EVENTS_KEY = 'axiom_calendar_events';
-export const JOURNAL_ENTRIES_KEY = 'axiom_journal_entries';
-export const DEFAULT_AGENDA_TASKS = [
-  {
-    id: 1,
-    title: 'Complete Chemistry Lab Report',
-    due: '2023-11-15T23:59',
-    priority: 'high',
-    class: 'AP Chemistry',
-    notes: '',
-    type: 'task',
-    completed: false,
-  },
-  {
-    id: 2,
-    title: 'Study for Calculus Test',
-    due: '2023-11-17T23:59',
-    priority: 'medium',
-    class: 'AP Calculus BC',
-    notes: '',
-    type: 'task',
-    completed: false,
-  },
-  {
-    id: 3,
-    title: 'Read History Chapter 5',
-    due: '2023-11-10T23:59',
-    priority: 'low',
-    class: 'AP American Studies',
-    notes: '',
-    type: 'task',
-    completed: true,
-    completedAt: '2023-11-10T18:00:00.000Z',
-  },
-  {
-    id: 4,
-    title: 'School Basketball Game',
-    due: '2023-11-12T15:30',
-    priority: '',
-    class: '',
-    notes: 'Home game against Jefferson High',
-    type: 'event',
-    completed: false,
-  },
+const LEGACY_KEY_MAP = [
+  ['axiom_preferences', PREFS_KEY],
+  ['axiom_decks', DECKS_KEY],
+  ['axiom_telemetry', TELEMETRY_KEY],
 ];
+
+export function migrateLegacyStorageKeys() {
+  LEGACY_KEY_MAP.forEach(([oldKey, newKey]) => {
+    if (!localStorage.getItem(newKey) && localStorage.getItem(oldKey)) {
+      localStorage.setItem(newKey, localStorage.getItem(oldKey));
+      localStorage.removeItem(oldKey);
+    }
+  });
+}

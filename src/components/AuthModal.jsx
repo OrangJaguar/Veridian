@@ -130,7 +130,7 @@ export default function AuthModal({ onClose, onSuccess }) {
       <div className="modal-content" style={{ maxWidth: 380 }}>
         <div className="modal-header">
           <h2 style={{ fontSize: '1rem', fontWeight: 700 }}>
-            {step === 'verify' ? 'Verify your email' : tab === 'login' ? 'Sign in to Axiom' : 'Create an account'}
+            {step === 'verify' ? 'Verify your email' : tab === 'login' ? 'Sign in to Veridian' : 'Create an account'}
           </h2>
           <button className="close-modal-btn" onClick={onClose}>✕</button>
         </div>

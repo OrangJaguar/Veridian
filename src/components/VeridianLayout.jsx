@@ -1,14 +1,8 @@
 import { useEffect, useState } from 'react';
 import '../css/app.css';
-import { runAxiomApp } from '../axiom/runAxiomApp';
+import { runVeridianApp } from '../axiom/runVeridianApp';
 import { AppHeader, AppFooter } from '../views/ops/AppHeader';
-import {
-  PromptAndPreviewModals,
-  CmdAndAgendaModals,
-  CalendarModals,
-  JournalAndSettingsModals,
-  CmdSidebarOverlay,
-} from '../views/ops/AppOverlays';
+import { PromptAndPreviewModals, SettingsModals } from '../views/ops/AppOverlays';
 import { DashboardMain } from '../views/ops/DashboardMain';
 import { FlashcardMain } from '../views/ops/FlashcardMain';
 import { QuizMain } from '../views/ops/QuizMain';
@@ -16,34 +10,30 @@ import { TypingMain } from '../views/ops/TypingMain';
 import { SummaryMain } from '../views/ops/SummaryMain';
 import { EditorMain } from '../views/ops/EditorMain';
 import { MasterySummaryMain } from '../views/ops/MasterySummaryMain';
-import { CmdMain } from '../views/ops/CmdMain';
 import AuthModal from './AuthModal';
 import SyncBanner from './SyncBanner';
 
-let axiomBooted = false;
+let veridianBooted = false;
 
-// Global callbacks so runAxiomApp can trigger React state
-window.__axiomAuthCallbacks = { onUserLoaded: null };
+window.__veridianAuthCallbacks = { onUserLoaded: null };
 
-export default function AxiomLayout() {
-  const [user, setUser] = useState(undefined); // undefined = loading, null = guest, object = logged in
+export default function VeridianLayout() {
+  const [user, setUser] = useState(undefined);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    // Register callback for runAxiomApp to call when auth is determined
-    window.__axiomAuthCallbacks.onUserLoaded = (u) => {
+    window.__veridianAuthCallbacks.onUserLoaded = (u) => {
       setUser(u);
       if (!u) {
-        // Show banner after 3s for guests
         setTimeout(() => setShowBanner(true), 3000);
       }
     };
 
-    if (axiomBooted) return;
-    axiomBooted = true;
-    runAxiomApp();
+    if (veridianBooted) return;
+    veridianBooted = true;
+    runVeridianApp();
   }, []);
 
   async function handleAuthSuccess(loggedInUser) {
@@ -51,8 +41,7 @@ export default function AxiomLayout() {
     setShowBanner(false);
     setSyncing(true);
     try {
-      // Tell the running app engine about the new user (triggers migration + reload)
-      if (window.__axiomOnSignedIn) await window.__axiomOnSignedIn(loggedInUser);
+      if (window.__veridianOnSignedIn) await window.__veridianOnSignedIn(loggedInUser);
       setUser(loggedInUser);
     } finally {
       setSyncing(false);
@@ -64,29 +53,27 @@ export default function AxiomLayout() {
     setTimeout(() => setShowBanner(true), 2000);
   }
 
-  // Inject user state into header controls
   useEffect(() => {
     if (user === undefined) return;
     const profileBtn = document.getElementById('profileBtn');
     const profileMenu = document.getElementById('profileMenu');
     if (!profileBtn || !profileMenu) return;
 
-    // Update profile menu to show account info
-    const accountSection = document.getElementById('axiomAccountSection');
+    const accountSection = document.getElementById('veridianAccountSection');
     if (accountSection) {
       if (user) {
         accountSection.innerHTML = `
           <div style="padding: 0.4rem; font-size: 0.75rem; color: var(--text-muted); border-bottom: 1px solid var(--border); margin-bottom: 0.35rem; word-break: break-all;">${user.email}</div>
-          <button class="profile-item" id="axiomSignOutBtn">Sign out</button>
+          <button class="profile-item" id="veridianSignOutBtn">Sign out</button>
         `;
-        document.getElementById('axiomSignOutBtn')?.addEventListener('click', async () => {
+        document.getElementById('veridianSignOutBtn')?.addEventListener('click', async () => {
           profileMenu.classList.add('hidden');
           await import('../api/base44Client').then(m => m.base44.auth.logout());
           handleSignOut();
         });
       } else {
-        accountSection.innerHTML = `<button class="profile-item" id="axiomSignInBtn">☁ Sign in / sync</button>`;
-        document.getElementById('axiomSignInBtn')?.addEventListener('click', () => {
+        accountSection.innerHTML = `<button class="profile-item" id="veridianSignInBtn">☁ Sign in / sync</button>`;
+        document.getElementById('veridianSignInBtn')?.addEventListener('click', () => {
           profileMenu.classList.add('hidden');
           setShowAuthModal(true);
         });
@@ -98,7 +85,6 @@ export default function AxiomLayout() {
     <div className="app-wrapper">
       <AppHeader />
       <DashboardMain />
-      <CmdMain />
       <EditorMain />
       <FlashcardMain />
       <TypingMain />
@@ -107,10 +93,7 @@ export default function AxiomLayout() {
       <MasterySummaryMain />
       <AppFooter />
       <PromptAndPreviewModals />
-      <CmdAndAgendaModals />
-      <CalendarModals />
-      <JournalAndSettingsModals />
-      <CmdSidebarOverlay />
+      <SettingsModals />
 
       {syncing && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

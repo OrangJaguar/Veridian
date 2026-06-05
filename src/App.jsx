@@ -1,4 +1,4 @@
-import AxiomLayout from './components/AxiomLayout';
+import VeridianLayout from './components/VeridianLayout';
 export default function App() {
-  return <AxiomLayout />;
+  return <VeridianLayout />;
 }

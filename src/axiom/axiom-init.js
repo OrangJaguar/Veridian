@@ -1,4 +1,4 @@
-import { PREFS_KEY, DECKS_KEY, TELEMETRY_KEY } from '../lib/constants-storage';
+import { PREFS_KEY, DECKS_KEY, TELEMETRY_KEY, migrateLegacyStorageKeys } from '../lib/constants-storage';
 import { S } from '../lib/state';
 import { toLocalDateKey, parseLocalDateKey, getTodayKey, addDays } from '../lib/utils-date';
 import { applyTheme, applySettingsToUI } from '../lib/modals/settings-ui';
@@ -132,24 +132,13 @@ function finalizeBoot(els, callbacks) {
     const defaultRaw = "Action Potential\nThe change in electrical potential associated with the passage of an impulse along the membrane of a muscle cell or nerve cell.\n\nWhat is the powerhouse of the cell?\n- Nucleus\n- Ribosome\n* Mitochondria\n\nCognitive Dissonance\nThe state of having inconsistent thoughts, beliefs, or attitudes.";
     saveDeck(Date.now().toString(), "Sample: Biology & Psych", defaultRaw);
   }
-  callbacks.ensureCmdSchedule();
-  callbacks.loadAgendaData();
-  callbacks.loadCalendarData();
-  callbacks.loadJournalData();
-  callbacks.ensureAgendaDnDDelegates();
-  callbacks.bindCalendarDragGlobal();
-  if (!window.__axiomFocusPomoTick) {
-    window.__axiomFocusPomoTick = true;
-    window.setInterval(callbacks.tickFocusPomodoro, 1000);
-  }
   applySettingsToUI(els);
   applyTheme();
-  callbacks.updateHeaderModeUI();
   callbacks.renderDashboard();
 }
 
 export async function bootSystem(els, callbacks) {
-  // Always load local first for instant paint
+  migrateLegacyStorageKeys();
   loadFromLocalStorage();
   finalizeBoot(els, callbacks);
 
@@ -169,9 +158,6 @@ export async function bootSystem(els, callbacks) {
         questionsAnswered: Number(todayBucket.questionsAnswered || 0),
         cardsFlipped: Number(todayBucket.cardsFlipped || 0)
       };
-      callbacks.loadAgendaData();
-      callbacks.loadCalendarData();
-      callbacks.loadJournalData();
       applySettingsToUI(els);
       applyTheme();
       callbacks.renderDashboard();
@@ -197,9 +183,6 @@ export async function onUserSignedIn(user, S, els, callbacks) {
     questionsAnswered: Number(todayBucket.questionsAnswered || 0),
     cardsFlipped: Number(todayBucket.cardsFlipped || 0)
   };
-  callbacks.loadAgendaData();
-  callbacks.loadCalendarData();
-  callbacks.loadJournalData();
   applySettingsToUI(els);
   applyTheme();
   callbacks.renderDashboard();

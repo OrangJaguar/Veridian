@@ -1,8 +1,5 @@
-// Mutable global state singleton used by the imperative engine (runAxiomApp)
+// Mutable global state singleton used by the imperative engine (runVeridianApp)
 export const S = {
-  appMode: 'cmd',
-  cmdActiveView: 'dashboard',
-
   prefs: {
     themeDark: true,
     haptics: true,
@@ -25,34 +22,6 @@ export const S = {
     questionsAnswered: 0,
     cardsFlipped: 0,
   },
-
-  // Agenda
-  agendaTasks: [],
-  agendaTaskOrder: [],
-  agendaUiFilter: 'tasks',
-  agendaDragSource: null,
-
-  // Calendar
-  calendarEvents: [],
-  calendarAnchorDate: new Date(),
-  calendarMonthCursor: new Date(),
-  calendarDragState: null,
-  calendarEventDragState: null,
-
-  // Journal
-  journalEntries: {},
-  journalStorageExpanded: false,
-  journalSearchQuery: '',
-  journalAutosaveTimer: null,
-  journalMonthCursor: new Date(),
-
-  // CMD schedule
-  cmdScheduleAppData: null,
-
-  // Focus / Pomodoro
-  focusPomodoroRunning: false,
-  focusPomodoroPhase: 'work',
-  focusPomodoroTimeLeft: 25 * 60,
 
   // Session state (quiz / flashcard / typing)
   state: {
