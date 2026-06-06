@@ -1,7 +1,7 @@
 import { S } from '../lib/state';
 import { escapeHtml } from '../lib/utils-text';
 import { getTodayKey, toLocalDateKey } from '../lib/utils-date';
-import { applyTelemetryDelta } from './axiom-init';
+import { applyTelemetryDelta } from './veridian-init';
 
 // --- Audio & Haptic ---
 const AudioContext = window.AudioContext || window.webkitAudioContext;

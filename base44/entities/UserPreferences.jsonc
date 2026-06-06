@@ -17,12 +17,6 @@
     },
     "strictMode": {
       "type": "boolean"
-    },
-    "agendaTaskOrder": {
-      "type": "array",
-      "items": {
-        "type": "number"
-      }
     }
   },
   "required": [],

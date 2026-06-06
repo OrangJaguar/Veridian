@@ -1,4 +1,4 @@
-export function AppHeader() {
+export function AppHeader({ user, onSignIn, onSignOut }) {
   return (
     <header>
       <h1 id="logoText" title="Return to Dashboard">
@@ -12,7 +12,22 @@ export function AppHeader() {
           </svg>
         </button>
         <div id="profileMenu" className="profile-dropdown hidden">
-          <div id="veridianAccountSection" />
+          <div id="veridianAccountSection">
+            {user ? (
+              <>
+                <div style={{ padding: '0.4rem', fontSize: '0.75rem', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', marginBottom: '0.35rem', wordBreak: 'break-all' }}>
+                  {user.email}
+                </div>
+                <button type="button" className="profile-item" id="veridianSignOutBtn" onClick={onSignOut}>
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <button type="button" className="profile-item" id="veridianSignInBtn" onClick={onSignIn}>
+                ☁ Sign in / sync
+              </button>
+            )}
+          </div>
           <div style={{ height: '1px', background: 'var(--border)', margin: '0.25rem 0' }} />
           <button id="openSettingsBtn" type="button" className="profile-item">
             Settings

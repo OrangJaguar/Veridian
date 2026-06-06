@@ -3,8 +3,8 @@ import { toLocalDateKey, parseLocalDateKey, getTodayKey } from '../lib/utils-dat
 import { applyTheme } from '../lib/modals/settings-ui';
 import { PREFS_KEY } from '../lib/constants-storage';
 
-import { bootSystem, saveDeck, deleteDeck, applyTelemetryDelta, heuristicParse, onUserSignedIn } from './axiom-init';
-import { initAudio, playSoundEffect, triggerHaptic, triggerVisualGlow, triggerNeutralGlow, formatTimeFriendly, formatTime, generateQuizData, generateFlashcardData, buildTypingQueue, renderMaskedAnswerWithReveal, ensureMasteryCardStats, showMasterySummary, enumerateDates } from './axiom-ops';
+import { bootSystem, saveDeck, deleteDeck, applyTelemetryDelta, heuristicParse, onUserSignedIn } from './veridian-init';
+import { initAudio, playSoundEffect, triggerHaptic, triggerVisualGlow, triggerNeutralGlow, formatTimeFriendly, formatTime, generateQuizData, generateFlashcardData, buildTypingQueue, renderMaskedAnswerWithReveal, ensureMasteryCardStats, showMasterySummary, enumerateDates } from './veridian-ops';
 
 export function runVeridianApp() {
   "use strict";

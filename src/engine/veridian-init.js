@@ -1,4 +1,4 @@
-import { PREFS_KEY, DECKS_KEY, TELEMETRY_KEY, migrateLegacyStorageKeys } from '../lib/constants-storage';
+import { PREFS_KEY, DECKS_KEY, TELEMETRY_KEY } from '../lib/constants-storage';
 import { S } from '../lib/state';
 import { toLocalDateKey, parseLocalDateKey, getTodayKey, addDays } from '../lib/utils-date';
 import { applyTheme, applySettingsToUI } from '../lib/modals/settings-ui';
@@ -138,7 +138,6 @@ function finalizeBoot(els, callbacks) {
 }
 
 export async function bootSystem(els, callbacks) {
-  migrateLegacyStorageKeys();
   loadFromLocalStorage();
   finalizeBoot(els, callbacks);
 
