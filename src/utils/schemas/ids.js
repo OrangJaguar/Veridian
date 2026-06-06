@@ -1,0 +1,27 @@
+export function generateId(prefix) {
+  return `${prefix}_${crypto.randomUUID()}`;
+}
+
+export function generateJourneyId() {
+  return generateId('jrn');
+}
+
+export function generateModuleId() {
+  return generateId('mod');
+}
+
+export function generateActivityId() {
+  return generateId('act');
+}
+
+export function generateCardId() {
+  return generateId('crd');
+}
+
+export function generateSessionId() {
+  return generateId('ses');
+}
+
+export function generateSourceId() {
+  return generateId('src');
+}

@@ -19,6 +19,8 @@ VITE_BASE44_APP_BASE_URL=your_backend_url
 
 Open [Base44.com](http://Base44.com) and click Publish.
 
+After adding or changing entity schemas in `base44/entities/`, publish before testing Journey API hooks in the app.
+
 ## Docs
 
 - [Base44 GitHub integration](https://docs.base44.com/Integrations/Using-GitHub)

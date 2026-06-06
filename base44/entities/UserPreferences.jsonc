@@ -17,6 +17,29 @@
     },
     "strictMode": {
       "type": "boolean"
+    },
+    "displayName": {
+      "type": "string"
+    },
+    "username": {
+      "type": "string"
+    },
+    "hintsShown": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "notificationPref": {
+      "type": "string",
+      "description": "daily | urgent | off"
+    },
+    "defaultPrivacy": {
+      "type": "string",
+      "description": "private | public"
+    },
+    "defaultShowSources": {
+      "type": "boolean"
     }
   },
   "required": [],

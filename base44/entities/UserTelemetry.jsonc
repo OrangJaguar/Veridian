@@ -20,6 +20,10 @@
     },
     "cardsFlipped": {
       "type": "number"
+    },
+    "journeyStats": {
+      "type": "object",
+      "description": "Per-journey stats keyed by journeyId"
     }
   },
   "required": [],

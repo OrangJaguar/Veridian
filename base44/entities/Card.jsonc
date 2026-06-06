@@ -1,0 +1,56 @@
+{
+  "name": "Card",
+  "type": "object",
+  "properties": {
+    "cardId": {
+      "type": "string",
+      "description": "Client-side stable ID"
+    },
+    "activityId": {
+      "type": "string"
+    },
+    "journeyId": {
+      "type": "string"
+    },
+    "userEmail": {
+      "type": "string",
+      "description": "Email of the owning user"
+    },
+    "front": {
+      "type": "string"
+    },
+    "back": {
+      "type": "string"
+    },
+    "conceptTag": {
+      "type": "string"
+    },
+    "fsrsState": {
+      "type": "object"
+    },
+    "suspended": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "cardId",
+    "activityId",
+    "journeyId",
+    "front",
+    "back"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}
