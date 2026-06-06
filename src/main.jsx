@@ -11,10 +11,14 @@ import '@/index.css';
 ReactDOM.createRoot(document.getElementById('root')).render(
   <QueryProvider>
     <AuthProvider>
-      <BrowserRouter>
-        <App />
+      <div className="app-root-shell">
+        <BrowserRouter>
+          <div className="app-router-outlet">
+            <App />
+          </div>
+        </BrowserRouter>
         <Toaster />
-      </BrowserRouter>
+      </div>
     </AuthProvider>
   </QueryProvider>,
 );

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import '../css/app.css';
 import { runVeridianApp } from '../engine/runVeridianApp';
-import { AppHeader, AppFooter } from '../views/ops/AppHeader';
+import { AppHeader } from '../views/ops/AppHeader';
+import AppFooter from '@/components/layout/AppFooter';
 import { PromptAndPreviewModals, SettingsModals } from '../views/ops/AppOverlays';
 import { DashboardMain } from '../views/ops/DashboardMain';
 import { FlashcardMain } from '../views/ops/FlashcardMain';
@@ -13,6 +14,7 @@ import { MasterySummaryMain } from '../views/ops/MasterySummaryMain';
 import AuthModal from './AuthModal';
 import SyncBanner from './SyncBanner';
 import { useAuth } from '@/hooks/useAuth';
+import { applyThemeFromStorage } from '@/lib/theme';
 
 let veridianBooted = false;
 
@@ -25,6 +27,10 @@ export default function VeridianLayout() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
   const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    applyThemeFromStorage();
+  }, []);
 
   useEffect(() => {
     if (veridianBooted) return;
@@ -65,15 +71,17 @@ export default function VeridianLayout() {
   }
 
   return (
-    <div className="app-wrapper">
+    <div className="legacy-app-root">
       <AppHeader user={user} onSignIn={handleSignInClick} onSignOut={handleSignOut} />
-      <DashboardMain />
-      <EditorMain />
-      <FlashcardMain />
-      <TypingMain />
-      <QuizMain />
-      <SummaryMain />
-      <MasterySummaryMain />
+      <div className="legacy-app-body">
+        <DashboardMain />
+        <EditorMain />
+        <FlashcardMain />
+        <TypingMain />
+        <QuizMain />
+        <SummaryMain />
+        <MasterySummaryMain />
+      </div>
       <AppFooter />
       <PromptAndPreviewModals />
       <SettingsModals />

@@ -1,7 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import MarketingLayout from '@/layouts/MarketingLayout';
 import AppShell from '@/layouts/AppShell';
-import RequireAuth from '@/components/routing/RequireAuth';
 import LandingPage from '@/pages/landing/LandingPage';
 import SignInPage from '@/pages/auth/SignInPage';
 import SignUpPage from '@/pages/auth/SignUpPage';
@@ -23,21 +22,17 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/signin" element={<SignInPage />} />
         <Route path="/signup" element={<SignUpPage />} />
-        <Route path="/library" element={<LibraryStubPage />} />
-        <Route path="/library/:journeyId" element={<LibraryPreviewStubPage />} />
       </Route>
 
-      <Route element={(
-        <RequireAuth>
-          <AppShell />
-        </RequireAuth>
-      )}>
+      <Route element={<AppShell />}>
         <Route path="/home" element={<HomeStubPage />} />
         <Route path="/journeys" element={<JourneysStubPage />} />
         <Route path="/journeys/:id" element={<JourneyDetailStubPage />} />
         <Route path="/journeys/:id/modules/:moduleId" element={<ModuleDetailStubPage />} />
         <Route path="/study/:sessionId" element={<StudyStubPage />} />
         <Route path="/profile" element={<ProfileStubPage />} />
+        <Route path="/library" element={<LibraryStubPage />} />
+        <Route path="/library/:journeyId" element={<LibraryPreviewStubPage />} />
       </Route>
 
       <Route path="/app" element={<LegacyAppPage />} />

@@ -1,9 +1,11 @@
-import { Outlet } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, Outlet } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import AppSidebar from '@/components/app-shell/AppSidebar';
 import AppSidebarMobile from '@/components/app-shell/AppSidebarMobile';
+import AppFooter from '@/components/layout/AppFooter';
+import VeridianLogo from '@/components/layout/VeridianLogo';
 import { applyThemeFromStorage } from '@/lib/theme';
-import { useEffect } from 'react';
 
 export default function AppShell() {
   const isMobile = useIsMobile();
@@ -13,22 +15,20 @@ export default function AppShell() {
   }, []);
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', color: 'var(--text-main)', fontFamily: 'var(--font-sans)' }}>
+    <div className="app-shell">
       {!isMobile && <AppSidebar />}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div className="app-shell-main">
         {isMobile && (
-          <header style={{
-            padding: '0.85rem 1rem',
-            borderBottom: '1px solid var(--border)',
-            fontWeight: 700,
-            fontSize: '1.05rem',
-          }}>
-            Veridian
+          <header className="site-header app-shell-mobile-header">
+            <Link to="/" className="app-sidebar-logo-link" title="Veridian home">
+              <VeridianLogo size={32} />
+            </Link>
           </header>
         )}
-        <main style={{ flex: 1, paddingBottom: isMobile ? '4.5rem' : 0, overflow: 'auto' }}>
+        <main className="app-shell-content">
           <Outlet />
         </main>
+        <AppFooter />
       </div>
       {isMobile && <AppSidebarMobile />}
     </div>

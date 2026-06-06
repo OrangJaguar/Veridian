@@ -5,7 +5,8 @@ export default function HomeStubPage() {
     <StubPage
       title="App Home"
       phase="Phase 3"
-      description="Due Today, your Journey grid, and the action-driven home screen will live here. For now, use the study app to create decks and practice."
+      description="Due Today, your Journey grid, and the action-driven home screen will live here. Sign in to save progress and sync across devices."
+      loginAction="save your progress and sync across devices"
     />
   );
 }

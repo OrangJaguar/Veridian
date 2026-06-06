@@ -8,6 +8,7 @@ export default function JourneyDetailStubPage() {
       title="Journey Detail"
       phase="Phase 3"
       description={`Journey detail view for ID: ${id}. Module overview, progress, and activities will appear here.`}
+      loginAction="view and edit this Journey"
     />
   );
 }

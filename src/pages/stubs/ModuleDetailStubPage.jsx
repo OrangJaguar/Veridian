@@ -8,6 +8,7 @@ export default function ModuleDetailStubPage() {
       title="Module Detail"
       phase="Phase 3"
       description={`Module ${moduleId} in Journey ${id}. Activity list and study entry points will appear here.`}
+      loginAction="study this module"
     />
   );
 }

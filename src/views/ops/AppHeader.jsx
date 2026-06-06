@@ -1,10 +1,12 @@
+import { Link } from 'react-router-dom';
+
 export function AppHeader({ user, onSignIn, onSignOut }) {
   return (
-    <header>
-      <h1 id="logoText" title="Return to Dashboard">
+    <header className="site-header">
+      <Link to="/" id="logoText" className="site-wordmark" title="Back to Veridian home">
         Veridian
-      </h1>
-      <div className="header-controls">
+      </Link>
+      <div className="header-controls site-header-actions">
         <button id="profileBtn" type="button" className="profile-btn" title="Profile">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M20 21a8 8 0 0 0-16 0" />
@@ -36,8 +38,4 @@ export function AppHeader({ user, onSignIn, onSignOut }) {
       </div>
     </header>
   );
-}
-
-export function AppFooter() {
-  return <footer>Copyright © 2026 Developed by Sanskar Gupta. All Rights Reserved. v3.0</footer>;
 }

@@ -243,7 +243,7 @@ export function runVeridianApp() {
     document.querySelectorAll('.delete-deck-btn').forEach(b => b.addEventListener('click', (e) => { if (confirm("Permanently delete this deck?")) deleteDeck(e.target.dataset.id, renderDashboard); }));
   }
 
-  els.logoText.addEventListener('click', () => { stopTimer(); renderDashboard(); });
+  // Logo navigation is handled by React Router (Link to / in AppHeader).
   els.exitToMenuBtns.forEach(btn => btn.addEventListener('click', () => { stopTimer(); renderDashboard(); }));
   els.createNewDeckBtn.addEventListener('click', () => openEditor(null));
   els.backToDashBtn.addEventListener('click', renderDashboard);
