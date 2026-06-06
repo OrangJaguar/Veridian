@@ -1,35 +1,43 @@
 {
-  "name": "UserDeck",
+  "name": "Card",
   "type": "object",
   "properties": {
+    "cardId": {
+      "type": "string",
+      "description": "Client-side stable ID"
+    },
+    "activityId": {
+      "type": "string"
+    },
+    "journeyId": {
+      "type": "string"
+    },
     "userEmail": {
       "type": "string",
       "description": "Email of the owning user"
     },
-    "title": {
+    "front": {
       "type": "string"
     },
-    "rawText": {
+    "back": {
       "type": "string"
     },
-    "parsedItems": {
-      "type": "array",
-      "items": {
-        "type": "object"
-      }
+    "conceptTag": {
+      "type": "string"
     },
-    "lastEdited": {
-      "type": "number"
+    "fsrsState": {
+      "type": "object"
     },
-    "deckId": {
-      "type": "string",
-      "description": "client-side stable ID"
+    "suspended": {
+      "type": "boolean"
     }
   },
   "required": [
-    "title",
-    "rawText",
-    "deckId"
+    "cardId",
+    "activityId",
+    "journeyId",
+    "front",
+    "back"
   ],
   "rls": {
     "create": {

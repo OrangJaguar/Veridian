@@ -18,54 +18,43 @@
     "strictMode": {
       "type": "boolean"
     },
-    "agendaTaskOrder": {
+    "displayName": {
+      "type": "string"
+    },
+    "username": {
+      "type": "string"
+    },
+    "hintsShown": {
       "type": "array",
       "items": {
-        "type": "number"
+        "type": "string"
       }
+    },
+    "notificationPref": {
+      "type": "string",
+      "description": "daily | urgent | off"
+    },
+    "defaultPrivacy": {
+      "type": "string",
+      "description": "private | public"
+    },
+    "defaultShowSources": {
+      "type": "boolean"
     }
   },
   "required": [],
   "rls": {
     "create": {
-      "data.userEmail": "{{user.email}}",
-      "$or": [
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "created_by": "{{user.email}}"
     },
     "read": {
-      "data.userEmail": "{{user.email}}",
-      "$or": [
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "created_by": "{{user.email}}"
     },
     "update": {
-      "data.userEmail": "{{user.email}}",
-      "$or": [
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "created_by": "{{user.email}}"
     },
     "delete": {
-      "data.userEmail": "{{user.email}}",
-      "$or": [
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
+      "created_by": "{{user.email}}"
     }
   }
 }

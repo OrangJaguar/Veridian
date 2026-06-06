@@ -1,0 +1,58 @@
+{
+  "name": "Session",
+  "type": "object",
+  "properties": {
+    "sessionId": {
+      "type": "string",
+      "description": "Client-side stable ID"
+    },
+    "journeyId": {
+      "type": "string"
+    },
+    "moduleId": {
+      "type": "string"
+    },
+    "activityId": {
+      "type": "string"
+    },
+    "userEmail": {
+      "type": "string",
+      "description": "Email of the owning user"
+    },
+    "activityType": {
+      "type": "string"
+    },
+    "startedAt": {
+      "type": "number"
+    },
+    "endedAt": {
+      "type": "number"
+    },
+    "durationSec": {
+      "type": "number"
+    },
+    "outcomeSummary": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "sessionId",
+    "journeyId",
+    "activityType",
+    "startedAt"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

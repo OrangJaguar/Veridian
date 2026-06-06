@@ -1,35 +1,46 @@
 {
-  "name": "UserDeck",
+  "name": "Module",
   "type": "object",
   "properties": {
+    "moduleId": {
+      "type": "string",
+      "description": "Client-side stable ID"
+    },
+    "journeyId": {
+      "type": "string"
+    },
     "userEmail": {
       "type": "string",
       "description": "Email of the owning user"
     },
-    "title": {
+    "name": {
       "type": "string"
     },
-    "rawText": {
+    "description": {
       "type": "string"
     },
-    "parsedItems": {
-      "type": "array",
-      "items": {
-        "type": "object"
-      }
-    },
-    "lastEdited": {
+    "order": {
       "type": "number"
     },
-    "deckId": {
+    "stage": {
       "type": "string",
-      "description": "client-side stable ID"
+      "description": "A | B | C"
+    },
+    "masteryScore": {
+      "type": "number"
+    },
+    "knowledgeMap": {
+      "type": "object"
+    },
+    "lastStudiedAt": {
+      "type": "number"
     }
   },
   "required": [
-    "title",
-    "rawText",
-    "deckId"
+    "moduleId",
+    "journeyId",
+    "name",
+    "order"
   ],
   "rls": {
     "create": {
