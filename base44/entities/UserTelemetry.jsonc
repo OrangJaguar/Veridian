@@ -20,25 +20,49 @@
     },
     "cardsFlipped": {
       "type": "number"
-    },
-    "journeyStats": {
-      "type": "object",
-      "description": "Per-journey stats keyed by journeyId"
     }
   },
   "required": [],
   "rls": {
     "create": {
-      "created_by": "{{user.email}}"
+      "data.userEmail": "{{user.email}}",
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "read": {
-      "created_by": "{{user.email}}"
+      "data.userEmail": "{{user.email}}",
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "update": {
-      "created_by": "{{user.email}}"
+      "data.userEmail": "{{user.email}}",
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "delete": {
-      "created_by": "{{user.email}}"
+      "data.userEmail": "{{user.email}}",
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     }
   }
 }

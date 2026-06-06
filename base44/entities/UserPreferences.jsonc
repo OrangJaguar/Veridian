@@ -18,43 +18,54 @@
     "strictMode": {
       "type": "boolean"
     },
-    "displayName": {
-      "type": "string"
-    },
-    "username": {
-      "type": "string"
-    },
-    "hintsShown": {
+    "agendaTaskOrder": {
       "type": "array",
       "items": {
-        "type": "string"
+        "type": "number"
       }
-    },
-    "notificationPref": {
-      "type": "string",
-      "description": "daily | urgent | off"
-    },
-    "defaultPrivacy": {
-      "type": "string",
-      "description": "private | public"
-    },
-    "defaultShowSources": {
-      "type": "boolean"
     }
   },
   "required": [],
   "rls": {
     "create": {
-      "created_by": "{{user.email}}"
+      "data.userEmail": "{{user.email}}",
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "read": {
-      "created_by": "{{user.email}}"
+      "data.userEmail": "{{user.email}}",
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "update": {
-      "created_by": "{{user.email}}"
+      "data.userEmail": "{{user.email}}",
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     },
     "delete": {
-      "created_by": "{{user.email}}"
+      "data.userEmail": "{{user.email}}",
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
     }
   }
 }
