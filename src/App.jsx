@@ -8,6 +8,7 @@ import LibraryStubPage from '@/pages/stubs/LibraryStubPage';
 import LibraryPreviewStubPage from '@/pages/stubs/LibraryPreviewStubPage';
 import HomePage from '@/pages/home/HomePage';
 import JourneysPage from '@/pages/journeys/JourneysPage';
+import CreateJourneyPage from '@/pages/journeys/CreateJourneyPage';
 import JourneyDetailPage from '@/pages/journeys/JourneyDetailPage';
 import ModuleDetailPage from '@/pages/journeys/ModuleDetailPage';
 import StudyStubPage from '@/pages/stubs/StudyStubPage';
@@ -27,6 +28,7 @@ export default function App() {
       <Route element={<AppShell />}>
         <Route path="/home" element={<HomePage />} />
         <Route path="/journeys" element={<JourneysPage />} />
+        <Route path="/journeys/new" element={<CreateJourneyPage />} />
         <Route path="/journeys/:id" element={<JourneyDetailPage />} />
         <Route path="/journeys/:id/modules/:moduleId" element={<ModuleDetailPage />} />
         <Route path="/study/:sessionId" element={<StudyStubPage />} />

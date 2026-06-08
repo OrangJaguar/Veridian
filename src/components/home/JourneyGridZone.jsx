@@ -2,8 +2,6 @@ import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useJourneys } from '@/hooks/queries/useJourneys';
 import JourneyCard from '@/components/journeys/JourneyCard';
-import { notifyCreateJourney } from '@/components/home/DueTodayCard';
-
 export default function JourneyGridZone() {
   const [tab, setTab] = useState('active');
   const archived = tab === 'archived';
@@ -13,9 +11,9 @@ export default function JourneyGridZone() {
     <section className="home-journey-zone" aria-labelledby="your-journeys-heading">
       <div className="home-journey-zone-header">
         <h2 id="your-journeys-heading" className="home-journey-zone-title">Your Journeys</h2>
-        <button type="button" className="btn btn-secondary" onClick={notifyCreateJourney}>
+        <Link to="/journeys/new" className="btn btn-secondary">
           + New Journey
-        </button>
+        </Link>
       </div>
 
       <div className="journeys-tabs">

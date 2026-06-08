@@ -1,0 +1,45 @@
+{
+  "name": "UserAiQuota",
+  "type": "object",
+  "properties": {
+    "userEmail": {
+      "type": "string",
+      "description": "Email of the owning user"
+    },
+    "dateKey": {
+      "type": "string",
+      "description": "UTC date YYYY-MM-DD for daily reset"
+    },
+    "journeyProposals": {
+      "type": "number"
+    },
+    "scaffoldRegenerates": {
+      "type": "number"
+    },
+    "inputTokens": {
+      "type": "number"
+    },
+    "lastCallAt": {
+      "type": "number",
+      "description": "Unix ms of last AI call for cooldown"
+    }
+  },
+  "required": [
+    "userEmail",
+    "dateKey"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { toast } from 'sonner';
 import { urgencyLabel } from '@/components/journeys/journeyUtils';
 
 const ACTION_VERBS = {
@@ -39,8 +38,4 @@ export default function DueTodayCard({ item }) {
       </div>
     </div>
   );
-}
-
-export function notifyCreateJourney() {
-  toast.info('Journey creation coming in Phase 4');
 }

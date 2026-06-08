@@ -15,6 +15,20 @@ VITE_BASE44_APP_BASE_URL=your_backend_url
 
 4. `npm run dev`
 
+### Gemini API (Journey creation — server-side only)
+
+Never put `GEMINI_API_KEY` in `.env.local` or any `VITE_*` variable.
+
+1. Create an API key at [Google AI Studio](https://aistudio.google.com/apikey)
+2. Copy [`.env.secrets.example`](.env.secrets.example) to `.env.secrets` and add your key
+3. Push the secret to Base44:
+
+```bash
+base44 secrets set --env-file .env.secrets
+```
+
+Backend function [`base44/functions/geminiJourney.ts`](base44/functions/geminiJourney.ts) reads `GEMINI_API_KEY` via `Deno.env.get()`.
+
 ## Publish
 
 Open [Base44.com](http://Base44.com) and click Publish.

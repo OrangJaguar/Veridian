@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { notifyCreateJourney } from '@/components/home/DueTodayCard';
 
 export default function DueTodayCaughtUp({ firstJourneyId }) {
   return (
@@ -12,9 +11,9 @@ export default function DueTodayCaughtUp({ firstJourneyId }) {
         <Link to="/library" className="home-caught-up-chip">
           Explore Community
         </Link>
-        <button type="button" className="home-caught-up-chip" onClick={notifyCreateJourney}>
+        <Link to="/journeys/new" className="home-caught-up-chip">
           Start a New Journey
-        </button>
+        </Link>
         {firstJourneyId ? (
           <Link to={`/journeys/${firstJourneyId}`} className="home-caught-up-chip">
             Mastery Check

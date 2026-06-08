@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { notifyCreateJourney } from '@/components/home/DueTodayCard';
 
 export default function HomeEmptyState({ devTools }) {
   return (
@@ -12,9 +11,9 @@ export default function HomeEmptyState({ devTools }) {
           and a clear Due Today list so you always know what to work on next.
         </p>
         <div className="home-empty-actions">
-          <button type="button" className="btn btn-primary" onClick={notifyCreateJourney}>
+          <Link to="/journeys/new" className="btn btn-primary">
             Create Your First Journey
-          </button>
+          </Link>
           <Link to="/library" className="btn btn-secondary">
             Browse Community Library
           </Link>

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useJourneys } from '@/hooks/queries/useJourneys';
 import JourneyCard, { journeyUrgencySort } from '@/components/journeys/JourneyCard';
@@ -35,7 +36,12 @@ export default function JourneysPage() {
         <div>
           <h1 className="journeys-title">Journeys</h1>
         </div>
-        <HomeDevTools />
+        <div className="journeys-header-actions">
+          <Link to="/journeys/new" className="btn btn-primary">
+            + New Journey
+          </Link>
+          <HomeDevTools />
+        </div>
       </header>
 
       <div className="journeys-tabs">
