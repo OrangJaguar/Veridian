@@ -27,19 +27,35 @@ Never put `GEMINI_API_KEY` in `.env.local` or any `VITE_*` variable.
 base44 secrets set --env-file .env.secrets
 ```
 
-Backend function [`base44/functions/geminiJourney.ts`](base44/functions/geminiJourney.ts) reads `GEMINI_API_KEY` via `Deno.env.get()`.
+Backend function [`base44/functions/geminiJourney/entry.ts`](base44/functions/geminiJourney/entry.ts) reads `GEMINI_API_KEY` via `Deno.env.get()`.
 
-### Deploy the AI backend function
+### Frontend vs backend on Base44 (important)
 
-The frontend calls `base44.functions.invoke('geminiJourney', ...)`. If you see **404**, the function is not live yet.
+| Action | What it deploys |
+|--------|-----------------|
+| **Publish** (dashboard) | Frontend only — your Vite `dist/` site |
+| **`npx base44 functions deploy`** | Backend functions only — `base44/functions/*/entry.ts` |
+| **`npx base44 deploy`** | Everything (entities, functions, site) |
 
-1. Publish entity schemas (`UserAiQuota`, etc.) on Base44
-2. Deploy backend functions (Base44 CLI or dashboard publish):
+**Publish alone does NOT deploy backend functions.** That is why you see 404 on `geminiJourney`.
+
+### Deploy the AI backend function (one-time + after function changes)
+
+1. Set secret: `base44 secrets set GEMINI_API_KEY=your_key` (or `--env-file .env.secrets`)
+2. Publish entity schemas (`UserAiQuota`, etc.) on Base44
+3. Deploy the function from project root:
    ```bash
-   npx base44 functions deploy
+   npx base44 functions deploy geminiJourney
    ```
-   Or use **Publish** in the Base44 app dashboard — functions in `base44/functions/` must be included
-3. Confirm the secret: `base44 secrets list` (should show `GEMINI_API_KEY`)
+4. Verify in Base44 Dashboard → **Code → Functions** — `geminiJourney` should show **Deployed/Active**
+5. Publish frontend (dashboard) for any UI changes
+
+Function layout (required by Base44):
+```
+base44/functions/geminiJourney/
+  function.jsonc
+  entry.ts
+```
 
 ## Publish
 
