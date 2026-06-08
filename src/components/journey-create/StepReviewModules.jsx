@@ -1,21 +1,17 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import LatexRenderer from '@/components/shared/LatexRenderer';
-import { regenerateModules } from '@/api/ai/regenerateModules';
 import { useJourneyCreateStore } from '@/store/journeyCreateStore';
 import { useConfirmJourney } from '@/hooks/mutations/useConfirmJourney';
 
 export default function StepReviewModules({ onBack }) {
   const draft = useJourneyCreateStore((s) => s.draft);
   const proposal = useJourneyCreateStore((s) => s.proposal);
-  const cachedKnowledgeMap = useJourneyCreateStore((s) => s.cachedKnowledgeMap);
   const updateModule = useJourneyCreateStore((s) => s.updateModule);
   const deleteModule = useJourneyCreateStore((s) => s.deleteModule);
   const addModule = useJourneyCreateStore((s) => s.addModule);
   const moveModule = useJourneyCreateStore((s) => s.moveModule);
-  const beginProcessing = useJourneyCreateStore((s) => s.beginProcessing);
-  const endProcessing = useJourneyCreateStore((s) => s.endProcessing);
-  const setProposal = useJourneyCreateStore((s) => s.setProposal);
+  const runRegenerate = useJourneyCreateStore((s) => s.runRegenerate);
   const isProcessing = useJourneyCreateStore((s) => s.isProcessing);
 
   const confirmMutation = useConfirmJourney();
@@ -28,18 +24,9 @@ export default function StepReviewModules({ onBack }) {
     const ok = window.confirm('Regenerate module structure using AI? This uses your cached concepts only.');
     if (!ok) return;
 
-    const controller = beginProcessing();
-    if (!controller) return;
-
     setRegenerating(true);
     try {
-      const next = await regenerateModules({
-        title: draft.title.trim(),
-        subject: draft.subject.trim(),
-        priorKnowledge: draft.priorKnowledge,
-        cachedKnowledgeMap,
-      }, { signal: controller.signal });
-      setProposal(next);
+      await runRegenerate();
       toast.success('Module structure regenerated');
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -47,7 +34,6 @@ export default function StepReviewModules({ onBack }) {
       }
     } finally {
       setRegenerating(false);
-      endProcessing();
     }
   };
 

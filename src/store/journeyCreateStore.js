@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { buildCachedKnowledgeMap } from '@/api/ai/regenerateModules';
+import { proposeJourney } from '@/api/ai/proposeJourney';
+import { regenerateModules, buildCachedKnowledgeMap } from '@/api/ai/regenerateModules';
 
 const initialDraft = {
   title: '',
@@ -20,6 +21,7 @@ export const useJourneyCreateStore = create((set, get) => ({
   processingError: null,
   abortController: null,
   hasConfirmedAi: false,
+  proposalRunId: 0,
 
   setStep: (step) => set({ step }),
 
@@ -37,20 +39,13 @@ export const useJourneyCreateStore = create((set, get) => ({
       processingError: null,
       abortController: null,
       hasConfirmedAi: false,
+      proposalRunId: 0,
     });
   },
 
   setProposal: (proposal) => set({
     proposal,
     cachedKnowledgeMap: buildCachedKnowledgeMap(proposal),
-  }),
-
-  updateProposal: (patch) => set((s) => {
-    const proposal = { ...s.proposal, ...patch };
-    return {
-      proposal,
-      cachedKnowledgeMap: proposal ? buildCachedKnowledgeMap(proposal) : null,
-    };
   }),
 
   updateModule: (index, patch) => set((s) => {
@@ -106,7 +101,7 @@ export const useJourneyCreateStore = create((set, get) => ({
 
   beginProcessing: () => {
     const { isProcessing, abortController } = get();
-    if (isProcessing) return false;
+    if (isProcessing) return null;
     abortController?.abort();
     const controller = new AbortController();
     set({
@@ -124,4 +119,60 @@ export const useJourneyCreateStore = create((set, get) => ({
   }),
 
   setHasConfirmedAi: (v) => set({ hasConfirmedAi: v }),
+
+  /** Single entry point for the propose API — prevents duplicate calls. */
+  async runProposal({ onSuccess }) {
+    const state = get();
+    if (state.isProcessing) return;
+
+    const controller = get().beginProcessing();
+    if (!controller) return;
+
+    const runId = state.proposalRunId + 1;
+    set({ proposalRunId: runId });
+
+    try {
+      const proposal = await proposeJourney({
+        title: state.draft.title.trim(),
+        subject: state.draft.subject.trim(),
+        priorKnowledge: state.draft.priorKnowledge,
+        material: state.draft.material,
+      }, { signal: controller.signal });
+
+      if (get().proposalRunId !== runId) return;
+
+      get().setProposal(proposal);
+      get().endProcessing();
+      onSuccess?.();
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+      if (get().proposalRunId !== runId) return;
+      get().endProcessing(err.message || 'AI processing failed');
+    }
+  },
+
+  async runRegenerate() {
+    const state = get();
+    if (state.isProcessing || !state.cachedKnowledgeMap) return null;
+
+    const controller = get().beginProcessing();
+    if (!controller) return null;
+
+    try {
+      const next = await regenerateModules({
+        title: state.draft.title.trim(),
+        subject: state.draft.subject.trim(),
+        priorKnowledge: state.draft.priorKnowledge,
+        cachedKnowledgeMap: state.cachedKnowledgeMap,
+      }, { signal: controller.signal });
+
+      get().setProposal(next);
+      get().endProcessing();
+      return next;
+    } catch (err) {
+      if (err.name === 'AbortError') return null;
+      get().endProcessing(err.message || 'Regenerate failed');
+      throw err;
+    }
+  },
 }));

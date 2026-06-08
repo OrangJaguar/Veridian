@@ -15,8 +15,18 @@ export default function CreateJourneyPage() {
   const step = useJourneyCreateStore((s) => s.step);
   const setStep = useJourneyCreateStore((s) => s.setStep);
   const resetWizard = useJourneyCreateStore((s) => s.resetWizard);
+  const runProposal = useJourneyCreateStore((s) => s.runProposal);
 
   useEffect(() => () => resetWizard(), [resetWizard]);
+
+  const handleBuild = () => {
+    setStep(3);
+    runProposal({ onSuccess: () => setStep(4) });
+  };
+
+  const handleRetry = () => {
+    runProposal({ onSuccess: () => setStep(4) });
+  };
 
   if (!isAuthenticated) {
     return (
@@ -52,14 +62,14 @@ export default function CreateJourneyPage() {
       {step === 2 && (
         <StepSourceMaterial
           onBack={() => setStep(1)}
-          onBuild={() => setStep(3)}
+          onBuild={handleBuild}
         />
       )}
 
       {step === 3 && (
         <StepProcessing
-          onSuccess={() => setStep(4)}
           onBack={() => setStep(2)}
+          onRetry={handleRetry}
         />
       )}
 

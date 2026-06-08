@@ -1,46 +1,8 @@
-import { useEffect, useRef } from 'react';
-import { proposeJourney } from '@/api/ai/proposeJourney';
 import { useJourneyCreateStore } from '@/store/journeyCreateStore';
 
-export default function StepProcessing({ onSuccess, onBack }) {
-  const draft = useJourneyCreateStore((s) => s.draft);
+export default function StepProcessing({ onBack, onRetry }) {
   const isProcessing = useJourneyCreateStore((s) => s.isProcessing);
   const processingError = useJourneyCreateStore((s) => s.processingError);
-  const beginProcessing = useJourneyCreateStore((s) => s.beginProcessing);
-  const endProcessing = useJourneyCreateStore((s) => s.endProcessing);
-  const setProposal = useJourneyCreateStore((s) => s.setProposal);
-  const started = useRef(false);
-
-  const run = async () => {
-    const controller = beginProcessing();
-    if (!controller) return;
-
-    try {
-      const proposal = await proposeJourney({
-        title: draft.title.trim(),
-        subject: draft.subject.trim(),
-        priorKnowledge: draft.priorKnowledge,
-        material: draft.material,
-      }, { signal: controller.signal });
-
-      setProposal(proposal);
-      endProcessing();
-      onSuccess();
-    } catch (err) {
-      if (err.name === 'AbortError') return;
-      const msg = err.message || 'AI processing failed';
-      endProcessing(msg);
-    }
-  };
-
-  useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    run();
-    return () => {
-      useJourneyCreateStore.getState().abortController?.abort();
-    };
-  }, []);
 
   return (
     <div className="create-step create-processing">
@@ -63,7 +25,7 @@ export default function StepProcessing({ onSuccess, onBack }) {
             <button type="button" className="btn btn-secondary" onClick={onBack}>
               Try pasting text instead
             </button>
-            <button type="button" className="btn btn-primary" onClick={() => { started.current = false; run(); }}>
+            <button type="button" className="btn btn-primary" onClick={onRetry}>
               Retry
             </button>
           </div>

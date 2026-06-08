@@ -29,6 +29,18 @@ base44 secrets set --env-file .env.secrets
 
 Backend function [`base44/functions/geminiJourney.ts`](base44/functions/geminiJourney.ts) reads `GEMINI_API_KEY` via `Deno.env.get()`.
 
+### Deploy the AI backend function
+
+The frontend calls `base44.functions.invoke('geminiJourney', ...)`. If you see **404**, the function is not live yet.
+
+1. Publish entity schemas (`UserAiQuota`, etc.) on Base44
+2. Deploy backend functions (Base44 CLI or dashboard publish):
+   ```bash
+   npx base44 functions deploy
+   ```
+   Or use **Publish** in the Base44 app dashboard — functions in `base44/functions/` must be included
+3. Confirm the secret: `base44 secrets list` (should show `GEMINI_API_KEY`)
+
 ## Publish
 
 Open [Base44.com](http://Base44.com) and click Publish.

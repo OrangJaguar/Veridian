@@ -1,9 +1,10 @@
 import * as pdfjs from 'pdfjs-dist';
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString();
+// Base44 static hosting serves .mjs as application/octet-stream, which breaks
+// bundled worker dynamic imports. CDN serves the correct JavaScript MIME type.
+const PDFJS_VERSION = '6.0.227';
+pdfjs.GlobalWorkerOptions.workerSrc =
+  `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.mjs`;
 
 export const MAX_PDF_BYTES = 20 * 1024 * 1024;
 export const MAX_PDF_FILES = 3;
