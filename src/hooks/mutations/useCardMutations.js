@@ -18,6 +18,7 @@ export function useCreateCard() {
     onSuccess: (_, { activityId, journeyId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.byJourney(journeyId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.byActivity(activityId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dueToday });
     },
   });
 }
@@ -30,6 +31,7 @@ export function useUpdateCard() {
     onSuccess: (_, { activityId, journeyId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.byJourney(journeyId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.byActivity(activityId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dueToday });
     },
   });
 }
@@ -42,6 +44,7 @@ export function useDeleteCard() {
     onSuccess: (_, { activityId, journeyId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.byJourney(journeyId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.byActivity(activityId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dueToday });
     },
   });
 }

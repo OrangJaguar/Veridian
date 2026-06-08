@@ -10,7 +10,9 @@ export const queryKeys = {
   },
   activities: {
     byModule: (moduleId) => ['activities', moduleId],
+    byJourney: (journeyId) => ['activities', 'journey', journeyId],
   },
+  studyPlan: (journeyId) => ['studyPlan', journeyId],
   cards: {
     byJourney: (journeyId) => ['cards', journeyId],
     byActivity: (activityId) => ['cards', 'activity', activityId],
@@ -19,4 +21,5 @@ export const queryKeys = {
     byJourney: (journeyId) => ['sessions', journeyId],
   },
   preferences: ['preferences'],
+  dueToday: ['dueToday'],
 };

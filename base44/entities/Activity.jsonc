@@ -7,7 +7,8 @@
       "description": "Client-side stable ID"
     },
     "moduleId": {
-      "type": "string"
+      "type": "string",
+      "description": "Null for journey-scoped activities"
     },
     "journeyId": {
       "type": "string"
@@ -16,25 +17,51 @@
       "type": "string",
       "description": "Email of the owning user"
     },
+    "scope": {
+      "type": "string",
+      "description": "module | journey"
+    },
     "type": {
       "type": "string",
-      "description": "learningGuide | practiceQuiz | flashcardSet | masteryCheck"
+      "description": "learningGuide | practiceQuiz | flashcardSet | feynman | freeRecall | synthesis | interleavedReview | journeyChallenge"
+    },
+    "status": {
+      "type": "string",
+      "description": "notGenerated | generating | ready | failed"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
     },
     "content": {
-      "type": "object"
+      "type": "object",
+      "description": "Config only — never stored quiz questions"
+    },
+    "stats": {
+      "type": "object",
+      "description": "totalSessions, avgAccuracy, lastScore, lastCompletedAt, dueCount"
     },
     "itemCount": {
       "type": "number"
     },
     "lastSessionAt": {
       "type": "number"
+    },
+    "createdAt": {
+      "type": "number"
+    },
+    "updatedAt": {
+      "type": "number"
     }
   },
   "required": [
     "activityId",
-    "moduleId",
     "journeyId",
-    "type"
+    "type",
+    "scope",
+    "status"
   ],
   "rls": {
     "create": {

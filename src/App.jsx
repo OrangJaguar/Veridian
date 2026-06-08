@@ -6,10 +6,10 @@ import SignInPage from '@/pages/auth/SignInPage';
 import SignUpPage from '@/pages/auth/SignUpPage';
 import LibraryStubPage from '@/pages/stubs/LibraryStubPage';
 import LibraryPreviewStubPage from '@/pages/stubs/LibraryPreviewStubPage';
-import HomeStubPage from '@/pages/stubs/HomeStubPage';
-import JourneysStubPage from '@/pages/stubs/JourneysStubPage';
-import JourneyDetailStubPage from '@/pages/stubs/JourneyDetailStubPage';
-import ModuleDetailStubPage from '@/pages/stubs/ModuleDetailStubPage';
+import HomePage from '@/pages/home/HomePage';
+import JourneysPage from '@/pages/journeys/JourneysPage';
+import JourneyDetailPage from '@/pages/journeys/JourneyDetailPage';
+import ModuleDetailPage from '@/pages/journeys/ModuleDetailPage';
 import StudyStubPage from '@/pages/stubs/StudyStubPage';
 import ProfileStubPage from '@/pages/stubs/ProfileStubPage';
 import LegacyAppPage from '@/pages/legacy/LegacyAppPage';
@@ -25,10 +25,10 @@ export default function App() {
       </Route>
 
       <Route element={<AppShell />}>
-        <Route path="/home" element={<HomeStubPage />} />
-        <Route path="/journeys" element={<JourneysStubPage />} />
-        <Route path="/journeys/:id" element={<JourneyDetailStubPage />} />
-        <Route path="/journeys/:id/modules/:moduleId" element={<ModuleDetailStubPage />} />
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/journeys" element={<JourneysPage />} />
+        <Route path="/journeys/:id" element={<JourneyDetailPage />} />
+        <Route path="/journeys/:id/modules/:moduleId" element={<ModuleDetailPage />} />
         <Route path="/study/:sessionId" element={<StudyStubPage />} />
         <Route path="/profile" element={<ProfileStubPage />} />
         <Route path="/library" element={<LibraryStubPage />} />

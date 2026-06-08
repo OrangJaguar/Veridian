@@ -4,19 +4,28 @@ import { createActivity, updateActivity, deleteActivity } from '@/api/entities/a
 import { generateActivityId } from '@/utils/schemas/ids';
 import { createActivitySchema } from '@/utils/schemas/activity';
 
+function invalidateActivityQueries(queryClient, { moduleId, journeyId }) {
+  if (moduleId) {
+    queryClient.invalidateQueries({ queryKey: queryKeys.activities.byModule(moduleId) });
+  }
+  if (journeyId) {
+    queryClient.invalidateQueries({ queryKey: queryKeys.activities.byJourney(journeyId) });
+  }
+}
+
 export function useCreateActivity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ moduleId, journeyId, input }) => {
+    mutationFn: ({ journeyId, input }) => {
       const parsed = createActivitySchema.parse(input);
-      return createActivity(moduleId, journeyId, {
+      return createActivity(journeyId, {
         activityId: generateActivityId(),
         ...parsed,
       });
     },
-    onSuccess: (_, { moduleId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.activities.byModule(moduleId) });
+    onSuccess: (_, { moduleId, journeyId }) => {
+      invalidateActivityQueries(queryClient, { moduleId, journeyId });
     },
   });
 }
@@ -25,9 +34,9 @@ export function useUpdateActivity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ activityId, moduleId, patch }) => updateActivity(activityId, patch),
-    onSuccess: (_, { moduleId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.activities.byModule(moduleId) });
+    mutationFn: ({ activityId, patch }) => updateActivity(activityId, patch),
+    onSuccess: (_, { moduleId, journeyId }) => {
+      invalidateActivityQueries(queryClient, { moduleId, journeyId });
     },
   });
 }
@@ -36,9 +45,9 @@ export function useDeleteActivity() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ activityId, moduleId }) => deleteActivity(activityId),
-    onSuccess: (_, { moduleId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.activities.byModule(moduleId) });
+    mutationFn: ({ activityId }) => deleteActivity(activityId),
+    onSuccess: (_, { moduleId, journeyId }) => {
+      invalidateActivityQueries(queryClient, { moduleId, journeyId });
     },
   });
 }

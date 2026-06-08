@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export const sessionStatusSchema = z.enum(['completed', 'abandoned']);
+
 export const outcomeSummarySchema = z.object({
   accuracy: z.number().optional(),
   itemsCompleted: z.number().optional(),
@@ -12,9 +14,12 @@ export const sessionSchema = z.object({
   sessionId: z.string(),
   journeyId: z.string(),
   moduleId: z.string().optional(),
-  activityId: z.string().optional(),
+  activityId: z.string(),
   userEmail: z.string().optional(),
   activityType: z.string(),
+  status: sessionStatusSchema,
+  score: z.number().optional(),
+  sessionData: z.record(z.unknown()).optional(),
   startedAt: z.number(),
   endedAt: z.number().optional(),
   durationSec: z.number().optional(),
@@ -23,10 +28,13 @@ export const sessionSchema = z.object({
 
 export const createSessionSchema = sessionSchema.pick({
   activityType: true,
+  activityId: true,
   startedAt: true,
+  status: true,
 }).extend({
   moduleId: z.string().optional(),
-  activityId: z.string().optional(),
+  score: z.number().optional(),
+  sessionData: z.record(z.unknown()).optional(),
   outcomeSummary: outcomeSummarySchema.optional(),
 });
 

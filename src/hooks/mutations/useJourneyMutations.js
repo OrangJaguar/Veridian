@@ -1,16 +1,30 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/api/query-keys';
 import { createJourney, updateJourney, deleteJourney } from '@/api/entities/journeys';
-import { seedSampleJourney } from '@/api/entities/journeyFactory';
+import {
+  seedSampleJourney,
+  seedDueTodayDemo,
+  seedFutureDueJourney,
+  seedWeakModuleJourney,
+} from '@/api/entities/journeyFactory';
 import { generateJourneyId } from '@/utils/schemas/ids';
 import { createJourneySchema } from '@/utils/schemas/journey';
 
 function invalidateJourneyQueries(queryClient, journeyId) {
   queryClient.invalidateQueries({ queryKey: queryKeys.journeys.all });
   queryClient.invalidateQueries({ queryKey: queryKeys.journeys.archived });
+  queryClient.invalidateQueries({ queryKey: queryKeys.dueToday });
   if (journeyId) {
     queryClient.invalidateQueries({ queryKey: queryKeys.journeys.detail(journeyId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.cards.byJourney(journeyId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.activities.byJourney(journeyId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.studyPlan(journeyId) });
   }
+}
+
+function invalidateAllHomeData(queryClient) {
+  invalidateJourneyQueries(queryClient);
+  queryClient.invalidateQueries({ queryKey: queryKeys.dueToday });
 }
 
 export function useCreateJourney() {
@@ -24,7 +38,7 @@ export function useCreateJourney() {
         ...parsed,
       });
     },
-    onSuccess: () => invalidateJourneyQueries(queryClient),
+    onSuccess: () => invalidateAllHomeData(queryClient),
   });
 }
 
@@ -51,7 +65,7 @@ export function useDeleteJourney() {
 
   return useMutation({
     mutationFn: (journeyId) => deleteJourney(journeyId),
-    onSuccess: () => invalidateJourneyQueries(queryClient),
+    onSuccess: () => invalidateAllHomeData(queryClient),
   });
 }
 
@@ -60,6 +74,33 @@ export function useSeedSampleJourney() {
 
   return useMutation({
     mutationFn: () => seedSampleJourney(),
-    onSuccess: () => invalidateJourneyQueries(queryClient),
+    onSuccess: () => invalidateAllHomeData(queryClient),
+  });
+}
+
+export function useSeedDueTodayDemo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => seedDueTodayDemo(),
+    onSuccess: () => invalidateAllHomeData(queryClient),
+  });
+}
+
+export function useSeedFutureDueJourney() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => seedFutureDueJourney(),
+    onSuccess: () => invalidateAllHomeData(queryClient),
+  });
+}
+
+export function useSeedWeakModuleJourney() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => seedWeakModuleJourney(),
+    onSuccess: () => invalidateAllHomeData(queryClient),
   });
 }

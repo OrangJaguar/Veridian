@@ -14,6 +14,10 @@ export function useCardsByJourney(journeyId) {
   });
 }
 
+export function useCards(journeyId) {
+  return useCardsByJourney(journeyId);
+}
+
 export function useCardsByActivity(activityId) {
   const { isAuthenticated } = useAuth();
 

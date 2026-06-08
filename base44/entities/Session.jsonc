@@ -22,6 +22,17 @@
     "activityType": {
       "type": "string"
     },
+    "status": {
+      "type": "string",
+      "description": "completed | abandoned"
+    },
+    "score": {
+      "type": "number"
+    },
+    "sessionData": {
+      "type": "object",
+      "description": "Type-specific ephemeral payload — quiz Q&A lives here"
+    },
     "startedAt": {
       "type": "number"
     },
@@ -38,8 +49,10 @@
   "required": [
     "sessionId",
     "journeyId",
+    "activityId",
     "activityType",
-    "startedAt"
+    "startedAt",
+    "status"
   ],
   "rls": {
     "create": {

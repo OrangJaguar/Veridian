@@ -12,6 +12,16 @@ async function findByClientId(entity, field, value) {
   return rows[0] ?? null;
 }
 
+export async function listAllActivities() {
+  await requireAuth();
+  return base44.entities.Activity.list();
+}
+
+export async function listActivitiesByJourney(journeyId) {
+  await requireAuth();
+  return base44.entities.Activity.filter({ journeyId });
+}
+
 export async function listActivitiesByModule(moduleId) {
   await requireAuth();
   return base44.entities.Activity.filter({ moduleId });
@@ -22,15 +32,19 @@ export async function getActivity(activityId) {
   return findByClientId(base44.entities.Activity, 'activityId', activityId);
 }
 
-export async function createActivity(moduleId, journeyId, payload) {
+export async function createActivity(journeyId, payload) {
   const user = await requireAuth();
+  const now = Date.now();
   return base44.entities.Activity.create({
     ...payload,
-    moduleId,
     journeyId,
     userEmail: user.email,
+    moduleId: payload.moduleId ?? null,
     content: payload.content ?? {},
+    stats: payload.stats ?? {},
     itemCount: payload.itemCount ?? 0,
+    createdAt: payload.createdAt ?? now,
+    updatedAt: payload.updatedAt ?? now,
   });
 }
 
@@ -38,7 +52,10 @@ export async function updateActivity(activityId, patch) {
   await requireAuth();
   const existing = await findByClientId(base44.entities.Activity, 'activityId', activityId);
   if (!existing) throw new Error(`Activity not found: ${activityId}`);
-  return base44.entities.Activity.update(existing.id, patch);
+  return base44.entities.Activity.update(existing.id, {
+    ...patch,
+    updatedAt: Date.now(),
+  });
 }
 
 export async function deleteActivity(activityId) {

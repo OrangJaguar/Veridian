@@ -1,0 +1,49 @@
+import { useAuth } from '@/hooks/useAuth';
+import { useJourneys } from '@/hooks/queries/useJourneys';
+import { useDueToday } from '@/hooks/queries/useDueToday';
+import LoginPrompt from '@/components/stubs/LoginPrompt';
+import HomeDevTools from '@/components/dev/HomeDevTools';
+import HomeWelcomeHeader from '@/components/home/HomeWelcomeHeader';
+import DueTodayZone from '@/components/home/DueTodayZone';
+import JourneyGridZone from '@/components/home/JourneyGridZone';
+import HomeEmptyState from '@/components/home/HomeEmptyState';
+
+export default function HomePage() {
+  const { isAuthenticated } = useAuth();
+  const { data: journeys = [], isLoading: journeysLoading } = useJourneys({ archived: false });
+  const { data: dueItems = [], isLoading: dueLoading } = useDueToday();
+
+  if (!isAuthenticated) {
+    return (
+      <div className="stub-page">
+        <p className="stub-phase">Phase 3</p>
+        <h1 className="stub-title">App Home</h1>
+        <p className="stub-description">
+          Due Today, your Journey grid, and the action-driven home screen.
+        </p>
+        <LoginPrompt action="save your progress and sync across devices" />
+      </div>
+    );
+  }
+
+  if (!journeysLoading && journeys.length === 0) {
+    return <HomeEmptyState devTools={<HomeDevTools />} />;
+  }
+
+  const firstJourneyId = journeys[0]?.journeyId;
+
+  return (
+    <div className="home-page">
+      <div className="home-page-top">
+        <HomeWelcomeHeader />
+        <HomeDevTools />
+      </div>
+      <DueTodayZone
+        items={dueItems}
+        loading={dueLoading || journeysLoading}
+        firstJourneyId={firstJourneyId}
+      />
+      <JourneyGridZone />
+    </div>
+  );
+}

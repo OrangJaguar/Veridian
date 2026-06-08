@@ -12,6 +12,11 @@ async function findByClientId(entity, field, value) {
   return rows[0] ?? null;
 }
 
+export async function listAllModules() {
+  await requireAuth();
+  return base44.entities.Module.list();
+}
+
 export async function listModulesByJourney(journeyId) {
   await requireAuth();
   const rows = await base44.entities.Module.filter({ journeyId });

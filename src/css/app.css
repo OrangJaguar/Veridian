@@ -1693,12 +1693,736 @@
     .journey-module-stage.stage-B { border-color: var(--text-main); }
     .journey-module-stage.stage-C { background: var(--text-main); color: var(--bg); border-color: var(--text-main); }
 
+    .journey-detail-stats {
+      display: flex;
+      gap: 1.5rem;
+      margin-top: 0.75rem;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    .journey-detail-stat strong {
+      color: var(--text-main);
+    }
+
+    .journey-readiness {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.2rem 0.55rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    .journey-readiness-green { border-color: #4caf50; color: #4caf50; }
+    .journey-readiness-yellow { border-color: #ffb74d; color: #ffb74d; }
+    .journey-readiness-red { border-color: #e57373; color: #e57373; }
+
+    .journey-study-plan {
+      margin-bottom: 2rem;
+      padding: 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .journey-study-plan-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .journey-study-plan-empty {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+
+    .journey-study-plan-today {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .journey-study-plan-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+    }
+
+    .journey-study-plan-item-main {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+      min-width: 0;
+    }
+
+    .journey-study-plan-item-main strong {
+      font-size: 0.875rem;
+    }
+
+    .journey-study-plan-item-main span {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .journey-study-plan-week-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .journey-study-plan-week-list {
+      list-style: none;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .journey-module-item {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .journey-module-item-toggle {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      width: 100%;
+      background: none;
+      border: none;
+      padding: 0;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .journey-module-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    .journey-module-health {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .health-green { background: #4caf50; }
+    .health-yellow { background: #ffb74d; }
+    .health-red { background: #e57373; }
+
+    .journey-module-mastery {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .journey-module-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.65rem;
+      padding-top: 0.65rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .journey-module-last {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .journey-level-actions {
+      margin-bottom: 2rem;
+    }
+
+    .journey-level-actions-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .journey-level-actions-note {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+    }
+
+    .journey-insights {
+      margin-bottom: 2rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .journey-insights-toggle {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.85rem 1rem;
+      background: var(--surface);
+      border: none;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: var(--radius);
+    }
+
+    .journey-insights-body {
+      padding: 0 1rem 1rem;
+    }
+
+    .journey-insights-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+    }
+
+    .journey-insights-list li {
+      display: flex;
+      gap: 1rem;
+      color: var(--text-muted);
+    }
+
+    .journey-card-status {
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-top: 0.35rem;
+    }
+
+    .journey-card-status-green { color: #4caf50; }
+    .journey-card-status-yellow { color: #ffb74d; }
+    .journey-card-status-red { color: #e57373; }
+    .journey-card-status-muted { color: var(--text-muted); }
+
+    .btn-sm {
+      font-size: 0.75rem;
+      padding: 0.35rem 0.7rem;
+    }
+
+    /* Module detail */
+    .module-detail-page {
+      padding: 2rem;
+      max-width: 960px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .module-detail-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .module-detail-desc {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      margin-top: 0.35rem;
+    }
+
+    .module-detail-meta {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      margin-top: 0.75rem;
+    }
+
+    .module-detail-mastery {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .module-stage-section {
+      margin-bottom: 1.5rem;
+      padding: 1rem 1.15rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .module-stage-section.recommended {
+      border-color: var(--text-main);
+    }
+
+    .module-stage-header {
+      margin-bottom: 0.75rem;
+    }
+
+    .module-stage-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: inline;
+    }
+
+    .module-stage-badge {
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-left: 0.5rem;
+      padding: 0.15rem 0.4rem;
+      border: 1px solid var(--text-main);
+      border-radius: var(--radius);
+    }
+
+    .module-stage-desc {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+
+    .module-stage-activities {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .module-activity-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+    }
+
+    .module-activity-main {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+      min-width: 0;
+    }
+
+    .module-activity-main strong {
+      font-size: 0.85rem;
+    }
+
+    .module-activity-main span {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .module-flashcard-decks,
+    .module-panel {
+      margin-bottom: 1rem;
+      padding: 1rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .module-panel-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .module-deck-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.8rem;
+    }
+
+    .module-deck-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .module-panel-toggle {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: none;
+      border: none;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .module-panel-body {
+      margin-top: 0.75rem;
+    }
+
+    .module-session-list,
+    .module-concept-list {
+      list-style: none;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .module-session-list li {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .home-due-card-activity {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+
     @media (max-width: 640px) {
       .journeys-header {
         flex-direction: column;
       }
 
       .journey-module-item {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+
+    /* Home page */
+    .home-page {
+      padding: 2rem;
+      max-width: 1040px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .home-page-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .home-welcome-greeting {
+      font-size: 1.65rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .home-welcome-date {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .home-dev-tools {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .home-dev-tools-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-right: 0.25rem;
+    }
+
+    .home-dev-tools .btn {
+      font-size: 0.72rem;
+      padding: 0.35rem 0.65rem;
+    }
+
+    .home-due-today {
+      min-height: 50vh;
+      padding: 1.5rem;
+      margin-bottom: 2.5rem;
+      border: 1px solid var(--border);
+      border-radius: calc(var(--radius) * 1.5);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .home-due-today-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .home-due-today-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .home-due-today-count {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .home-due-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      flex: 1;
+    }
+
+    .home-due-stack.single {
+      max-width: 100%;
+    }
+
+    .home-due-card {
+      padding: 1rem 1.15rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .home-due-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .home-due-card-subject {
+      display: block;
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      margin-bottom: 0.2rem;
+    }
+
+    .home-due-card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: block;
+    }
+
+    .home-due-card-urgency {
+      flex-shrink: 0;
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .home-due-card-action {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .home-due-card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .home-due-card-time {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+
+    .home-due-card-btn {
+      font-size: 0.8rem;
+      padding: 0.4rem 1rem;
+    }
+
+    .home-caught-up {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem 1rem;
+      gap: 0.75rem;
+    }
+
+    .home-caught-up-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .home-caught-up-sub {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      max-width: 420px;
+    }
+
+    .home-caught-up-chips {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .home-caught-up-chip {
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 0.45rem 0.85rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--bg);
+      color: inherit;
+      text-decoration: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .home-caught-up-chip:hover {
+      border-color: var(--text-muted);
+    }
+
+    .home-journey-zone {
+      padding-bottom: 2rem;
+    }
+
+    .home-journey-zone-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .home-journey-zone-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .home-journey-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1rem;
+    }
+
+    .journey-card-home {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .journey-card-progress {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      margin: 0.35rem 0;
+    }
+
+    .journey-card-progress-bar {
+      flex: 1;
+      height: 4px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .journey-card-progress-fill {
+      height: 100%;
+      background: var(--text-main);
+      border-radius: 4px;
+    }
+
+    .journey-card-progress-label {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .journey-card-meta-warn {
+      color: #e5a045;
+    }
+
+    .home-page-empty {
+      min-height: 60vh;
+    }
+
+    .home-empty {
+      max-width: 520px;
+      margin: 0 auto;
+      text-align: center;
+      padding: 2rem 0;
+    }
+
+    .home-empty-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+
+    .home-empty-description {
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+    }
+
+    .home-empty-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.65rem;
+      margin-bottom: 2rem;
+    }
+
+    .home-empty-preview {
+      opacity: 0.45;
+      pointer-events: none;
+    }
+
+    .home-empty-preview-card {
+      padding: 1rem;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    @media (max-width: 640px) {
+      .home-page {
+        padding: 1.25rem;
+      }
+
+      .home-due-today {
+        min-height: 40vh;
+        padding: 1rem;
+      }
+
+      .home-page-top {
+        flex-direction: column;
+      }
+
+      .home-journey-zone-header {
         flex-direction: column;
         align-items: flex-start;
       }

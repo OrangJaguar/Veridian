@@ -1,21 +1,25 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useJourneys } from '@/hooks/queries/useJourneys';
-import JourneyCard from '@/components/journeys/JourneyCard';
+import JourneyCard, { journeyUrgencySort } from '@/components/journeys/JourneyCard';
 import HomeDevTools from '@/components/dev/HomeDevTools';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
 
-export default function JourneysStubPage() {
+export default function JourneysPage() {
   const { isAuthenticated } = useAuth();
   const [tab, setTab] = useState('active');
   const archived = tab === 'archived';
 
   const { data: journeys = [], isLoading, error } = useJourneys({ archived });
 
+  const sorted = useMemo(
+    () => [...journeys].sort(journeyUrgencySort),
+    [journeys],
+  );
+
   if (!isAuthenticated) {
     return (
       <div className="stub-page">
-        <p className="stub-phase">Phase 2</p>
         <h1 className="stub-title">Journeys</h1>
         <p className="stub-description">
           Your full Journey library — create, manage, and track progress across subjects.
@@ -29,7 +33,6 @@ export default function JourneysStubPage() {
     <div className="journeys-page">
       <header className="journeys-header">
         <div>
-          <p className="stub-phase">Journeys</p>
           <h1 className="journeys-title">Journeys</h1>
         </div>
         <HomeDevTools />
@@ -59,7 +62,7 @@ export default function JourneysStubPage() {
         </p>
       )}
 
-      {!isLoading && !error && journeys.length === 0 && (
+      {!isLoading && !error && sorted.length === 0 && (
         <div className="journeys-empty">
           <h2>No Journeys yet</h2>
           <p>
@@ -70,13 +73,13 @@ export default function JourneysStubPage() {
         </div>
       )}
 
-      {!isLoading && !error && journeys.length > 0 && (
+      {!isLoading && !error && sorted.length > 0 && (
         <div className="journeys-grid">
-          {journeys.map((journey) => (
+          {sorted.map((journey) => (
             <JourneyCard
               key={journey.journeyId ?? journey.id}
               journey={journey}
-              variant="compact"
+              variant="list"
             />
           ))}
         </div>

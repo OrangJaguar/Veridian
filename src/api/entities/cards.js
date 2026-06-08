@@ -12,6 +12,11 @@ async function findByClientId(entity, field, value) {
   return rows[0] ?? null;
 }
 
+export async function listAllCards() {
+  await requireAuth();
+  return base44.entities.Card.list();
+}
+
 export async function listCardsByJourney(journeyId) {
   await requireAuth();
   return base44.entities.Card.filter({ journeyId });

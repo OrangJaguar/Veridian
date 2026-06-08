@@ -1,6 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/api/query-keys';
-import { listActivitiesByModule, getActivity } from '@/api/entities/activities';
+import {
+  listActivitiesByModule,
+  listActivitiesByJourney,
+  getActivity,
+} from '@/api/entities/activities';
 import { useAuth } from '@/hooks/useAuth';
 
 export function useActivities(moduleId) {
@@ -10,6 +14,17 @@ export function useActivities(moduleId) {
     queryKey: queryKeys.activities.byModule(moduleId),
     queryFn: () => listActivitiesByModule(moduleId),
     enabled: isAuthenticated && !!moduleId,
+    staleTime: 30_000,
+  });
+}
+
+export function useActivitiesByJourney(journeyId) {
+  const { isAuthenticated } = useAuth();
+
+  return useQuery({
+    queryKey: queryKeys.activities.byJourney(journeyId),
+    queryFn: () => listActivitiesByJourney(journeyId),
+    enabled: isAuthenticated && !!journeyId,
     staleTime: 30_000,
   });
 }

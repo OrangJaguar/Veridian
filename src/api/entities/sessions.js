@@ -18,6 +18,11 @@ export async function listSessionsByJourney(journeyId) {
   return rows.sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0));
 }
 
+export async function listAllSessions() {
+  await requireAuth();
+  return base44.entities.Session.list();
+}
+
 export async function getSession(sessionId) {
   await requireAuth();
   return findByClientId(base44.entities.Session, 'sessionId', sessionId);
@@ -29,7 +34,9 @@ export async function createSession(journeyId, payload) {
     ...payload,
     journeyId,
     userEmail: user.email,
+    status: payload.status ?? 'completed',
     outcomeSummary: payload.outcomeSummary ?? {},
+    sessionData: payload.sessionData ?? {},
   });
 }
 
