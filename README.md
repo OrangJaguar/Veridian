@@ -27,43 +27,54 @@ Never put `GEMINI_API_KEY` in `.env.local` or any `VITE_*` variable.
 base44 secrets set --env-file .env.secrets
 ```
 
-Backend function [`base44/functions/geminiJourney/entry.ts`](base44/functions/geminiJourney/entry.ts) reads `GEMINI_API_KEY` via `Deno.env.get()`.
+Backend function [`functions/geminiJourney/entry.ts`](functions/geminiJourney/entry.ts) reads `GEMINI_API_KEY` via `Deno.env.get()`.
 
-### Frontend vs backend on Base44 (important)
+## App Editor vs Backend Platform (read this)
 
-| Action | What it deploys |
-|--------|-----------------|
-| **Publish** (dashboard) | Frontend only — your Vite `dist/` site |
-| **`npx base44 functions deploy`** | Backend functions only — `base44/functions/*/entry.ts` |
-| **`npx base44 deploy`** | Everything (entities, functions, site) |
+Veridian was created in the **Base44 App Editor** (`useveridian.base44.app`). That is different from a **Backend Platform** project created with `base44 create`.
 
-**Publish alone does NOT deploy backend functions.** That is why you see 404 on `geminiJourney`.
+| Your workflow | Works? |
+|---------------|--------|
+| Push to GitHub → **Publish** in dashboard | Frontend + functions synced from repo |
+| `npx base44 functions deploy` | **No** — CLI deploy only works on Backend Platform apps |
+| `npx base44 entities push` | **No** — same restriction |
+| `npx base44 deploy` | **No** — same restriction |
 
-### Deploy the AI backend function (one-time + after function changes)
+If CLI says *"This endpoint is only available for Backend Platform apps"*, that is expected for App Editor apps. Use GitHub + Publish, or create the function in **Dashboard → Code → Functions**.
 
-1. Set secret: `base44 secrets set GEMINI_API_KEY=your_key` (or `--env-file .env.secrets`)
-2. Publish entity schemas (`UserAiQuota`, etc.) on Base44
-3. Deploy the function from project root:
-   ```bash
-   npx base44 functions deploy geminiJourney
-   ```
-4. Verify in Base44 Dashboard → **Code → Functions** — `geminiJourney` should show **Deployed/Active**
-5. Publish frontend (dashboard) for any UI changes
+### Deploy the AI backend function
 
-Function layout (required by Base44):
+Function layout (required):
+
 ```
-base44/functions/geminiJourney/
+functions/geminiJourney/
   function.jsonc
   entry.ts
 ```
 
+1. Confirm `GEMINI_API_KEY` is set: `base44 secrets list`
+2. Push this repo to GitHub (includes `functions/geminiJourney/`)
+3. In Base44 dashboard, click **Publish**
+4. Verify **Dashboard → Code → Functions** — `geminiJourney` should appear as Deployed/Active
+5. If still missing after publish, open **Code → Functions**, create `geminiJourney`, and paste `functions/geminiJourney/entry.ts`
+
+### Fix RLS security warnings (App Editor)
+
+Entity schemas with RLS live in [`base44/entities/`](base44/entities/). Rules use `data.userEmail` matching `{{user.email}}` — the pattern the security scanner expects.
+
+**Publish does not always sync permission rules to live tables.** After pushing entity changes:
+
+1. **Dashboard → Security → Run Security Scan**
+2. For each **Data permission gap**, expand it and click **Fix** (review each table — do not blindly Fix All)
+3. Or manually: **Dashboard → Data → [table] → Permissions → Edit** → Entity-User Field Comparison: `userEmail` = user `email` for Create, Read, Update, Delete
+
+Tables: Journey, Module, Activity, Card, Session, UserAiQuota, UserDeck, UserPreferences, UserTelemetry.
+
 ## Publish
 
-Open [Base44.com](http://Base44.com) and click Publish.
-
-After adding or changing entity schemas in `base44/entities/`, publish before testing Journey API hooks in the app.
+Open [Base44.com](http://Base44.com) and click Publish after pushing to GitHub.
 
 ## Docs
 
-- [Base44 GitHub integration](https://docs.base44.com/Integrations/Using-GitHub)
+- [Base44 GitHub integration](https://docs.base44.com/developers/app-code/local-development/github)
 - [Base44 support](https://app.base44.com/support)

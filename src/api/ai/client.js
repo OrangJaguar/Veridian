@@ -1,7 +1,7 @@
 import { base44 } from '@/api/base44Client';
 
 const FUNCTION_NOT_DEPLOYED_MSG =
-  'The AI backend (geminiJourney) is not deployed yet. Run: npx base44 functions deploy geminiJourney — Publish only deploys the frontend, not backend functions. Also confirm GEMINI_API_KEY is set in Base44 secrets.';
+  'The AI backend (geminiJourney) is not deployed yet. Push functions/geminiJourney/ to GitHub and Publish on Base44 (CLI deploy only works on Backend Platform apps). Also confirm GEMINI_API_KEY is set in Base44 secrets.';
 
 const KEY_NOT_CONFIGURED_MSG =
   'GEMINI_API_KEY is not configured on the server. Run: base44 secrets set GEMINI_API_KEY=your_key';
@@ -34,6 +34,11 @@ function normalizeInvokeError(err) {
  */
 export async function invokeGemini(action, payload, options = {}) {
   const { signal, devBypassQuota = false } = options;
+
+  const user = await base44.auth.me();
+  if (!user?.email) {
+    throw new Error('Please sign in to use AI features.');
+  }
 
   let invokePromise;
   try {
