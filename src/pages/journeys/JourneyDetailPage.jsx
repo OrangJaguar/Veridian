@@ -73,7 +73,7 @@ export default function JourneyDetailPage() {
         </ul>
       </section>
 
-      <JourneyLevelActions activities={activities} modules={modules} />
+      <JourneyLevelActions activities={activities} modules={modules} journeyId={journeyId} journey={journey} />
       <JourneyInsightsPanel sessions={sessions} />
     </div>
   );

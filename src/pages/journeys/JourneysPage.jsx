@@ -74,7 +74,7 @@ export default function JourneysPage() {
           <p>
             {archived
               ? 'No archived Journeys.'
-              : 'Create your first Journey in Phase 4, or use the dev tools above to test.'}
+              : 'Create your first Journey, or use the dev tools above to test with sample data.'}
           </p>
         </div>
       )}

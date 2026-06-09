@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const sessionStatusSchema = z.enum(['completed', 'abandoned']);
+export const sessionStatusSchema = z.enum(['in_progress', 'completed', 'abandoned']);
 
 export const outcomeSummarySchema = z.object({
   accuracy: z.number().optional(),

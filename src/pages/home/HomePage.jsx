@@ -6,7 +6,7 @@ import HomeDevTools from '@/components/dev/HomeDevTools';
 import HomeWelcomeHeader from '@/components/home/HomeWelcomeHeader';
 import DueTodayZone from '@/components/home/DueTodayZone';
 import JourneyGridZone from '@/components/home/JourneyGridZone';
-import HomeEmptyState from '@/components/home/HomeEmptyState';
+import HomeExamCramZone from '@/components/home/HomeExamCramZone';
 
 export default function HomePage() {
   const { isAuthenticated } = useAuth();
@@ -16,7 +16,6 @@ export default function HomePage() {
   if (!isAuthenticated) {
     return (
       <div className="stub-page">
-        <p className="stub-phase">Phase 3</p>
         <h1 className="stub-title">App Home</h1>
         <p className="stub-description">
           Due Today, your Journey grid, and the action-driven home screen.
@@ -38,6 +37,7 @@ export default function HomePage() {
         <HomeWelcomeHeader />
         <HomeDevTools />
       </div>
+      <HomeExamCramZone journeys={journeys} />
       <DueTodayZone
         items={dueItems}
         loading={dueLoading || journeysLoading}

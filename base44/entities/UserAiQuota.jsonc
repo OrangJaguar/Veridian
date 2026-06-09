@@ -22,6 +22,18 @@
     "lastCallAt": {
       "type": "number",
       "description": "Unix ms of last AI call for cooldown"
+    },
+    "quizGenerations": {
+      "type": "number"
+    },
+    "guideGenerations": {
+      "type": "number"
+    },
+    "gradingCalls": {
+      "type": "number"
+    },
+    "flashcardGenerations": {
+      "type": "number"
     }
   },
   "required": [

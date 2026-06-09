@@ -1,4 +1,5 @@
-import { toast } from 'sonner';
+import { useLaunchStudy } from '@/hooks/study/useLaunchStudy';
+import { useUpdateActivity } from '@/hooks/mutations/useActivityMutations';
 import { ACTIVITY_LABELS } from '@/utils/studyPlanner';
 
 const STAGE_ACTIVITIES = {
@@ -7,7 +8,9 @@ const STAGE_ACTIVITIES = {
   C: ['feynman', 'freeRecall', 'synthesis'],
 };
 
-export default function ActivityRow({ activity, cardCount = 0 }) {
+export default function ActivityRow({ activity, cardCount = 0, journeyId, moduleId }) {
+  const launchStudy = useLaunchStudy();
+  const updateActivity = useUpdateActivity();
   const stats = activity.stats ?? {};
   let statLine = '';
 
@@ -27,8 +30,20 @@ export default function ActivityRow({ activity, cardCount = 0 }) {
       : 'Ready to start';
   }
 
-  const handleLaunch = () => {
-    toast.info(`${ACTIVITY_LABELS[activity.type] ?? activity.title} launches in Phase 6`);
+  const handleLaunch = async () => {
+    if (activity.status === 'notGenerated' && activity.type === 'learningGuide') {
+      await updateActivity.mutateAsync({
+        activityId: activity.activityId,
+        journeyId,
+        moduleId,
+        patch: { status: 'generating' },
+      });
+    }
+    await launchStudy({
+      journeyId,
+      activity,
+      moduleId,
+    });
   };
 
   return (
@@ -40,10 +55,10 @@ export default function ActivityRow({ activity, cardCount = 0 }) {
       <button
         type="button"
         className="btn btn-secondary btn-sm"
-        disabled={activity.status === 'notGenerated' || activity.status === 'generating'}
+        disabled={activity.status === 'generating'}
         onClick={handleLaunch}
       >
-        {activity.status === 'notGenerated' ? 'Generate' : 'Launch'}
+        {activity.status === 'notGenerated' && activity.type === 'learningGuide' ? 'Generate' : 'Launch'}
       </button>
     </div>
   );

@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import { urgencyLabel } from '@/components/journeys/journeyUtils';
+import { useLaunchStudy } from '@/hooks/study/useLaunchStudy';
+import { getActivity } from '@/api/entities/activities';
 
 const ACTION_VERBS = {
   flashcardSet: 'Review',
@@ -14,7 +14,17 @@ const ACTION_VERBS = {
 
 export default function DueTodayCard({ item }) {
   const verb = ACTION_VERBS[item.activityType] ?? 'Start';
-  const urgency = urgencyLabel(item.urgencyDays);
+  const launchStudy = useLaunchStudy();
+
+  const handleLaunch = async () => {
+    const activity = await getActivity(item.activityId);
+    if (!activity) return;
+    await launchStudy({
+      journeyId: item.journeyId,
+      activity,
+      moduleId: item.moduleId ?? undefined,
+    });
+  };
 
   return (
     <div className="home-due-card">
@@ -26,15 +36,14 @@ export default function DueTodayCard({ item }) {
             {item.moduleName && <> · {item.moduleName}</>}
           </strong>
         </div>
-        {urgency && <span className="home-due-card-urgency">{urgency}</span>}
       </div>
       <p className="home-due-card-activity">{item.activityLabel}</p>
       <p className="home-due-card-action">{item.actionLabel}</p>
       <div className="home-due-card-footer">
         <span className="home-due-card-time">~{item.estimatedMin} min</span>
-        <Link to={item.href} className="btn btn-primary home-due-card-btn">
+        <button type="button" className="btn btn-primary home-due-card-btn" onClick={handleLaunch}>
           {verb}
-        </Link>
+        </button>
       </div>
     </div>
   );

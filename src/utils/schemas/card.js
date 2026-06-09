@@ -8,6 +8,9 @@ export const fsrsStateSchema = z.object({
   lapses: z.number().optional(),
   state: z.number().optional(),
   lastReview: z.number().optional(),
+  elapsed_days: z.number().optional(),
+  scheduled_days: z.number().optional(),
+  learning_steps: z.number().optional(),
 });
 
 export const cardSchema = z.object({

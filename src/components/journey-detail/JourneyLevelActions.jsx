@@ -1,14 +1,25 @@
-import { toast } from 'sonner';
+import { useLaunchStudy } from '@/hooks/study/useLaunchStudy';
 
-export default function JourneyLevelActions({ activities, modules }) {
+export default function JourneyLevelActions({ activities, modules, journeyId, journey }) {
   const stageBCount = modules.filter((m) => m.stage === 'B').length;
   const disabled = stageBCount < 2;
+  const launchStudy = useLaunchStudy();
 
   const interleaved = activities.find((a) => a.type === 'interleavedReview');
   const challenge = activities.find((a) => a.type === 'journeyChallenge');
 
-  const launch = (label) => {
-    toast.info(`${label} launches in Phase 6`);
+  const daysUntilExam = journey?.examDate
+    ? Math.ceil((journey.examDate - Date.now()) / 86400000)
+    : null;
+  const showCram = daysUntilExam != null && daysUntilExam <= 7;
+
+  const launch = (activity, extraSessionData = {}) => {
+    launchStudy({
+      journeyId,
+      activity,
+      moduleId: null,
+      initialSessionData: extraSessionData,
+    });
   };
 
   return (
@@ -20,7 +31,7 @@ export default function JourneyLevelActions({ activities, modules }) {
           className="btn btn-secondary"
           disabled={disabled || !interleaved}
           title={disabled ? 'Requires 2+ modules in Stage B' : undefined}
-          onClick={() => launch('Interleaved Review')}
+          onClick={() => launch(interleaved)}
         >
           Interleaved Review
         </button>
@@ -29,10 +40,19 @@ export default function JourneyLevelActions({ activities, modules }) {
           className="btn btn-secondary"
           disabled={disabled || !challenge}
           title={disabled ? 'Requires 2+ modules in Stage B' : undefined}
-          onClick={() => launch('Journey Challenge')}
+          onClick={() => launch(challenge)}
         >
           Journey Challenge
         </button>
+        {showCram && challenge && (
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => launch(challenge, { cramMode: true })}
+          >
+            Cram Mode
+          </button>
+        )}
       </div>
       {disabled && (
         <p className="journey-level-actions-note">

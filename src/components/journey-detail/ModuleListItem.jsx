@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { toast } from 'sonner';
 
 const STAGE_LABELS = { A: 'Learn', B: 'Practice', C: 'Mastery' };
 
@@ -20,12 +19,6 @@ export default function ModuleListItem({ journeyId, module: mod, sessions = [] }
     .filter((s) => s.moduleId === mod.moduleId && s.status === 'completed')
     .sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0));
   const lastStudied = moduleSessions[0]?.startedAt;
-
-  const handleStart = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    toast.info('Study sessions launch in Phase 6');
-  };
 
   return (
     <li className={`journey-module-item${expanded ? ' expanded' : ''}`}>
@@ -53,9 +46,13 @@ export default function ModuleListItem({ journeyId, module: mod, sessions = [] }
             ? `Last studied ${formatDistanceToNow(new Date(lastStudied), { addSuffix: true })}`
             : 'Not studied yet'}
         </span>
-        <button type="button" className="btn btn-primary btn-sm" onClick={handleStart}>
+        <Link
+          to={`/journeys/${journeyId}/modules/${mod.moduleId}`}
+          className="btn btn-primary btn-sm"
+          onClick={(e) => e.stopPropagation()}
+        >
           Start Session
-        </button>
+        </Link>
         <Link
           to={`/journeys/${journeyId}/modules/${mod.moduleId}`}
           className="btn btn-secondary btn-sm"

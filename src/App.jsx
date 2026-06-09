@@ -11,7 +11,7 @@ import JourneysPage from '@/pages/journeys/JourneysPage';
 import CreateJourneyPage from '@/pages/journeys/CreateJourneyPage';
 import JourneyDetailPage from '@/pages/journeys/JourneyDetailPage';
 import ModuleDetailPage from '@/pages/journeys/ModuleDetailPage';
-import StudyStubPage from '@/pages/stubs/StudyStubPage';
+import StudyShell from '@/pages/study/StudyShell';
 import ProfileStubPage from '@/pages/stubs/ProfileStubPage';
 import LegacyAppPage from '@/pages/legacy/LegacyAppPage';
 import NotFoundPage from '@/pages/NotFoundPage';
@@ -31,7 +31,7 @@ export default function App() {
         <Route path="/journeys/new" element={<CreateJourneyPage />} />
         <Route path="/journeys/:id" element={<JourneyDetailPage />} />
         <Route path="/journeys/:id/modules/:moduleId" element={<ModuleDetailPage />} />
-        <Route path="/study/:sessionId" element={<StudyStubPage />} />
+        <Route path="/study/:sessionId" element={<StudyShell />} />
         <Route path="/profile" element={<ProfileStubPage />} />
         <Route path="/library" element={<LibraryStubPage />} />
         <Route path="/library/:journeyId" element={<LibraryPreviewStubPage />} />

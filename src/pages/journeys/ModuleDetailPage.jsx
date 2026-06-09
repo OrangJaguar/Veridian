@@ -72,10 +72,18 @@ export default function ModuleDetailPage() {
           recommendedStage={recommendedStage}
           activities={activities}
           cardsByActivity={cardsByActivity}
+          journeyId={journeyId}
+          moduleId={moduleId}
         />
       ))}
 
-      <FlashcardDeckList decks={flashcardDecks} cardsByActivity={cardsByActivity} />
+      <FlashcardDeckList
+        decks={flashcardDecks}
+        cardsByActivity={cardsByActivity}
+        moduleId={moduleId}
+        journeyId={journeyId}
+        knowledgeMap={mod.knowledgeMap}
+      />
       <SessionHistoryPanel sessions={sessions.filter((s) => s.moduleId === moduleId)} />
       <ConceptMapPanel knowledgeMap={mod.knowledgeMap} />
     </div>

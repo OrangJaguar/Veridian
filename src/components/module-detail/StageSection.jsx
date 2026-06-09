@@ -6,7 +6,7 @@ const STAGE_LABELS = {
   C: { title: 'Stage C — Mastery', desc: 'Deepen understanding with advanced techniques' },
 };
 
-export default function StageSection({ stage, recommendedStage, activities, cardsByActivity }) {
+export default function StageSection({ stage, recommendedStage, activities, cardsByActivity, journeyId, moduleId }) {
   const types = stageActivityTypes(stage);
   const stageActivities = activities.filter((a) => types.includes(a.type));
   const info = STAGE_LABELS[stage];
@@ -28,6 +28,8 @@ export default function StageSection({ stage, recommendedStage, activities, card
               key={act.activityId ?? act.id}
               activity={act}
               cardCount={(cardsByActivity[act.activityId] ?? []).length}
+              journeyId={journeyId}
+              moduleId={moduleId}
             />
           ))
         )}

@@ -62,9 +62,11 @@ export function getDueCards(cards, endOfToday = endOfTodayMs()) {
 
 export function getCardHealth(card) {
   const stability = card.fsrsState?.stability ?? 0;
+  const lapses = card.fsrsState?.lapses ?? 0;
   if (stability >= 21) return 'strong';
   if (stability >= 7) return 'moderate';
-  return 'weak';
+  if (stability < 7 || lapses >= 2) return 'fragile';
+  return 'fragile';
 }
 
 export function averageStability(cards) {

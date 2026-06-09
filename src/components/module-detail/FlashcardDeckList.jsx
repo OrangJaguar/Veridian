@@ -1,6 +1,19 @@
-import { toast } from 'sonner';
+import { useState } from 'react';
+import { useLaunchStudy } from '@/hooks/study/useLaunchStudy';
+import CreateDeckModal from '@/components/study/flashcard/CreateDeckModal';
 
-export default function FlashcardDeckList({ decks = [], cardsByActivity }) {
+export default function FlashcardDeckList({ decks = [], cardsByActivity, moduleId, journeyId, knowledgeMap }) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const launchStudy = useLaunchStudy();
+
+  const handleLaunch = (deck) => {
+    launchStudy({
+      journeyId,
+      activity: deck,
+      moduleId,
+    });
+  };
+
   return (
     <section className="module-flashcard-decks">
       <h3 className="module-panel-title">Flashcard Decks</h3>
@@ -13,8 +26,13 @@ export default function FlashcardDeckList({ decks = [], cardsByActivity }) {
             const due = deck.stats?.dueCount ?? 0;
             return (
               <li key={deck.activityId ?? deck.id} className="module-deck-item">
-                <strong>{deck.title ?? 'Untitled Deck'}</strong>
-                <span>{cards.length} cards · {due} due</span>
+                <div>
+                  <strong>{deck.title ?? 'Untitled Deck'}</strong>
+                  <span>{cards.length} cards · {due} due</span>
+                </div>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleLaunch(deck)}>
+                  Launch
+                </button>
               </li>
             );
           })}
@@ -23,10 +41,17 @@ export default function FlashcardDeckList({ decks = [], cardsByActivity }) {
       <button
         type="button"
         className="btn btn-secondary btn-sm module-add-deck"
-        onClick={() => toast.info('Create flashcard deck in Phase 4/6')}
+        onClick={() => setModalOpen(true)}
       >
         + Add Flashcard Deck
       </button>
+      <CreateDeckModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        moduleId={moduleId}
+        journeyId={journeyId}
+        knowledgeMap={knowledgeMap}
+      />
     </section>
   );
 }
