@@ -23,6 +23,7 @@ export default function PracticeQuizSession({ session, activity, module, journey
   const [questions, setQuestions] = useState([]);
   const [config, setConfig] = useState(activity.content?.lastConfig ?? {});
   const [loading, setLoading] = useState(false);
+  const [refresherContent, setRefresherContent] = useState(null);
   const [summaryAccuracy, setSummaryAccuracy] = useState(null);
   const [refresherContent, setRefresherContent] = useState(null);
   const completeSession = useCompleteSession();

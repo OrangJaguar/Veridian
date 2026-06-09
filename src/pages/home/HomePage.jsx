@@ -7,6 +7,7 @@ import HomeWelcomeHeader from '@/components/home/HomeWelcomeHeader';
 import DueTodayZone from '@/components/home/DueTodayZone';
 import JourneyGridZone from '@/components/home/JourneyGridZone';
 import HomeExamCramZone from '@/components/home/HomeExamCramZone';
+import HomeEmptyState from '@/components/home/HomeEmptyState';
 
 export default function HomePage() {
   const { isAuthenticated } = useAuth();
