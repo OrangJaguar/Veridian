@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useJourneys } from '@/hooks/queries/useJourneys';
 import JourneyCard from '@/components/journeys/JourneyCard';
-import HomeDevTools from '@/components/dev/HomeDevTools';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
 
 export default function JourneysStubPage() {
@@ -29,10 +28,8 @@ export default function JourneysStubPage() {
     <div className="journeys-page">
       <header className="journeys-header">
         <div>
-          <p className="stub-phase">Journeys</p>
           <h1 className="journeys-title">Journeys</h1>
         </div>
-        <HomeDevTools />
       </header>
 
       <div className="journeys-tabs">

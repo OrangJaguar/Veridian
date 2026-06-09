@@ -3,7 +3,8 @@ import { toast } from 'sonner';
 import StudyChrome from '@/components/study/StudyChrome';
 import SessionSummary from '@/components/study/SessionSummary';
 import OpenResponseEditor from '@/components/study/shared/OpenResponseEditor';
-import { gradeFreeRecall } from '@/api/ai/study';
+// import { gradeFreeRecall } from '@/api/ai/study';
+import { mockGradeFreeRecall } from '@/fixtures/study/mockGrading';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
 
@@ -34,13 +35,10 @@ export default function FreeRecallSession({ session, activity, module, journeyId
 
   const submit = async () => {
     try {
-      const graded = await gradeFreeRecall({
-        recallPrompt: module?.name ?? 'Module',
-        studentResponse: response,
-        hintsUsed,
-        knowledgeMap: module?.knowledgeMap ?? {},
-      });
-      setResult(graded.data ?? graded);
+      // AI grading (disabled until geminiStudy is deployed):
+      // const graded = await gradeFreeRecall({ recallPrompt, studentResponse: response, hintsUsed, knowledgeMap });
+      const data = mockGradeFreeRecall({ studentResponse: response, hintsUsed });
+      setResult(data);
       setPhase('result');
     } catch (err) {
       toast.error(err.message || 'Grading failed');

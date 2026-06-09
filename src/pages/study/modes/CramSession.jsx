@@ -3,20 +3,26 @@ import { toast } from 'sonner';
 import StudyChrome from '@/components/study/StudyChrome';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
 import SessionSummary from '@/components/study/SessionSummary';
-import { generateCramSession } from '@/api/ai/study';
+// import { generateCramSession } from '@/api/ai/study';
+import { pickQuestions } from '@/fixtures/starterJourney/aiJourneyContent';
 import { getDueCards } from '@/utils/fsrs';
 import { getWeakConceptIds } from '@/utils/study/conceptWeakness';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
 import { useSessions } from '@/hooks/queries/useSessions';
+import { useActivitiesByJourney } from '@/hooks/queries/useActivities';
 
 export default function CramSession({ session, activity, journeyId, modules = [], cards = [] }) {
   const [phase, setPhase] = useState('loading');
   const [questions, setQuestions] = useState([]);
   const { data: sessions = [] } = useSessions(journeyId);
+  const { data: activities = [] } = useActivitiesByJourney(journeyId);
   const completeSession = useCompleteSession();
   const abandonSession = useAbandonSession();
   const returnPath = `/journeys/${journeyId}`;
+
+  const challengeActivity = activities.find((a) => a.type === 'journeyChallenge');
+  const preloaded = challengeActivity?.content?.questions ?? [];
 
   const weakConcepts = useMemo(
     () => modules.flatMap((m) => getWeakConceptIds(sessions, m.moduleId, 5)),
@@ -25,20 +31,15 @@ export default function CramSession({ session, activity, journeyId, modules = []
   const overdueCount = getDueCards(cards).length;
 
   useEffect(() => {
-    (async () => {
-      try {
-        const result = await generateCramSession({
-          weakConceptIds: [...new Set(weakConcepts)],
-          overdueCardCount: overdueCount,
-          moduleNames: modules.map((m) => m.name),
-        });
-        setQuestions(result.data?.questions ?? result.questions ?? []);
-        setPhase('active');
-      } catch (err) {
-        toast.error(err.message || 'Failed to build cram session');
-        setPhase('error');
-      }
-    })();
+    if (preloaded.length > 0) {
+      setQuestions(pickQuestions(preloaded, 8));
+      setPhase('active');
+      return;
+    }
+    toast.error('No cram questions available.');
+    setPhase('error');
+    // AI generation (disabled):
+    // generateCramSession({ weakConceptIds, overdueCardCount, moduleNames })
   }, []);
 
   const handleComplete = async (answers) => {
@@ -51,6 +52,7 @@ export default function CramSession({ session, activity, journeyId, modules = []
       nextAction: 'Review overdue cards and weakest modules before exam',
       cramMode: true,
       quizQuestions: answers.length,
+      overdueCards: overdueCount,
     };
     await completeSession({
       sessionId: session.sessionId,

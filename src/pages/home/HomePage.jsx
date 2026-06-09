@@ -1,8 +1,8 @@
 import { useAuth } from '@/hooks/useAuth';
 import { useJourneys } from '@/hooks/queries/useJourneys';
 import { useDueToday } from '@/hooks/queries/useDueToday';
+import { useEnsureStarterJourney } from '@/hooks/useEnsureStarterJourney';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
-import HomeDevTools from '@/components/dev/HomeDevTools';
 import HomeWelcomeHeader from '@/components/home/HomeWelcomeHeader';
 import DueTodayZone from '@/components/home/DueTodayZone';
 import JourneyGridZone from '@/components/home/JourneyGridZone';
@@ -12,6 +12,7 @@ export default function HomePage() {
   const { isAuthenticated } = useAuth();
   const { data: journeys = [], isLoading: journeysLoading } = useJourneys({ archived: false });
   const { data: dueItems = [], isLoading: dueLoading } = useDueToday();
+  const { provisioning, error: provisionError } = useEnsureStarterJourney();
 
   if (!isAuthenticated) {
     return (
@@ -25,18 +26,21 @@ export default function HomePage() {
     );
   }
 
-  if (!journeysLoading && journeys.length === 0) {
-    return <HomeEmptyState devTools={<HomeDevTools />} />;
+  if (journeysLoading || provisioning || (!journeysLoading && journeys.length === 0)) {
+    return (
+      <div className="home-page">
+        <p className="journeys-status">
+          {provisionError ? 'Could not load your starter journey. Please refresh.' : 'Setting up your first journey…'}
+        </p>
+      </div>
+    );
   }
 
   const firstJourneyId = journeys[0]?.journeyId;
 
   return (
     <div className="home-page">
-      <div className="home-page-top">
-        <HomeWelcomeHeader />
-        <HomeDevTools />
-      </div>
+      <HomeWelcomeHeader />
       <HomeExamCramZone journeys={journeys} />
       <DueTodayZone
         items={dueItems}

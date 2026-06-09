@@ -4,7 +4,8 @@ import StudyChrome from '@/components/study/StudyChrome';
 import SessionSummary from '@/components/study/SessionSummary';
 import OpenResponseEditor from '@/components/study/shared/OpenResponseEditor';
 import LatexRenderer from '@/components/shared/LatexRenderer';
-import { gradeFeynman } from '@/api/ai/study';
+// import { gradeFeynman } from '@/api/ai/study';
+import { mockGradeFeynman } from '@/fixtures/study/mockGrading';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
 
@@ -24,12 +25,9 @@ export default function FeynmanSession({ session, activity, module, journeyId })
 
   const submit = async () => {
     try {
-      const result = await gradeFeynman({
-        concept: concept ?? { term: conceptId },
-        studentResponse: response,
-        knowledgeMap: module?.knowledgeMap ?? {},
-      });
-      const data = result.data ?? result;
+      // AI grading (disabled until geminiStudy is deployed):
+      // const result = await gradeFeynman({ concept, studentResponse: response, knowledgeMap });
+      const data = mockGradeFeynman({ concept: concept ?? { term: conceptId } });
       setFeedback(data);
       setPhase('feedback');
     } catch (err) {

@@ -1,5 +1,4 @@
 import { useLaunchStudy } from '@/hooks/study/useLaunchStudy';
-import { useUpdateActivity } from '@/hooks/mutations/useActivityMutations';
 import { ACTIVITY_LABELS } from '@/utils/studyPlanner';
 
 const STAGE_ACTIVITIES = {
@@ -10,7 +9,6 @@ const STAGE_ACTIVITIES = {
 
 export default function ActivityRow({ activity, cardCount = 0, journeyId, moduleId }) {
   const launchStudy = useLaunchStudy();
-  const updateActivity = useUpdateActivity();
   const stats = activity.stats ?? {};
   let statLine = '';
 
@@ -31,14 +29,6 @@ export default function ActivityRow({ activity, cardCount = 0, journeyId, module
   }
 
   const handleLaunch = async () => {
-    if (activity.status === 'notGenerated' && activity.type === 'learningGuide') {
-      await updateActivity.mutateAsync({
-        activityId: activity.activityId,
-        journeyId,
-        moduleId,
-        patch: { status: 'generating' },
-      });
-    }
     await launchStudy({
       journeyId,
       activity,
@@ -58,7 +48,7 @@ export default function ActivityRow({ activity, cardCount = 0, journeyId, module
         disabled={activity.status === 'generating'}
         onClick={handleLaunch}
       >
-        {activity.status === 'notGenerated' && activity.type === 'learningGuide' ? 'Generate' : 'Launch'}
+        {activity.status === 'notGenerated' ? 'Generate' : 'Launch'}
       </button>
     </div>
   );

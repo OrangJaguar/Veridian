@@ -4,11 +4,13 @@ import StudyChrome from '@/components/study/StudyChrome';
 import QuizSetupForm from '@/components/study/quiz/QuizSetupForm';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
 import SessionSummary from '@/components/study/SessionSummary';
-import { generateInterleavedQuestions } from '@/api/ai/study';
+// import { generateInterleavedQuestions } from '@/api/ai/study';
+import { pickQuestions } from '@/fixtures/starterJourney/aiJourneyContent';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
 
 export default function InterleavedSession({ session, activity, journeyId, modules = [] }) {
+  const preloaded = activity.content?.questions ?? [];
   const [phase, setPhase] = useState('setup');
   const [questions, setQuestions] = useState([]);
   const [selectedModuleIds, setSelectedModuleIds] = useState(modules.map((m) => m.moduleId));
@@ -18,17 +20,18 @@ export default function InterleavedSession({ session, activity, journeyId, modul
 
   const handleStart = async (config) => {
     try {
-      const moduleMaps = modules
-        .filter((m) => selectedModuleIds.includes(m.moduleId))
-        .map((m) => ({ moduleId: m.moduleId, name: m.name, knowledgeMap: m.knowledgeMap }));
-      const result = await generateInterleavedQuestions({
-        moduleMaps,
-        questionCount: config.questionCount,
-      });
-      setQuestions(result.data?.questions ?? result.questions ?? []);
+      if (preloaded.length > 0) {
+        setQuestions(pickQuestions(preloaded, config.questionCount));
+      } else {
+        toast.error('No interleaved questions available yet.');
+        return;
+      }
+      // AI generation (disabled):
+      // const result = await generateInterleavedQuestions({ moduleMaps, questionCount: config.questionCount });
+      // setQuestions(result.data?.questions ?? []);
       setPhase('active');
     } catch (err) {
-      toast.error(err.message || 'Failed to generate questions');
+      toast.error(err.message || 'Failed to load questions');
     }
   };
 

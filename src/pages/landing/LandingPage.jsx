@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import LandingScrollProgress from '@/components/landing/LandingScrollProgress';
 import LandingCursorGlow from '@/components/landing/LandingCursorGlow';
@@ -20,7 +20,13 @@ const STATS = [
 ];
 
 export default function LandingPage() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/', { replace: true });
+  };
 
   return (
     <>
@@ -39,7 +45,10 @@ export default function LandingPage() {
               </p>
               <div className="landing-cta-row">
                 {!isLoading && user ? (
-                  <Link to="/home" className="btn btn-primary">Go to App</Link>
+                  <>
+                    <Link to="/home" className="btn btn-primary">Go to App</Link>
+                    <button type="button" className="btn" onClick={handleLogout}>Log out</button>
+                  </>
                 ) : (
                   <>
                     <Link to="/signup" className="btn btn-primary">Get Started</Link>

@@ -3,13 +3,15 @@ import { toast } from 'sonner';
 import StudyChrome from '@/components/study/StudyChrome';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
 import SessionSummary from '@/components/study/SessionSummary';
-import { generateJourneyChallenge } from '@/api/ai/study';
+// import { generateJourneyChallenge } from '@/api/ai/study';
+import { pickQuestions } from '@/fixtures/starterJourney/aiJourneyContent';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
 
-const LENGTH_MAP = { short: 15, medium: 30, long: 50 };
+const LENGTH_MAP = { short: 8, medium: 10, long: 12 };
 
 export default function JourneyChallengeSession({ session, activity, journeyId, modules = [] }) {
+  const preloaded = activity.content?.questions ?? [];
   const [phase, setPhase] = useState('setup');
   const [questions, setQuestions] = useState([]);
   const [length, setLength] = useState('medium');
@@ -20,18 +22,15 @@ export default function JourneyChallengeSession({ session, activity, journeyId, 
 
   const start = async () => {
     try {
-      const moduleMaps = modules.map((m) => ({
-        moduleId: m.moduleId,
-        name: m.name,
-        knowledgeMap: m.knowledgeMap,
-        masteryScore: m.masteryScore,
-      }));
-      const result = await generateJourneyChallenge({
-        moduleMaps,
-        questionCount: LENGTH_MAP[length],
-        weighting,
-      });
-      setQuestions(result.data?.questions ?? result.questions ?? []);
+      if (preloaded.length > 0) {
+        setQuestions(pickQuestions(preloaded, LENGTH_MAP[length]));
+      } else {
+        toast.error('No challenge questions available yet.');
+        return;
+      }
+      // AI generation (disabled):
+      // const result = await generateJourneyChallenge({ moduleMaps, questionCount: LENGTH_MAP[length], weighting });
+      // setQuestions(result.data?.questions ?? []);
       setPhase('active');
     } catch (err) {
       toast.error(err.message || 'Failed to start challenge');

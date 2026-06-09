@@ -1,12 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/api/query-keys';
 import { createJourney, updateJourney, deleteJourney } from '@/api/entities/journeys';
-import {
-  seedSampleJourney,
-  seedDueTodayDemo,
-  seedFutureDueJourney,
-  seedWeakModuleJourney,
-} from '@/api/entities/journeyFactory';
 import { generateJourneyId } from '@/utils/schemas/ids';
 import { createJourneySchema } from '@/utils/schemas/journey';
 
@@ -65,42 +59,6 @@ export function useDeleteJourney() {
 
   return useMutation({
     mutationFn: (journeyId) => deleteJourney(journeyId),
-    onSuccess: () => invalidateAllHomeData(queryClient),
-  });
-}
-
-export function useSeedSampleJourney() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: () => seedSampleJourney(),
-    onSuccess: () => invalidateAllHomeData(queryClient),
-  });
-}
-
-export function useSeedDueTodayDemo() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: () => seedDueTodayDemo(),
-    onSuccess: () => invalidateAllHomeData(queryClient),
-  });
-}
-
-export function useSeedFutureDueJourney() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: () => seedFutureDueJourney(),
-    onSuccess: () => invalidateAllHomeData(queryClient),
-  });
-}
-
-export function useSeedWeakModuleJourney() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: () => seedWeakModuleJourney(),
     onSuccess: () => invalidateAllHomeData(queryClient),
   });
 }

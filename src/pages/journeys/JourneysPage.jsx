@@ -2,8 +2,8 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useJourneys } from '@/hooks/queries/useJourneys';
+import { useEnsureStarterJourney } from '@/hooks/useEnsureStarterJourney';
 import JourneyCard, { journeyUrgencySort } from '@/components/journeys/JourneyCard';
-import HomeDevTools from '@/components/dev/HomeDevTools';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
 
 export default function JourneysPage() {
@@ -12,6 +12,7 @@ export default function JourneysPage() {
   const archived = tab === 'archived';
 
   const { data: journeys = [], isLoading, error } = useJourneys({ archived });
+  const { provisioning } = useEnsureStarterJourney();
 
   const sorted = useMemo(
     () => [...journeys].sort(journeyUrgencySort),
@@ -40,7 +41,6 @@ export default function JourneysPage() {
           <Link to="/journeys/new" className="btn btn-primary">
             + New Journey
           </Link>
-          <HomeDevTools />
         </div>
       </header>
 
@@ -61,25 +61,25 @@ export default function JourneysPage() {
         </button>
       </div>
 
-      {isLoading && <p className="journeys-status">Loading Journeys…</p>}
+      {(isLoading || provisioning) && <p className="journeys-status">Loading Journeys…</p>}
       {error && (
         <p className="journeys-error">
-          {error.message || 'Could not load Journeys. Publish entity schemas to Base44 first.'}
+          {error.message || 'Could not load Journeys.'}
         </p>
       )}
 
-      {!isLoading && !error && sorted.length === 0 && (
+      {!isLoading && !provisioning && !error && sorted.length === 0 && (
         <div className="journeys-empty">
           <h2>No Journeys yet</h2>
           <p>
             {archived
               ? 'No archived Journeys.'
-              : 'Create your first Journey, or use the dev tools above to test with sample data.'}
+              : 'Create your first Journey to get started.'}
           </p>
         </div>
       )}
 
-      {!isLoading && !error && sorted.length > 0 && (
+      {!isLoading && !provisioning && !error && sorted.length > 0 && (
         <div className="journeys-grid">
           {sorted.map((journey) => (
             <JourneyCard

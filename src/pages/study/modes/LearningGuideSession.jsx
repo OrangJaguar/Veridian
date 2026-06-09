@@ -3,7 +3,6 @@ import { toast } from 'sonner';
 import StudyChrome from '@/components/study/StudyChrome';
 import SessionSummary from '@/components/study/SessionSummary';
 import LatexRenderer from '@/components/shared/LatexRenderer';
-import { generateLearningGuide } from '@/api/ai/study';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
 import { useUpdateActivity } from '@/hooks/mutations/useActivityMutations';
@@ -12,7 +11,10 @@ export default function LearningGuideSession({ session, activity, module, journe
   const [content, setContent] = useState(activity.content ?? {});
   const [sectionIndex, setSectionIndex] = useState(0);
   const [completedIds, setCompletedIds] = useState(content.progress?.completedSectionIds ?? []);
-  const [loading, setLoading] = useState(activity.status === 'notGenerated' || activity.status === 'generating');
+  const [loading, setLoading] = useState(
+    !activity.content?.sections?.length
+      && (activity.status === 'notGenerated' || activity.status === 'generating'),
+  );
   const [speaking, setSpeaking] = useState(false);
   const [phase, setPhase] = useState('active');
   const completeSession = useCompleteSession();
@@ -23,6 +25,10 @@ export default function LearningGuideSession({ session, activity, module, journe
   const section = sections[sectionIndex];
 
   useEffect(() => {
+    if (activity.status === 'ready' && (activity.content?.sections?.length || content.sections?.length)) {
+      setLoading(false);
+      return;
+    }
     if (activity.status !== 'notGenerated' && activity.status !== 'generating') return;
 
     (async () => {
@@ -33,21 +39,17 @@ export default function LearningGuideSession({ session, activity, module, journe
           moduleId: module?.moduleId,
           patch: { status: 'generating' },
         });
-        const result = await generateLearningGuide({
-          knowledgeMap: module?.knowledgeMap ?? {},
-          moduleTitle: module?.name ?? 'Module',
-          subject: module?.subject,
-        });
-        const guide = result.data ?? result;
-        setContent(guide);
+        // AI generation disabled — guides should be pre-seeded on the activity:
+        // const result = await generateLearningGuide({ ... });
+        toast.error('Learning guide not available. Open a module with a pre-loaded guide.');
         await updateActivity.mutateAsync({
           activityId: activity.activityId,
           journeyId,
           moduleId: module?.moduleId,
-          patch: { status: 'ready', content: guide, itemCount: guide.totalSections ?? guide.sections?.length ?? 0 },
+          patch: { status: 'failed' },
         });
       } catch (err) {
-        toast.error(err.message || 'Failed to generate guide');
+        toast.error(err.message || 'Failed to load guide');
         await updateActivity.mutateAsync({
           activityId: activity.activityId,
           journeyId,
