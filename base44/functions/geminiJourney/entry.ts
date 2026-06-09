@@ -1,0 +1,229 @@
+import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
+import { GoogleGenerativeAI } from "npm:@google/generative-ai";
+import { z } from "npm:zod";
+
+const MODEL = "gemini-2.5-flash-lite";
+const MAX_OUTPUT_TOKENS = 4096;
+const TEMPERATURE = 0.2;
+
+const LIMITS = {
+  journeyProposalsPerDay: 5,
+  scaffoldRegeneratesPerDay: 10,
+  maxInputTokensPerDay: 150_000,
+  cooldownSeconds: 30,
+};
+
+const conceptSchema = z.object({
+  id: z.string().min(1).max(32),
+  term: z.string().min(1).max(80),
+  definition: z.string().min(1).max(80),
+});
+
+const journeyProposalSchema = z.object({
+  journeySummary: z.string().min(1).max(200),
+  modules: z.array(
+    z.object({
+      name: z.string().min(1).max(80),
+      description: z.string().min(1).max(120),
+      concepts: z.array(conceptSchema).min(1).max(10),
+    }),
+  ).min(2).max(8),
+});
+
+const proposePayloadSchema = z.object({
+  title: z.string().min(1).max(120),
+  subject: z.string().min(1).max(80),
+  priorKnowledge: z.enum(["scratch", "some", "most"]).default("some"),
+  material: z.string().min(50).max(80_000),
+});
+
+const regeneratePayloadSchema = z.object({
+  title: z.string().min(1).max(120),
+  subject: z.string().min(1).max(80),
+  priorKnowledge: z.enum(["scratch", "some", "most"]).default("some"),
+  cachedKnowledgeMap: z.object({
+    journeySummary: z.string().max(200),
+    allConcepts: z.array(
+      conceptSchema.extend({
+        sourceModuleHint: z.string().max(80).optional(),
+      }),
+    ).min(2).max(80),
+  }),
+});
+
+const requestSchema = z.object({
+  action: z.enum(["proposeJourney", "regenerateModules"]),
+  payload: z.record(z.unknown()),
+  devBypassQuota: z.boolean().optional(),
+});
+
+function utcDateKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function jsonResponse(body, status = 200) {
+  return Response.json(body, { status });
+}
+
+function errorResponse(message, status = 400) {
+  return jsonResponse({ error: { message, status } }, status);
+}
+
+async function getOrCreateQuota(base44, userEmail) {
+  const dateKey = utcDateKey();
+  const rows = await base44.entities.UserAiQuota.filter({ userEmail, dateKey });
+  if (rows[0]) return rows[0];
+
+  return base44.entities.UserAiQuota.create({
+    userEmail,
+    dateKey,
+    journeyProposals: 0,
+    scaffoldRegenerates: 0,
+    inputTokens: 0,
+    lastCallAt: 0,
+  });
+}
+
+async function checkAndIncrementQuota(base44, userEmail, action, estimatedInputTokens, devBypassQuota) {
+  if (devBypassQuota) return null;
+
+  const quota = await getOrCreateQuota(base44, userEmail);
+  const now = Date.now();
+
+  if (quota.lastCallAt && now - quota.lastCallAt < LIMITS.cooldownSeconds * 1000) {
+    return errorResponse("Please wait a moment before making another AI request.", 429);
+  }
+
+  if (action === "proposeJourney" && (quota.journeyProposals ?? 0) >= LIMITS.journeyProposalsPerDay) {
+    return errorResponse("Daily journey creation limit reached. Try again tomorrow.", 429);
+  }
+
+  if (action === "regenerateModules" && (quota.scaffoldRegenerates ?? 0) >= LIMITS.scaffoldRegeneratesPerDay) {
+    return errorResponse("Daily regenerate limit reached. Try again tomorrow.", 429);
+  }
+
+  if ((quota.inputTokens ?? 0) + estimatedInputTokens > LIMITS.maxInputTokensPerDay) {
+    return errorResponse("Daily AI token budget exceeded. Try again tomorrow.", 429);
+  }
+
+  const patch = {
+    lastCallAt: now,
+    inputTokens: (quota.inputTokens ?? 0) + estimatedInputTokens,
+    journeyProposals: action === "proposeJourney"
+      ? (quota.journeyProposals ?? 0) + 1
+      : (quota.journeyProposals ?? 0),
+    scaffoldRegenerates: action === "regenerateModules"
+      ? (quota.scaffoldRegenerates ?? 0) + 1
+      : (quota.scaffoldRegenerates ?? 0),
+  };
+
+  await base44.entities.UserAiQuota.update(quota.id, patch);
+  return null;
+}
+
+function estimateTokens(text) {
+  return Math.ceil(text.length / 4);
+}
+
+const PROPOSE_SYSTEM = `You are a study curriculum architect. Extract a compact knowledge map and propose 2-8 modules. Output ONLY valid JSON. Descriptions max 120 chars. Definitions max 80 chars. Use concept ids c1,c2 per module.`;
+
+const REGENERATE_SYSTEM = `Reorganize modules from existing concepts only. Do not add concepts. Output ONLY valid JSON. Max 8 modules.`;
+
+async function callGemini(apiKey, system, userPrompt, retrySuffix = "") {
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: MODEL,
+    systemInstruction: system,
+    generationConfig: {
+      temperature: TEMPERATURE,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
+      responseMimeType: "application/json",
+    },
+  });
+
+  const attempts = retrySuffix ? [userPrompt, userPrompt + retrySuffix] : [userPrompt];
+  let lastError = null;
+
+  for (const prompt of attempts) {
+    try {
+      const result = await model.generateContent(prompt);
+      const text = result.response.text();
+      const parsed = JSON.parse(text);
+      const data = journeyProposalSchema.parse(parsed);
+      const usage = result.response.usageMetadata;
+      return {
+        data,
+        usage: {
+          inputTokens: usage?.promptTokenCount ?? estimateTokens(prompt),
+          outputTokens: usage?.candidatesTokenCount ?? estimateTokens(text),
+        },
+      };
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
+  }
+
+  throw lastError ?? new Error("AI response validation failed");
+}
+
+Deno.serve(async (req) => {
+  try {
+    const apiKey = Deno.env.get("GEMINI_API_KEY");
+    if (!apiKey) {
+      return errorResponse("GEMINI_API_KEY is not configured on the server.", 503);
+    }
+
+    const base44 = createClientFromRequest(req);
+    const user = await base44.auth.me();
+    if (!user?.email) {
+      return errorResponse("Authentication required.", 401);
+    }
+
+    const body = requestSchema.parse(await req.json());
+    const { action, payload, devBypassQuota = false } = body;
+
+    let system = PROPOSE_SYSTEM;
+    let userPrompt = "";
+
+    if (action === "proposeJourney") {
+      const p = proposePayloadSchema.parse(payload);
+      userPrompt = JSON.stringify({
+        task: "proposeJourney",
+        title: p.title,
+        subject: p.subject,
+        priorKnowledge: p.priorKnowledge,
+        material: p.material,
+      });
+    } else {
+      const p = regeneratePayloadSchema.parse(payload);
+      system = REGENERATE_SYSTEM;
+      userPrompt = JSON.stringify({
+        task: "regenerateModules",
+        title: p.title,
+        subject: p.subject,
+        priorKnowledge: p.priorKnowledge,
+        journeySummary: p.cachedKnowledgeMap.journeySummary,
+        allConcepts: p.cachedKnowledgeMap.allConcepts,
+      });
+    }
+
+    const estInput = estimateTokens(system + userPrompt);
+    const quotaErr = await checkAndIncrementQuota(
+      base44,
+      user.email,
+      action,
+      estInput,
+      devBypassQuota,
+    );
+    if (quotaErr) return quotaErr;
+
+    const retrySuffix = "\n\nReturn ONLY compact valid JSON. No markdown.";
+    const { data, usage } = await callGemini(apiKey, system, userPrompt, retrySuffix);
+
+    return jsonResponse({ data, usage });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "AI request failed";
+    const status = message.includes("Authentication") ? 401 : 400;
+    return errorResponse(message, status);
+  }
+});
