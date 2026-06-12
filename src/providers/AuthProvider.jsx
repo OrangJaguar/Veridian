@@ -1,6 +1,7 @@
 import { createContext, useCallback, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { queryClient } from '@/lib/query-client';
+import { clearAuthCache } from '@/api/requireAuth';
 import { useCurrentUser } from '@/hooks/queries/useCurrentUser';
 
 export const AuthContext = createContext(null);
@@ -29,6 +30,7 @@ export default function AuthProvider({ children }) {
 
   const signOut = useCallback(async () => {
     await base44.auth.logout();
+    clearAuthCache();
     queryClient.setQueryData(['auth', 'me'], null);
     queryClient.invalidateQueries({ queryKey: ['auth'] });
     queryClient.invalidateQueries({ queryKey: ['decks'] });

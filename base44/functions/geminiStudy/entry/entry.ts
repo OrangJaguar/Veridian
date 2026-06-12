@@ -186,7 +186,8 @@ const guideSectionSchema = z.object({
     explanation: z.string(),
   }),
   externalSearchSuggestions: z.array(z.string()).optional(),
-  narrationText: z.string(),
+  narrationText: z.string().optional(),
+  transitionText: z.string().optional(),
 });
 
 const guideOutputSchema = z.object({
@@ -233,7 +234,7 @@ const refresherOutputSchema = z.object({
 function buildSystem(action: string) {
   const base = `You are a study tutor. ${LATEX_RULE}`;
   const map: Record<string, string> = {
-    generateLearningGuide: `${base} Create sectioned learning guide JSON. Max 6 sections. Concise explanations, worked examples for quantitative topics, one check-in per section, narrationText, externalSearchSuggestions.`,
+    generateLearningGuide: `${base} Create sectioned learning guide JSON for complete beginners (max 6 sections). Each section: title; explanation as 3-5 short paragraphs (200-350 words total) teaching concepts from scratch with plain language, analogies, and key terms defined inline; optional workedExamples for quantitative/applied topics; one multipleChoice checkInQuestion; 2-3 externalSearchSuggestions (YouTube-friendly queries); optional transitionText bridging to the next section. Teach thoroughly — assume zero prior knowledge. Do not summarize in one paragraph.`,
     generatePracticeQuestions: `${base} Generate varied quiz questions from knowledge map. Never repeat provided questionIds.`,
     generateFlashcards: `${base} Generate atomic front/back flashcard pairs.`,
     gradeFeynman: `${base} Grade student explanation. Identify weakest point and one follow-up question.`,

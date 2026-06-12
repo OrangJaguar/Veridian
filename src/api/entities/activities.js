@@ -1,11 +1,5 @@
 import { base44 } from '@/api/base44Client';
-import { AuthRequiredError } from '@/api/auth';
-
-async function requireAuth() {
-  const authed = await base44.auth.isAuthenticated();
-  if (!authed) throw new AuthRequiredError();
-  return base44.auth.me();
-}
+import { requireAuth } from '@/api/requireAuth';
 
 async function findByClientId(entity, field, value) {
   const rows = await entity.filter({ [field]: value });

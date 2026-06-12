@@ -1,6 +1,6 @@
 import { format, differenceInDays } from 'date-fns';
+import DetailBackButton from '@/components/shared/DetailBackButton';
 import { averageModuleMastery } from '@/utils/mastery';
-import { OVERALL_STATUS_LABELS } from '@/utils/journeyStatus';
 
 export default function JourneyDetailHeader({ journey, modules }) {
   const mastery = averageModuleMastery(modules);
@@ -8,32 +8,50 @@ export default function JourneyDetailHeader({ journey, modules }) {
     ? differenceInDays(new Date(journey.examDate), new Date())
     : null;
 
-  let deadlineText = 'No deadline set';
-  if (journey.examDate) {
-    const dateStr = format(new Date(journey.examDate), 'MMMM d');
-    if (daysLeft != null && daysLeft >= 0) {
-      deadlineText = `${dateStr} — ${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining`;
-    } else {
-      deadlineText = `${dateStr} — past deadline`;
-    }
-  }
+  const examDateLabel = journey.examDate
+    ? format(new Date(journey.examDate), 'MMM d, yyyy')
+    : null;
+
+  const daysLabel = daysLeft == null
+    ? null
+    : daysLeft < 0
+      ? 'Past deadline'
+      : daysLeft === 0
+        ? 'Today'
+        : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`;
 
   return (
-    <header className="journey-detail-header">
-      <p className="journey-detail-subject">{journey.subject}</p>
-      <h1 className="journey-detail-title">{journey.title}</h1>
-      <p className="journey-detail-deadline">{deadlineText}</p>
-      <div className="journey-detail-stats">
-        <span className="journey-detail-stat">
-          <strong>{mastery}%</strong> overall mastery
-        </span>
-      </div>
-    </header>
-  );
-}
+    <>
+      <header className="detail-title-header">
+        <DetailBackButton to="/journeys" label="Journeys" />
+        <div className="detail-title-body">
+          <h1 className="journey-detail-title">{journey.title}</h1>
+        </div>
+      </header>
 
-export function ReadinessBadge({ status }) {
-  const label = OVERALL_STATUS_LABELS[status] ?? status;
-  const cls = status === 'onTrack' ? 'green' : status === 'behind' ? 'red' : 'yellow';
-  return <span className={`journey-readiness journey-readiness-${cls}`}>{label}</span>;
+      <section className="detail-meta-section" aria-label="Journey details">
+        <div className="detail-meta-tags">
+          <span>{journey.subject}</span>
+          {examDateLabel && (
+            <>
+              <span className="journey-detail-meta-sep" aria-hidden>·</span>
+              <span>{examDateLabel}</span>
+            </>
+          )}
+          {daysLabel && (
+            <>
+              <span className="journey-detail-meta-sep" aria-hidden>·</span>
+              <span>{daysLabel}</span>
+            </>
+          )}
+        </div>
+        <div className="detail-meta-mastery">
+          <div className="detail-mastery-bar" aria-hidden>
+            <div className="detail-mastery-fill" style={{ width: `${mastery}%` }} />
+          </div>
+          <span className="detail-mastery-label">{mastery}% mastery</span>
+        </div>
+      </section>
+    </>
+  );
 }

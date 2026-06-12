@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useJourney } from '@/hooks/queries/useJourneys';
 import { useModules } from '@/hooks/queries/useModules';
@@ -6,24 +6,26 @@ import { useActivities } from '@/hooks/queries/useActivities';
 import { useSessions } from '@/hooks/queries/useSessions';
 import { useCardsByJourney } from '@/hooks/queries/useCards';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
+import VeridianLoading from '@/components/shared/VeridianLoading';
+import DetailBackButton from '@/components/shared/DetailBackButton';
 import ModuleDetailHeader from '@/components/module-detail/ModuleDetailHeader';
 import StageSection from '@/components/module-detail/StageSection';
 import FlashcardDeckList from '@/components/module-detail/FlashcardDeckList';
 import SessionHistoryPanel from '@/components/module-detail/SessionHistoryPanel';
-import ConceptMapPanel from '@/components/module-detail/ConceptMapPanel';
 
 export default function ModuleDetailPage() {
   const { id: journeyId, moduleId } = useParams();
   const { isAuthenticated } = useAuth();
-  const { data: journey, isLoading: journeyLoading } = useJourney(journeyId);
-  const { data: modules = [], isLoading: modulesLoading } = useModules(journeyId);
-  const { data: activities = [], isLoading: activitiesLoading } = useActivities(moduleId);
+  const { data: journey, isPending: journeyPending } = useJourney(journeyId);
+  const { data: modules = [], isPending: modulesPending } = useModules(journeyId);
+  const { data: activities = [] } = useActivities(moduleId);
   const { data: sessions = [] } = useSessions(journeyId);
   const { data: journeyCards = [] } = useCardsByJourney(journeyId);
 
   const mod = modules.find((m) => m.moduleId === moduleId);
   const flashcardDecks = activities.filter((a) => a.type === 'flashcardSet');
   const recommendedStage = mod?.stage || 'A';
+  const waitingForCore = (journeyPending && !journey) || (modulesPending && !mod);
 
   const cardsByActivity = {};
   for (const card of journeyCards) {
@@ -40,20 +42,14 @@ export default function ModuleDetailPage() {
     );
   }
 
-  const loading = journeyLoading || modulesLoading || activitiesLoading;
-
-  if (loading) {
-    return (
-      <div className="module-detail-page">
-        <p className="journeys-status">Loading module…</p>
-      </div>
-    );
+  if (waitingForCore) {
+    return <VeridianLoading fullPage />;
   }
 
   if (!journey || !mod) {
     return (
       <div className="module-detail-page">
-        <Link to={`/journeys/${journeyId}`} className="journey-detail-back">← Journey</Link>
+        <DetailBackButton to={`/journeys/${journeyId}`} label="Journey" />
         <p className="journeys-error">Module not found.</p>
       </div>
     );
@@ -61,9 +57,7 @@ export default function ModuleDetailPage() {
 
   return (
     <div className="module-detail-page">
-      <Link to={`/journeys/${journeyId}`} className="journey-detail-back">← {journey.title}</Link>
-
-      <ModuleDetailHeader module={mod} journey={journey} />
+      <ModuleDetailHeader module={mod} journey={journey} journeyId={journeyId} />
 
       {['A', 'B', 'C'].map((stage) => (
         <StageSection
@@ -85,7 +79,6 @@ export default function ModuleDetailPage() {
         knowledgeMap={mod.knowledgeMap}
       />
       <SessionHistoryPanel sessions={sessions.filter((s) => s.moduleId === moduleId)} />
-      <ConceptMapPanel knowledgeMap={mod.knowledgeMap} />
     </div>
   );
 }

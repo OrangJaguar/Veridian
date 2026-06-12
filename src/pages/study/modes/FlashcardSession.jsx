@@ -1,32 +1,34 @@
-import { useState } from 'react';
-import StudyChrome from '@/components/study/StudyChrome';
+import { useState, useRef } from 'react';
 import FlashcardReview from '@/components/study/flashcard/FlashcardReview';
-import SessionSummary from '@/components/study/SessionSummary';
-import { getDueCards } from '@/utils/fsrs';
+import FlashcardTypingDrill from '@/components/study/flashcard/FlashcardTypingDrill';
+import FlashcardSummary from '@/components/study/flashcard/FlashcardSummary';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
 import { useUpdateCard } from '@/hooks/mutations/useCardMutations';
 
+function initialPhase(session) {
+  if (session.status === 'completed' && session.sessionData?.reviews?.length) return 'summary';
+  return 'review';
+}
+
 export default function FlashcardSession({ session, activity, module, journeyId, cards = [] }) {
-  const [phase, setPhase] = useState(session.sessionData?.mode ? 'active' : 'pick');
-  const [mode, setMode] = useState(session.sessionData?.mode ?? 'due');
-  const [reviewCards, setReviewCards] = useState([]);
-  const [summaryStats, setSummaryStats] = useState(null);
-  const completeSession = useCompleteSession();
+  const [phase, setPhase] = useState(() => initialPhase(session));
+  const [totalTimeSec, setTotalTimeSec] = useState(session.durationSec ?? 0);
+  const pendingUpdates = useRef([]);
+  const masteryStatsRef = useRef(session.sessionData?.masteryStats ?? {});
+  const sessionStartRef = useRef(Date.now());
+  const { completeSessionInBackground } = useCompleteSession();
   const abandonSession = useAbandonSession();
   const updateCard = useUpdateCard();
 
-  const dueCards = getDueCards(cards);
-  const activeCards = mode === 'due' ? dueCards : cards.filter((c) => !c.suspended);
+  const reviewCards = cards.filter((c) => !c.suspended);
 
-  const startMode = (selectedMode) => {
-    setMode(selectedMode);
-    setReviewCards(selectedMode === 'due' ? dueCards : cards.filter((c) => !c.suspended));
-    setPhase('active');
+  const handleExit = () => {
+    abandonSession({ sessionId: session.sessionId, journeyId, returnPath: '/home' });
   };
 
-  const handleRate = async (card, newState) => {
-    await updateCard.mutateAsync({
+  const handleRate = (card, newState) => {
+    updateCard.mutate({
       cardId: card.cardId,
       journeyId,
       activityId: activity.activityId,
@@ -34,60 +36,68 @@ export default function FlashcardSession({ session, activity, module, journeyId,
     });
   };
 
-  const handleComplete = async (reviews, counts) => {
-    setSummaryStats(counts);
-    const sessionData = { mode, reviews, counts };
-    await completeSession({
+  const handleReviewComplete = (reviews) => {
+    pendingUpdates.current = reviews;
+    setPhase('typing');
+  };
+
+  const handleTypingComplete = (typingResults) => {
+    const elapsed = Math.round((Date.now() - sessionStartRef.current) / 1000);
+    setTotalTimeSec(elapsed);
+
+    const sessionData = {
+      mode: 'browse',
+      reviews: pendingUpdates.current,
+      typingResults,
+      masteryStats: masteryStatsRef.current,
+    };
+
+    setPhase('summary');
+
+    completeSessionInBackground({
       sessionId: session.sessionId,
       journeyId,
       activityId: activity.activityId,
+      activity,
       sessionData,
       score: null,
       outcomeSummary: {
-        itemsCompleted: reviews.length,
-        nextAction: counts.again > 0 ? 'Cards marked Again will return soon' : 'Great review session',
+        itemsCompleted: pendingUpdates.current.length + typingResults.length,
+        nextAction: 'Great review session',
       },
       startedAt: session.startedAt,
     });
-    setPhase('summary');
   };
-
-  const returnPath = module?.moduleId
-    ? `/journeys/${journeyId}/modules/${module.moduleId}`
-    : `/journeys/${journeyId}`;
 
   if (phase === 'summary') {
     return (
-      <SessionSummary
-        title="Flashcard review complete"
-        stats={[
-          { label: 'Reviewed', value: summaryStats ? Object.values(summaryStats).reduce((a, b) => a + b, 0) : 0 },
-          { label: 'Again', value: summaryStats?.again ?? 0 },
-        ]}
-        returnHref={returnPath}
+      <FlashcardSummary
+        cards={reviewCards}
+        masteryStatsByCard={masteryStatsRef.current}
+        totalTimeSec={totalTimeSec}
+        returnHref="/home"
+      />
+    );
+  }
+
+  if (phase === 'typing') {
+    return (
+      <FlashcardTypingDrill
+        cards={reviewCards}
+        onComplete={handleTypingComplete}
+        onExit={handleExit}
+        masteryStatsRef={masteryStatsRef}
       />
     );
   }
 
   return (
-    <StudyChrome
-      title={activity.title ?? 'Flashcards'}
-      progressText={phase === 'pick' ? 'Choose mode' : `${mode === 'due' ? 'Due' : 'Browse'} review`}
-      onExit={() => abandonSession({ sessionId: session.sessionId, journeyId, returnPath })}
-    >
-      {phase === 'pick' && (
-        <div className="study-flashcard-pick">
-          <button type="button" className="btn btn-primary" disabled={dueCards.length === 0} onClick={() => startMode('due')}>
-            Review Due Cards ({dueCards.length})
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={() => startMode('browse')}>
-            Browse All Cards ({cards.length})
-          </button>
-        </div>
-      )}
-      {phase === 'active' && (
-        <FlashcardReview cards={reviewCards.length ? reviewCards : activeCards} onRate={handleRate} onComplete={handleComplete} />
-      )}
-    </StudyChrome>
+    <FlashcardReview
+      cards={reviewCards}
+      onRate={handleRate}
+      onComplete={handleReviewComplete}
+      onExit={handleExit}
+      masteryStatsRef={masteryStatsRef}
+    />
   );
 }

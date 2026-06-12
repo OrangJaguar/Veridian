@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import VeridianLoading from '@/components/shared/VeridianLoading';
 import StudyChrome from '@/components/study/StudyChrome';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
 import SessionSummary from '@/components/study/SessionSummary';
@@ -12,7 +13,7 @@ export default function SynthesisSession({ session, activity, module, journeyId,
   const preloaded = activity.content?.questions ?? [];
   const [questions, setQuestions] = useState([]);
   const [phase, setPhase] = useState('loading');
-  const completeSession = useCompleteSession();
+  const { completeSessionInBackground } = useCompleteSession();
   const abandonSession = useAbandonSession();
   const returnPath = `/journeys/${journeyId}/modules/${module?.moduleId}`;
 
@@ -37,16 +38,17 @@ export default function SynthesisSession({ session, activity, module, journeyId,
       answers,
       integrationReadinessSignal: accuracy >= 70 ? 'strong' : accuracy >= 40 ? 'partial' : 'weak',
     };
-    await completeSession({
+    setPhase('summary');
+    completeSessionInBackground({
       sessionId: session.sessionId,
       journeyId,
       activityId: activity.activityId,
+      activity,
       sessionData,
       score: accuracy,
       outcomeSummary: { accuracy, nextAction: 'Review modules where integration broke down' },
       startedAt: session.startedAt,
     });
-    setPhase('summary');
   };
 
   if (phase === 'summary') {
@@ -55,7 +57,7 @@ export default function SynthesisSession({ session, activity, module, journeyId,
 
   return (
     <StudyChrome title="Synthesis" onExit={() => abandonSession({ sessionId: session.sessionId, journeyId, returnPath })}>
-      {phase === 'loading' && <p className="journeys-status">Loading synthesis questions…</p>}
+      {phase === 'loading' && <VeridianLoading />}
       {phase === 'active' && <QuizRunner questions={questions} onComplete={handleComplete} />}
       {phase === 'error' && <p className="journeys-error">Could not load synthesis questions.</p>}
     </StudyChrome>

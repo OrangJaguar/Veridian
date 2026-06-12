@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import StudyChrome from '@/components/study/StudyChrome';
-import QuizSetupForm from '@/components/study/quiz/QuizSetupForm';
+import QuizSetupModal from '@/components/study/quiz/QuizSetupModal';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
-import SessionSummary from '@/components/study/SessionSummary';
-// import { generatePracticeQuestions, generateConceptRefresher } from '@/api/ai/study';
+import QuizSummary from '@/components/study/quiz/QuizSummary';
 import { pickQuestions } from '@/fixtures/starterJourney/aiJourneyContent';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
+import { useJourney } from '@/hooks/queries/useJourneys';
 
 const STATIC_REFRESHERS = {
   supervised: { recap: 'Supervised learning maps inputs to known outputs using labeled examples.', example: 'Email → spam/not spam labels train the classifier.' },
@@ -17,17 +16,40 @@ const STATIC_REFRESHERS = {
   overfitting: { recap: 'Overfitting = great training performance, poor test performance.', example: 'Add validation monitoring, regularization, or more diverse data.' },
 };
 
+function initialPhase(session, initialConfig) {
+  if (session.status === 'completed' && session.sessionData?.answers?.length) return 'summary';
+  if (initialConfig) return 'active';
+  return 'setup';
+}
+
 export default function PracticeQuizSession({ session, activity, module, journeyId }) {
   const preloaded = activity.content?.questions ?? [];
-  const [phase, setPhase] = useState('setup');
-  const [questions, setQuestions] = useState([]);
-  const [config, setConfig] = useState(activity.content?.lastConfig ?? {});
+  const initialConfig = session.sessionData?.quizConfig;
+  const { data: journey } = useJourney(journeyId);
+
+  const [phase, setPhase] = useState(() => initialPhase(session, initialConfig));
+  const [questions, setQuestions] = useState(() => {
+    if (session.sessionData?.questions?.length) return session.sessionData.questions;
+    if (initialConfig && preloaded.length) return pickQuestions(preloaded, initialConfig.questionCount);
+    return [];
+  });
+  const [config, setConfig] = useState(initialConfig ?? activity.content?.lastConfig ?? {});
   const [loading, setLoading] = useState(false);
   const [refresherContent, setRefresherContent] = useState(null);
-  const [summaryAccuracy, setSummaryAccuracy] = useState(null);
-  const [refresherContent, setRefresherContent] = useState(null);
-  const completeSession = useCompleteSession();
+  const [summaryData, setSummaryData] = useState(() => (
+    session.status === 'completed' && session.sessionData?.answers
+      ? {
+        answers: session.sessionData.answers,
+        totalTimeSec: session.durationSec ?? 0,
+      }
+      : null
+  ));
+  const { completeSessionInBackground } = useCompleteSession();
   const abandonSession = useAbandonSession();
+
+  const handleExit = () => {
+    abandonSession({ sessionId: session.sessionId, journeyId, returnPath: '/home' });
+  };
 
   const handleStart = async (setupConfig) => {
     setLoading(true);
@@ -38,9 +60,6 @@ export default function PracticeQuizSession({ session, activity, module, journey
         toast.error('No questions available for this quiz yet.');
         return;
       }
-      // AI generation (disabled until geminiStudy is deployed):
-      // const result = await generatePracticeQuestions({ ... });
-      // setQuestions(result.data?.questions ?? []);
       setConfig(setupConfig);
       setPhase('active');
     } catch (err) {
@@ -54,19 +73,22 @@ export default function PracticeQuizSession({ session, activity, module, journey
     setRefresherContent(
       STATIC_REFRESHERS[conceptId] ?? { recap: 'Review this concept in your learning guide.', example: '' },
     );
-    // AI refresher (disabled):
-    // const result = await generateConceptRefresher({ concept, knowledgeMap });
-    // setRefresherContent(result.data ?? result);
   };
 
-  const handleComplete = async (answers) => {
-    const correct = answers.filter((a) => a.correct).length;
-    const accuracy = questions.length ? Math.round((correct / questions.length) * 100) : 0;
+  const handleComplete = (answers, totalTimeSec) => {
+    const graded = answers.filter((a) => !a.skipped);
+    const correct = graded.filter((a) => a.correct).length;
+    const accuracy = graded.length ? Math.round((correct / graded.length) * 100) : 0;
     const sessionData = { config, questions, answers, interventions: [] };
-    await completeSession({
+
+    setSummaryData({ answers, totalTimeSec });
+    setPhase('summary');
+
+    completeSessionInBackground({
       sessionId: session.sessionId,
       journeyId,
       activityId: activity.activityId,
+      activity,
       sessionData,
       score: accuracy,
       outcomeSummary: {
@@ -77,42 +99,40 @@ export default function PracticeQuizSession({ session, activity, module, journey
       },
       startedAt: session.startedAt,
     });
-    setSummaryAccuracy(accuracy);
-    setPhase('summary');
   };
 
-  const returnPath = module?.moduleId
-    ? `/journeys/${journeyId}/modules/${module.moduleId}`
-    : `/journeys/${journeyId}`;
-
-  if (phase === 'summary') {
+  if (phase === 'summary' && summaryData) {
     return (
-      <SessionSummary
-        title="Quiz complete"
-        stats={[{ label: 'Accuracy', value: `${summaryAccuracy ?? '—'}%` }]}
-        nextAction="Keep practicing weak spots or move to flashcards."
-        returnHref={returnPath}
+      <QuizSummary
+        questions={questions}
+        answers={summaryData.answers}
+        totalTimeSec={summaryData.totalTimeSec}
+        journeyTitle={journey?.title}
+        moduleTitle={module?.name}
+        returnHref="/home"
       />
     );
   }
 
   return (
-    <StudyChrome
-      title="Practice Quiz"
-      progressText={phase === 'active' ? `Quiz · ${module?.name ?? ''}` : 'Setup'}
-      onExit={() => abandonSession({ sessionId: session.sessionId, journeyId, returnPath })}
-    >
-      {phase === 'setup' && (
-        <QuizSetupForm defaultConfig={config} onStart={handleStart} loading={loading} />
-      )}
+    <>
+      <QuizSetupModal
+        open={phase === 'setup'}
+        defaultConfig={config}
+        onClose={handleExit}
+        onStart={handleStart}
+        loading={loading}
+      />
       {phase === 'active' && (
         <QuizRunner
           questions={questions}
+          config={config}
           onComplete={handleComplete}
+          onExit={handleExit}
           onIntervention={handleIntervention}
           refresherContent={refresherContent}
         />
       )}
-    </StudyChrome>
+    </>
   );
 }

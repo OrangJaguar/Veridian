@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useJourney } from '@/hooks/queries/useJourneys';
@@ -6,7 +6,9 @@ import { useModules } from '@/hooks/queries/useModules';
 import { useActivitiesByJourney } from '@/hooks/queries/useActivities';
 import { useSessions } from '@/hooks/queries/useSessions';
 import { useStudyPlan } from '@/hooks/queries/useStudyPlan';
+import { useCardsByJourney } from '@/hooks/queries/useCards';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
+import VeridianLoading from '@/components/shared/VeridianLoading';
 import JourneyDetailHeader from '@/components/journey-detail/JourneyDetailHeader';
 import RecommendedStudyPlan from '@/components/journey-detail/RecommendedStudyPlan';
 import ModuleListItem from '@/components/journey-detail/ModuleListItem';
@@ -15,12 +17,20 @@ import JourneyInsightsPanel from '@/components/journey-detail/JourneyInsightsPan
 
 export default function JourneyDetailPage() {
   const { id: journeyId } = useParams();
+  const [expandedModuleId, setExpandedModuleId] = useState(null);
   const { isAuthenticated } = useAuth();
-  const { data: journey, isLoading, error } = useJourney(journeyId);
-  const { data: modules = [], isLoading: modulesLoading } = useModules(journeyId);
+  const { data: journey, isPending, error } = useJourney(journeyId);
+  const { data: modules = [], isPending: modulesPending } = useModules(journeyId);
   const { data: activities = [] } = useActivitiesByJourney(journeyId);
   const { data: sessions = [] } = useSessions(journeyId);
+  const { data: cards = [] } = useCardsByJourney(journeyId);
   const { data: plan, isLoading: planLoading } = useStudyPlan(journeyId);
+
+  const cardsByActivity = {};
+  for (const card of cards) {
+    if (!cardsByActivity[card.activityId]) cardsByActivity[card.activityId] = [];
+    cardsByActivity[card.activityId].push(card);
+  }
 
   if (!isAuthenticated) {
     return (
@@ -31,18 +41,13 @@ export default function JourneyDetailPage() {
     );
   }
 
-  if (isLoading) {
-    return (
-      <div className="journey-detail-page">
-        <p className="journeys-status">Loading Journey…</p>
-      </div>
-    );
+  if (isPending && !journey) {
+    return <VeridianLoading fullPage />;
   }
 
   if (error || !journey) {
     return (
       <div className="journey-detail-page">
-        <Link to="/journeys" className="journey-detail-back">← Journeys</Link>
         <p className="journeys-error">{error?.message || 'Journey not found.'}</p>
       </div>
     );
@@ -50,15 +55,12 @@ export default function JourneyDetailPage() {
 
   return (
     <div className="journey-detail-page">
-      <Link to="/journeys" className="journey-detail-back">← Journeys</Link>
-
       <JourneyDetailHeader journey={journey} modules={modules} />
-      <RecommendedStudyPlan plan={plan} loading={planLoading} />
 
-      <section className="journey-detail-modules">
+      <section className="journey-detail-modules detail-section-box">
         <h2 className="journey-detail-section-title">Modules</h2>
-        {modulesLoading && <p className="journeys-status">Loading modules…</p>}
-        {!modulesLoading && modules.length === 0 && (
+        {modulesPending && modules.length === 0 && <VeridianLoading size="sm" />}
+        {!modulesPending && modules.length === 0 && (
           <p className="journey-detail-empty">No modules yet.</p>
         )}
         <ul className="journey-module-list">
@@ -67,14 +69,32 @@ export default function JourneyDetailPage() {
               key={mod.moduleId ?? mod.id}
               journeyId={journeyId}
               module={mod}
-              sessions={sessions}
+              activities={activities}
+              cardsByActivity={cardsByActivity}
+              expanded={expandedModuleId === mod.moduleId}
+              onToggle={() => setExpandedModuleId(
+                expandedModuleId === mod.moduleId ? null : mod.moduleId,
+              )}
             />
           ))}
         </ul>
       </section>
 
-      <JourneyLevelActions activities={activities} modules={modules} journeyId={journeyId} journey={journey} />
-      <JourneyInsightsPanel sessions={sessions} />
+      <RecommendedStudyPlan
+        plan={plan}
+        loading={planLoading}
+        journey={journey}
+        modules={modules}
+      />
+
+      <JourneyLevelActions
+        activities={activities}
+        modules={modules}
+        journeyId={journeyId}
+        journey={journey}
+      />
+
+      <JourneyInsightsPanel sessions={sessions} modules={modules} />
     </div>
   );
 }

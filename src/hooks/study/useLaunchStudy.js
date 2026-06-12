@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCreateSession } from '@/hooks/mutations/useSessionMutations';
 
 /**
@@ -8,6 +9,7 @@ import { useCreateSession } from '@/hooks/mutations/useSessionMutations';
 export function useLaunchStudy() {
   const navigate = useNavigate();
   const createSession = useCreateSession();
+  const queryClient = useQueryClient();
 
   return useCallback(
     async ({ journeyId, activity, moduleId = null, initialSessionData = {} }) => {
@@ -23,9 +25,10 @@ export function useLaunchStudy() {
         },
       });
       const sid = session.sessionId ?? session.id;
+      queryClient.setQueryData(['sessions', 'detail', sid], session);
       navigate(`/study/${sid}`);
       return session;
     },
-    [createSession, navigate],
+    [createSession, navigate, queryClient],
   );
 }

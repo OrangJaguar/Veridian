@@ -1,5 +1,10 @@
 import { useLaunchStudy } from '@/hooks/study/useLaunchStudy';
-import { ACTIVITY_LABELS } from '@/utils/studyPlanner';
+import PracticeQuizStartButton from '@/components/study/quiz/PracticeQuizStartButton';
+import {
+  getActivityDisplayName,
+  getActivityActionLabel,
+  getActivityStatusNote,
+} from '@/utils/study/activityUi';
 
 const STAGE_ACTIVITIES = {
   A: ['learningGuide'],
@@ -7,26 +12,10 @@ const STAGE_ACTIVITIES = {
   C: ['feynman', 'freeRecall', 'synthesis'],
 };
 
-export default function ActivityRow({ activity, cardCount = 0, journeyId, moduleId }) {
+export default function ActivityRow({ activity, cardCount = 0, journeyId, moduleId, compact = false }) {
   const launchStudy = useLaunchStudy();
-  const stats = activity.stats ?? {};
-  let statLine = '';
-
-  if (activity.type === 'flashcardSet') {
-    statLine = `${cardCount} cards · ${stats.dueCount ?? 0} due`;
-  } else if (activity.type === 'practiceQuiz') {
-    statLine = stats.lastScore != null
-      ? `Last score: ${Math.round(stats.lastScore)}%`
-      : 'No sessions yet';
-  } else if (stats.lastCompletedAt) {
-    statLine = 'Completed recently';
-  } else if (activity.status === 'notGenerated') {
-    statLine = 'Not generated yet';
-  } else {
-    statLine = stats.totalSessions
-      ? `${stats.totalSessions} session${stats.totalSessions === 1 ? '' : 's'}`
-      : 'Ready to start';
-  }
+  const statLine = getActivityStatusNote(activity, cardCount);
+  const actionLabel = getActivityActionLabel(activity);
 
   const handleLaunch = async () => {
     await launchStudy({
@@ -37,19 +26,30 @@ export default function ActivityRow({ activity, cardCount = 0, journeyId, module
   };
 
   return (
-    <div className="module-activity-row">
+    <div className={`module-activity-row${compact ? ' compact' : ''}`}>
       <div className="module-activity-main">
-        <strong>{activity.title ?? ACTIVITY_LABELS[activity.type] ?? activity.type}</strong>
+        <strong>{getActivityDisplayName(activity)}</strong>
         <span>{statLine}</span>
       </div>
-      <button
-        type="button"
-        className="btn btn-secondary btn-sm"
-        disabled={activity.status === 'generating'}
-        onClick={handleLaunch}
-      >
-        {activity.status === 'notGenerated' ? 'Generate' : 'Launch'}
-      </button>
+      {activity.type === 'practiceQuiz' ? (
+        <PracticeQuizStartButton
+          activity={activity}
+          journeyId={journeyId}
+          moduleId={moduleId}
+          disabled={activity.status === 'generating'}
+        >
+          {actionLabel}
+        </PracticeQuizStartButton>
+      ) : (
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          disabled={activity.status === 'generating'}
+          onClick={handleLaunch}
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }

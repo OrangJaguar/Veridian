@@ -22,4 +22,10 @@ export const queryKeys = {
   },
   preferences: ['preferences'],
   dueToday: ['dueToday'],
+  catalog: {
+    allModules: ['catalog', 'modules'],
+    allActivities: ['catalog', 'activities'],
+    allCards: ['catalog', 'cards'],
+    allSessions: ['catalog', 'sessions'],
+  },
 };

@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useJourney } from '@/hooks/queries/useJourneys';
 import { useModules } from '@/hooks/queries/useModules';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
+import VeridianLoading from '@/components/shared/VeridianLoading';
 
 function examLabel(examDate) {
   if (!examDate) return 'No deadline';
@@ -20,8 +21,8 @@ const STAGE_LABELS = { A: 'Learn', B: 'Practice', C: 'Mastery' };
 export default function JourneyDetailStubPage() {
   const { id: journeyId } = useParams();
   const { isAuthenticated } = useAuth();
-  const { data: journey, isLoading, error } = useJourney(journeyId);
-  const { data: modules = [], isLoading: modulesLoading } = useModules(journeyId);
+  const { data: journey, isPending, error } = useJourney(journeyId);
+  const { data: modules = [], isPending: modulesPending } = useModules(journeyId);
 
   if (!isAuthenticated) {
     return (
@@ -34,12 +35,8 @@ export default function JourneyDetailStubPage() {
     );
   }
 
-  if (isLoading) {
-    return (
-      <div className="journey-detail-page">
-        <p className="journeys-status">Loading Journey…</p>
-      </div>
-    );
+  if (isPending && !journey) {
+    return <VeridianLoading fullPage />;
   }
 
   if (error || !journey) {
@@ -71,8 +68,8 @@ export default function JourneyDetailStubPage() {
 
       <section className="journey-detail-modules">
         <h2 className="journey-detail-section-title">Modules</h2>
-        {modulesLoading && <p className="journeys-status">Loading modules…</p>}
-        {!modulesLoading && modules.length === 0 && (
+        {modulesPending && modules.length === 0 && <VeridianLoading size="sm" />}
+        {!modulesPending && modules.length === 0 && (
           <p className="journey-detail-empty">No modules yet.</p>
         )}
         <ul className="journey-module-list">

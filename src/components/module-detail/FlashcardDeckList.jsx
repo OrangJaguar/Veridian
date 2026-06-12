@@ -20,18 +20,20 @@ export default function FlashcardDeckList({ decks = [], cardsByActivity, moduleI
       {decks.length === 0 ? (
         <p className="journeys-status">No flashcard decks yet. Create one when you&apos;re ready to practice.</p>
       ) : (
-        <ul className="module-deck-list">
+        <ul className="module-deck-card-list">
           {decks.map((deck) => {
             const cards = cardsByActivity[deck.activityId] ?? [];
             const due = deck.stats?.dueCount ?? 0;
             return (
-              <li key={deck.activityId ?? deck.id} className="module-deck-item">
-                <div>
-                  <strong>{deck.title ?? 'Untitled Deck'}</strong>
-                  <span>{cards.length} cards · {due} due</span>
+              <li key={deck.activityId ?? deck.id} className="module-deck-card">
+                <div className="module-deck-card-main">
+                  <span className="module-deck-card-name">{deck.title ?? 'Untitled Deck'}</span>
+                  <span className="module-deck-card-meta">
+                    {cards.length} cards · {due} due
+                  </span>
                 </div>
                 <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleLaunch(deck)}>
-                  Launch
+                  Review
                 </button>
               </li>
             );

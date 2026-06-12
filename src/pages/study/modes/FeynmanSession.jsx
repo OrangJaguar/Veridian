@@ -17,7 +17,7 @@ export default function FeynmanSession({ session, activity, module, journeyId })
   const [feedback, setFeedback] = useState(null);
   const [followUp, setFollowUp] = useState('');
   const [phase, setPhase] = useState('explain');
-  const completeSession = useCompleteSession();
+  const { completeSessionInBackground } = useCompleteSession();
   const abandonSession = useAbandonSession();
 
   const concept = concepts.find((c) => c.id === conceptId);
@@ -48,16 +48,17 @@ export default function FeynmanSession({ session, activity, module, journeyId })
       followUpResponse: followUp || null,
       overallConfidenceRating: feedback?.overallConfidenceRating ?? 'partial',
     };
-    await completeSession({
+    setPhase('summary');
+    completeSessionInBackground({
       sessionId: session.sessionId,
       journeyId,
       activityId: activity.activityId,
+      activity,
       sessionData,
       score: feedback?.overallConfidenceRating === 'strong' ? 100 : feedback?.overallConfidenceRating === 'partial' ? 60 : 20,
       outcomeSummary: { nextAction: feedback?.weakestPoint },
       startedAt: session.startedAt,
     });
-    setPhase('summary');
   };
 
   if (phase === 'summary') {

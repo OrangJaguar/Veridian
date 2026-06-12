@@ -5,13 +5,14 @@ import { useJourneys } from '@/hooks/queries/useJourneys';
 import { useEnsureStarterJourney } from '@/hooks/useEnsureStarterJourney';
 import JourneyCard, { journeyUrgencySort } from '@/components/journeys/JourneyCard';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
+import VeridianLoading from '@/components/shared/VeridianLoading';
 
 export default function JourneysPage() {
   const { isAuthenticated } = useAuth();
   const [tab, setTab] = useState('active');
   const archived = tab === 'archived';
 
-  const { data: journeys = [], isLoading, error } = useJourneys({ archived });
+  const { data: journeys = [], isPending, error } = useJourneys({ archived });
   const { provisioning } = useEnsureStarterJourney();
 
   const sorted = useMemo(
@@ -61,14 +62,16 @@ export default function JourneysPage() {
         </button>
       </div>
 
-      {(isLoading || provisioning) && <p className="journeys-status">Loading Journeys…</p>}
+      {(isPending && journeys.length === 0) || provisioning ? (
+        <VeridianLoading className="journeys-page-loader" />
+      ) : null}
       {error && (
         <p className="journeys-error">
           {error.message || 'Could not load Journeys.'}
         </p>
       )}
 
-      {!isLoading && !provisioning && !error && sorted.length === 0 && (
+      {!isPending && !provisioning && !error && sorted.length === 0 && (
         <div className="journeys-empty">
           <h2>No Journeys yet</h2>
           <p>
@@ -79,7 +82,7 @@ export default function JourneysPage() {
         </div>
       )}
 
-      {!isLoading && !provisioning && !error && sorted.length > 0 && (
+      {!isPending && !provisioning && !error && sorted.length > 0 && (
         <div className="journeys-grid">
           {sorted.map((journey) => (
             <JourneyCard

@@ -23,7 +23,7 @@ export default function FreeRecallSession({ session, activity, module, journeyId
   const [hintTiers, setHintTiers] = useState([]);
   const [result, setResult] = useState(null);
   const [phase, setPhase] = useState('recall');
-  const completeSession = useCompleteSession();
+  const { completeSessionInBackground } = useCompleteSession();
   const abandonSession = useAbandonSession();
   const returnPath = `/journeys/${journeyId}/modules/${module?.moduleId}`;
 
@@ -59,16 +59,17 @@ export default function FreeRecallSession({ session, activity, module, journeyId
       aiGradingSummary: result?.aiGradingSummary ?? '',
       nextConceptRecommendation: result?.nextConceptRecommendation ?? '',
     };
-    await completeSession({
+    setPhase('summary');
+    completeSessionInBackground({
       sessionId: session.sessionId,
       journeyId,
       activityId: activity.activityId,
+      activity,
       sessionData,
       score: result?.coveragePercent ?? 0,
       outcomeSummary: { nextAction: result?.nextConceptRecommendation },
       startedAt: session.startedAt,
     });
-    setPhase('summary');
   };
 
   if (phase === 'summary') {

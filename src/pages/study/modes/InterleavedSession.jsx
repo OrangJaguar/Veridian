@@ -14,7 +14,7 @@ export default function InterleavedSession({ session, activity, journeyId, modul
   const [phase, setPhase] = useState('setup');
   const [questions, setQuestions] = useState([]);
   const [selectedModuleIds, setSelectedModuleIds] = useState(modules.map((m) => m.moduleId));
-  const completeSession = useCompleteSession();
+  const { completeSessionInBackground } = useCompleteSession();
   const abandonSession = useAbandonSession();
   const returnPath = `/journeys/${journeyId}`;
 
@@ -44,16 +44,17 @@ export default function InterleavedSession({ session, activity, journeyId, modul
       answers,
       perModuleAccuracy: {},
     };
-    await completeSession({
+    setPhase('summary');
+    completeSessionInBackground({
       sessionId: session.sessionId,
       journeyId,
       activityId: activity.activityId,
+      activity,
       sessionData,
       score: accuracy,
       outcomeSummary: { accuracy, nextAction: 'Review modules that collapsed under mixing' },
       startedAt: session.startedAt,
     });
-    setPhase('summary');
   };
 
   if (phase === 'summary') {

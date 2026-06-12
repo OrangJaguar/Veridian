@@ -1,50 +1,73 @@
-import { Link } from 'react-router-dom';
-import { ReadinessBadge } from '@/components/journey-detail/JourneyDetailHeader';
+import { useState } from 'react';
+import { format } from 'date-fns';
+import ExpandToggle from '@/components/shared/ExpandToggle';
+import VeridianLoading from '@/components/shared/VeridianLoading';
 
-const URGENCY_CLASS = { high: 'urgency-high', medium: 'urgency-medium', low: 'urgency-low' };
+function buildOverallPlanParagraphs(journey, modules, plan) {
+  const days = plan?.daysUntilExam;
+  const moduleCount = modules.length;
+  const stageBCount = modules.filter((m) => m.stage === 'B').length;
+  const paragraphs = [];
 
-export default function RecommendedStudyPlan({ plan, loading }) {
+  if (days != null && days >= 0) {
+    const examStr = journey.examDate
+      ? format(new Date(journey.examDate), 'MMMM d')
+      : 'your exam';
+    paragraphs.push(
+      `You have ${days} day${days === 1 ? '' : 's'} until ${examStr}. Spread your effort across ${moduleCount} module${moduleCount === 1 ? '' : 's'}, moving each from Learn → Practice → Mastery rather than rushing one topic.`,
+    );
+  } else {
+    paragraphs.push(
+      `Work through ${moduleCount} module${moduleCount === 1 ? '' : 's'} at a steady pace — Learn first, then Practice, then Mastery activities.`,
+    );
+  }
+
+  paragraphs.push(
+    'Stage A (Learn): Complete the learning guide for each module before heavy practice. Allow 1–2 sessions per module to build a foundation.',
+  );
+  paragraphs.push(
+    'Stage B (Practice): Aim for one practice quiz every 2–3 days per module, plus daily flashcard reviews when cards are due. This is where most exam readiness is built.',
+  );
+  paragraphs.push(
+    'Stage C (Mastery): Introduce Feynman, Free Recall, and Synthesis once a module is above ~70% mastery — these deepen understanding, not replace practice.',
+  );
+
+  if (stageBCount >= 2) {
+    paragraphs.push(
+      'Journey-wide: With 2+ modules in Stage B, add an interleaved review weekly and a journey challenge every 1–2 weeks to test cross-topic recall.',
+    );
+  } else {
+    paragraphs.push(
+      'Journey-wide: Interleaved review and journey challenges unlock once 2+ modules reach Stage B.',
+    );
+  }
+
+  return paragraphs;
+}
+
+export default function RecommendedStudyPlan({ plan, loading, journey, modules = [] }) {
+  const [planExpanded, setPlanExpanded] = useState(false);
+
   if (loading) {
     return (
-      <section className="journey-study-plan">
-        <h2 className="journey-detail-section-title">Recommended Study Plan</h2>
-        <p className="journeys-status">Loading plan…</p>
+      <section className="journey-study-plan detail-section-box">
+        <VeridianLoading size="sm" />
       </section>
     );
   }
 
   if (!plan) return null;
 
-  const { todayItems, weekPriorities, overallStatus } = plan;
+  const { weekPriorities = [] } = plan;
+  const overallParagraphs = buildOverallPlanParagraphs(journey, modules, plan);
 
   return (
-    <section className="journey-study-plan">
-      <div className="journey-study-plan-header">
-        <h2 className="journey-detail-section-title">Recommended Study Plan</h2>
-        <ReadinessBadge status={overallStatus} />
-      </div>
-
-      {todayItems.length === 0 ? (
-        <p className="journey-study-plan-empty">No sessions recommended for today — you&apos;re caught up!</p>
-      ) : (
-        <ul className="journey-study-plan-today">
-          {todayItems.map((item) => (
-            <li key={item.id} className={`journey-study-plan-item ${URGENCY_CLASS[item.urgency] ?? ''}`}>
-              <div className="journey-study-plan-item-main">
-                <strong>{item.moduleName ?? item.activityLabel}</strong>
-                <span>{item.activityLabel} — {item.reason}</span>
-              </div>
-              <Link to={item.href} className="btn btn-secondary btn-sm">
-                Start · ~{item.estimatedMin} min
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {weekPriorities.length > 0 && (
-        <div className="journey-study-plan-week">
-          <h3 className="journey-study-plan-week-title">This week&apos;s priorities</h3>
+    <section className="journey-study-plan detail-section-box">
+      <div className="journey-study-plan-week">
+        <h3 className="journey-study-plan-week-title">This week&apos;s priorities</h3>
+        {weekPriorities.length === 0 ? (
+          <p className="journey-study-plan-empty">No specific priorities this week — keep your daily rhythm.</p>
+        ) : (
           <ul className="journey-study-plan-week-list">
             {weekPriorities.map((p) => (
               <li key={p.moduleId}>
@@ -52,8 +75,25 @@ export default function RecommendedStudyPlan({ plan, loading }) {
               </li>
             ))}
           </ul>
-        </div>
-      )}
+        )}
+      </div>
+
+      <div className="journey-study-plan-overall">
+        <ExpandToggle
+          expanded={planExpanded}
+          onClick={() => setPlanExpanded(!planExpanded)}
+          className="journey-study-plan-overall-toggle"
+        >
+          Overall plan
+        </ExpandToggle>
+        {planExpanded && (
+          <div className="journey-study-plan-overall-body">
+            {overallParagraphs.map((p) => (
+              <p key={p.slice(0, 40)}>{p}</p>
+            ))}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

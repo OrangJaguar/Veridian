@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { useUpdateSession } from '@/hooks/mutations/useSessionMutations';
 import { getActivity } from '@/api/entities/activities';
 import { runPostSessionEffects } from '@/utils/study/postSession';
@@ -11,11 +12,12 @@ export function useCompleteSession() {
   const queryClient = useQueryClient();
   const reset = useStudySessionStore((s) => s.reset);
 
-  return useCallback(
+  const completeSession = useCallback(
     async ({
       sessionId,
       journeyId,
       activityId,
+      activity: activityOverride,
       sessionData,
       score,
       outcomeSummary,
@@ -37,7 +39,7 @@ export function useCompleteSession() {
         },
       });
 
-      const activity = await getActivity(activityId);
+      const activity = activityOverride ?? await getActivity(activityId);
       if (activity) {
         await runPostSessionEffects(
           {
@@ -65,4 +67,15 @@ export function useCompleteSession() {
     },
     [updateSession, queryClient, reset],
   );
+
+  const completeSessionInBackground = useCallback(
+    (params) => {
+      completeSession(params).catch(() => {
+        toast.error('Could not save session results. Your progress may not sync until you retry.');
+      });
+    },
+    [completeSession],
+  );
+
+  return { completeSession, completeSessionInBackground };
 }

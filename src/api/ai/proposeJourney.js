@@ -1,4 +1,5 @@
 import { journeyProposalSchema } from '@/utils/schemas/ai';
+import { normalizeJourneyProposal } from '@/utils/schemas/ai/normalize';
 import { trimMaterial } from '@/api/ai/tokenEstimate';
 import { invokeGemini, parseGeminiResponse } from '@/api/ai/client';
 
@@ -19,7 +20,9 @@ export async function proposeJourney(input, options = {}) {
   }, options);
 
   const parsed = parseGeminiResponse(raw);
-  const data = journeyProposalSchema.parse(parsed.data ?? parsed);
+  const data = journeyProposalSchema.parse(
+    normalizeJourneyProposal(parsed.data ?? parsed),
+  );
 
   if (import.meta.env.DEV && parsed.usage) {
     console.info('[AI] proposeJourney tokens:', parsed.usage);

@@ -16,7 +16,7 @@ export default function JourneyChallengeSession({ session, activity, journeyId, 
   const [questions, setQuestions] = useState([]);
   const [length, setLength] = useState('medium');
   const [weighting, setWeighting] = useState('balanced');
-  const completeSession = useCompleteSession();
+  const { completeSessionInBackground } = useCompleteSession();
   const abandonSession = useAbandonSession();
   const returnPath = `/journeys/${journeyId}`;
 
@@ -50,16 +50,17 @@ export default function JourneyChallengeSession({ session, activity, journeyId, 
         ? 'Maintain with light review'
         : 'Focus on weakest modules from breakdown',
     };
-    await completeSession({
+    setPhase('summary');
+    completeSessionInBackground({
       sessionId: session.sessionId,
       journeyId,
       activityId: activity.activityId,
+      activity,
       sessionData,
       score: accuracy,
       outcomeSummary: { accuracy, nextAction: sessionData.recommendedStudyPlan },
       startedAt: session.startedAt,
     });
-    setPhase('summary');
   };
 
   if (phase === 'summary') {

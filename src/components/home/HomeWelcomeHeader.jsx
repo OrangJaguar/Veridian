@@ -8,9 +8,9 @@ export default function HomeWelcomeHeader() {
 
   return (
     <header className="home-welcome">
-      <div>
+      <div className="home-welcome-row">
         <h1 className="home-welcome-greeting">
-          {name ? `${greeting}, ${name}` : `${greeting}`}
+          {name ? `${greeting}, ${name}` : greeting}
         </h1>
         <p className="home-welcome-date">{formatTodayDate()}</p>
       </div>

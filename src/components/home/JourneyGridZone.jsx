@@ -2,10 +2,11 @@ import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useJourneys } from '@/hooks/queries/useJourneys';
 import JourneyCard from '@/components/journeys/JourneyCard';
+import VeridianLoading from '@/components/shared/VeridianLoading';
 export default function JourneyGridZone() {
   const [tab, setTab] = useState('active');
   const archived = tab === 'archived';
-  const { data: journeys = [], isLoading, error } = useJourneys({ archived });
+  const { data: journeys = [], isPending, error } = useJourneys({ archived });
 
   return (
     <section className="home-journey-zone" aria-labelledby="your-journeys-heading">
@@ -33,12 +34,12 @@ export default function JourneyGridZone() {
         </button>
       </div>
 
-      {isLoading && <p className="journeys-status">Loading Journeys…</p>}
+      {isPending && journeys.length === 0 && <VeridianLoading size="sm" />}
       {error && (
         <p className="journeys-error">{error.message || 'Could not load Journeys.'}</p>
       )}
 
-      {!isLoading && !error && journeys.length === 0 && (
+      {!isPending && !error && journeys.length === 0 && (
         <p className="journey-detail-empty">
           {archived ? 'No archived Journeys.' : 'No active Journeys in this tab.'}
           {!archived && (
@@ -50,7 +51,7 @@ export default function JourneyGridZone() {
         </p>
       )}
 
-      {!isLoading && !error && journeys.length > 0 && (
+      {!isPending && !error && journeys.length > 0 && (
         <div className="home-journey-grid">
           {journeys.map((journey) => (
             <JourneyCard key={journey.journeyId ?? journey.id} journey={journey} variant="home" />

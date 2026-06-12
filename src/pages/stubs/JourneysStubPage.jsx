@@ -3,13 +3,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { useJourneys } from '@/hooks/queries/useJourneys';
 import JourneyCard from '@/components/journeys/JourneyCard';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
+import VeridianLoading from '@/components/shared/VeridianLoading';
 
 export default function JourneysStubPage() {
   const { isAuthenticated } = useAuth();
   const [tab, setTab] = useState('active');
   const archived = tab === 'archived';
 
-  const { data: journeys = [], isLoading, error } = useJourneys({ archived });
+  const { data: journeys = [], isPending, error } = useJourneys({ archived });
 
   if (!isAuthenticated) {
     return (
@@ -49,14 +50,14 @@ export default function JourneysStubPage() {
         </button>
       </div>
 
-      {isLoading && <p className="journeys-status">Loading Journeys…</p>}
+      {isPending && journeys.length === 0 && <VeridianLoading />}
       {error && (
         <p className="journeys-error">
           {error.message || 'Could not load Journeys. Publish entity schemas to Base44 first.'}
         </p>
       )}
 
-      {!isLoading && !error && journeys.length === 0 && (
+      {!isPending && !error && journeys.length === 0 && (
         <div className="journeys-empty">
           <h2>No Journeys yet</h2>
           <p>
@@ -67,7 +68,7 @@ export default function JourneysStubPage() {
         </div>
       )}
 
-      {!isLoading && !error && journeys.length > 0 && (
+      {!isPending && !error && journeys.length > 0 && (
         <div className="journeys-grid">
           {journeys.map((journey) => (
             <JourneyCard

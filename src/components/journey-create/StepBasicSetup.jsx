@@ -1,4 +1,5 @@
 import { useJourneyCreateStore } from '@/store/journeyCreateStore';
+import { ChoiceRadio } from '@/components/shared/ChoiceControl';
 
 const PRIOR_OPTIONS = [
   { value: 'scratch', label: 'Starting from scratch' },
@@ -10,7 +11,9 @@ export default function StepBasicSetup({ onNext }) {
   const draft = useJourneyCreateStore((s) => s.draft);
   const updateDraft = useJourneyCreateStore((s) => s.updateDraft);
 
-  const canNext = draft.title.trim().length >= 2 && draft.subject.trim().length >= 2;
+  const canNext = draft.title.trim().length >= 2
+    && draft.subject.trim().length >= 2
+    && draft.examDate != null;
 
   return (
     <div className="create-step">
@@ -38,9 +41,10 @@ export default function StepBasicSetup({ onNext }) {
       </label>
 
       <label className="create-field">
-        <span>Exam date (optional)</span>
+        <span>Exam date</span>
         <input
           type="date"
+          required
           value={draft.examDate ? new Date(draft.examDate).toISOString().slice(0, 10) : ''}
           onChange={(e) => {
             const val = e.target.value;
@@ -49,29 +53,22 @@ export default function StepBasicSetup({ onNext }) {
             });
           }}
         />
-        <button
-          type="button"
-          className="create-link-btn"
-          onClick={() => updateDraft({ examDate: null })}
-        >
-          Skip for now
-        </button>
       </label>
 
-      <fieldset className="create-field">
-        <legend>Prior knowledge</legend>
-        {PRIOR_OPTIONS.map((opt) => (
-          <label key={opt.value} className="create-radio">
-            <input
-              type="radio"
+      <fieldset className="create-field create-fieldset">
+        <legend className="create-fieldset-legend">Prior knowledge</legend>
+        <div className="create-choice-list">
+          {PRIOR_OPTIONS.map((opt) => (
+            <ChoiceRadio
+              key={opt.value}
               name="priorKnowledge"
               value={opt.value}
+              label={opt.label}
               checked={draft.priorKnowledge === opt.value}
-              onChange={() => updateDraft({ priorKnowledge: opt.value })}
+              onChange={(value) => updateDraft({ priorKnowledge: value })}
             />
-            {opt.label}
-          </label>
-        ))}
+          ))}
+        </div>
       </fieldset>
 
       <div className="create-step-actions">

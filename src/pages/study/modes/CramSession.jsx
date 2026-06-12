@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
+import VeridianLoading from '@/components/shared/VeridianLoading';
 import StudyChrome from '@/components/study/StudyChrome';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
 import SessionSummary from '@/components/study/SessionSummary';
@@ -17,7 +18,7 @@ export default function CramSession({ session, activity, journeyId, modules = []
   const [questions, setQuestions] = useState([]);
   const { data: sessions = [] } = useSessions(journeyId);
   const { data: activities = [] } = useActivitiesByJourney(journeyId);
-  const completeSession = useCompleteSession();
+  const { completeSessionInBackground } = useCompleteSession();
   const abandonSession = useAbandonSession();
   const returnPath = `/journeys/${journeyId}`;
 
@@ -54,16 +55,17 @@ export default function CramSession({ session, activity, journeyId, modules = []
       quizQuestions: answers.length,
       overdueCards: overdueCount,
     };
-    await completeSession({
+    setPhase('summary');
+    completeSessionInBackground({
       sessionId: session.sessionId,
       journeyId,
       activityId: activity.activityId,
+      activity,
       sessionData,
       score: accuracy,
       outcomeSummary: { accuracy, nextAction: sessionData.nextAction },
       startedAt: session.startedAt,
     });
-    setPhase('summary');
   };
 
   if (phase === 'summary') {
@@ -78,7 +80,7 @@ export default function CramSession({ session, activity, journeyId, modules = []
 
   return (
     <StudyChrome title="Cram Mode" onExit={() => abandonSession({ sessionId: session.sessionId, journeyId, returnPath })}>
-      {phase === 'loading' && <p className="journeys-status">Building your cram session…</p>}
+      {phase === 'loading' && <VeridianLoading />}
       {phase === 'active' && <QuizRunner questions={questions} onComplete={handleComplete} />}
       {phase === 'error' && <p className="journeys-error">Could not build cram session.</p>}
     </StudyChrome>

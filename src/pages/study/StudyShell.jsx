@@ -5,6 +5,7 @@ import { useActivitiesByJourney } from '@/hooks/queries/useActivities';
 import { useModules } from '@/hooks/queries/useModules';
 import { useCardsByJourney } from '@/hooks/queries/useCards';
 import { useStudySessionStore } from '@/store/studySessionStore';
+import VeridianLoading from '@/components/shared/VeridianLoading';
 import PracticeQuizSession from '@/pages/study/modes/PracticeQuizSession';
 import FlashcardSession from '@/pages/study/modes/FlashcardSession';
 import LearningGuideSession from '@/pages/study/modes/LearningGuideSession';
@@ -17,7 +18,7 @@ import CramSession from '@/pages/study/modes/CramSession';
 
 export default function StudyShell() {
   const { sessionId } = useParams();
-  const { data: session, isLoading, error } = useSession(sessionId);
+  const { data: session, isPending: sessionPending, error } = useSession(sessionId);
   const journeyId = session?.journeyId;
   const { data: activities = [] } = useActivitiesByJourney(journeyId);
   const { data: modules = [] } = useModules(journeyId);
@@ -32,8 +33,12 @@ export default function StudyShell() {
     if (session && activity) hydrate({ session, activity });
   }, [session, activity, hydrate]);
 
-  if (isLoading) {
-    return <div className="study-shell-loading"><p className="journeys-status">Loading session…</p></div>;
+  if (sessionPending && !session) {
+    return (
+      <div className="study-shell-loading">
+        <VeridianLoading />
+      </div>
+    );
   }
 
   if (error || !session) {
@@ -45,11 +50,11 @@ export default function StudyShell() {
     );
   }
 
-  if (session.status === 'completed' || session.status === 'abandoned') {
+  if (session.status === 'abandoned') {
     return (
       <div className="stub-page">
         <h1 className="stub-title">Session ended</h1>
-        <p className="stub-description">This study session is already {session.status}.</p>
+        <p className="stub-description">This study session was abandoned.</p>
         <Link to={module ? `/journeys/${journeyId}/modules/${module.moduleId}` : `/journeys/${journeyId}`} className="btn btn-primary">
           Go back
         </Link>
