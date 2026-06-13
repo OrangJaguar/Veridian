@@ -7,6 +7,7 @@ import {
   extractJsonText,
   finalizeDiagnosticQuestion,
   finalizeForAction,
+  coercePayloadForAction,
   questionCountRetrySuffix,
 } from "../aiNormalize.ts";
 
@@ -158,6 +159,7 @@ async function callGeminiJson(
   user: string,
   schema: z.ZodType,
   retrySuffix?: string,
+  coerceAction?: string,
 ) {
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({
@@ -178,7 +180,10 @@ async function callGeminiJson(
     try {
       const result = await model.generateContent(prompt);
       const text = result.response.text();
-      const parsed = JSON.parse(extractJsonText(text));
+      let parsed = JSON.parse(extractJsonText(text));
+      if (coerceAction) {
+        parsed = coercePayloadForAction(coerceAction, parsed);
+      }
       const data = schema.parse(parsed);
       const usage = result.response.usageMetadata;
       return {
@@ -529,10 +534,18 @@ async function generateDiagnosticQuestionsBatch(
     const retrySuffix =
       `\n\nReturn EXACTLY ${questionsPerModule} questions. Every question MUST use moduleId "${mod.moduleId}" exactly. JSON only.`;
 
-    const { data, usage } = await callGeminiJson(apiKey, system, modulePrompt, schema, retrySuffix);
+    const { data, usage } = await callGeminiJson(
+      apiKey,
+      system,
+      modulePrompt,
+      schema,
+      retrySuffix,
+      "generateDiagnosticQuestions",
+    );
     const finalized = data.questions
       .slice(0, questionsPerModule)
-      .map((q, index) => finalizeDiagnosticQuestion(q, mod.moduleId, index));
+      .map((q, index) => finalizeDiagnosticQuestion(q, mod.moduleId, index))
+      .filter((q): q is z.infer<typeof diagnosticQuestionSchema> => q != null);
     if (finalized.length < questionsPerModule) {
       throw new Error(
         `Generated ${finalized.length}/${questionsPerModule} questions for "${mod.name ?? mod.moduleId}". Try again.`,
@@ -642,7 +655,14 @@ Deno.serve(async (req) => {
 
     const schema = schemaForAction(action);
     const retrySuffix = retrySuffixForAction(action, payload as Record<string, unknown>);
-    const { data: raw, usage } = await callGeminiJson(apiKey, system, userPrompt, schema, retrySuffix);
+    const { data: raw, usage } = await callGeminiJson(
+      apiKey,
+      system,
+      userPrompt,
+      schema,
+      retrySuffix,
+      action,
+    );
     const data = aiSchemaForAction(action)
       ? finalizeForAction(action, raw, payload as Record<string, unknown>)
       : raw;

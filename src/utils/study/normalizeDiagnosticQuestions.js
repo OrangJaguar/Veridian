@@ -1,11 +1,12 @@
 /**
  * Normalize AI diagnostic output — force correct moduleId tags and ids.
  */
-import { extractAiList } from '@/utils/study/normalizeStudyAiResponse';
+import { extractAiList, coerceStudyAiPayload } from '@/utils/study/normalizeStudyAiResponse';
 
 function extractQuestionList(rawQuestions) {
   if (Array.isArray(rawQuestions)) return rawQuestions;
-  return extractAiList(rawQuestions, 'questions');
+  const coerced = coerceStudyAiPayload('generateDiagnosticQuestions', rawQuestions);
+  return extractAiList(coerced, 'questions');
 }
 
 export function normalizeDiagnosticQuestions(rawQuestions, modules, perModule = 3) {
@@ -36,10 +37,10 @@ export function normalizeDiagnosticQuestions(rawQuestions, modules, perModule = 
     return {
       id: String(q.id ?? `diag-${moduleId ?? 'x'}-${index + 1}`).trim(),
       type,
-      stem: String(q.stem ?? '').trim(),
+      stem: String(q.stem ?? q.question ?? q.prompt ?? '').trim(),
       options,
-      correctAnswer: q.correctAnswer,
-      explanation: String(q.explanation ?? '').trim(),
+      correctAnswer: q.correctAnswer ?? q.answer ?? q.correct ?? options?.[0],
+      explanation: String(q.explanation ?? q.rationale ?? '').trim(),
       conceptId: q.conceptId ? String(q.conceptId) : undefined,
       moduleId,
     };

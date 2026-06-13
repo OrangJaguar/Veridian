@@ -12,9 +12,9 @@ export const coercedAnswerSchema = z.preprocess(
 export const questionAiSchema = z.object({
   id: z.string().optional(),
   type: z.string().optional(),
-  stem: z.string().min(1),
+  stem: z.string().optional(),
   options: z.array(z.string()).optional(),
-  correctAnswer: coercedAnswerSchema,
+  correctAnswer: coercedAnswerSchema.optional(),
   explanation: z.string().optional(),
   conceptId: z.string().optional(),
   moduleId: z.string().optional(),
@@ -26,8 +26,8 @@ export const questionsAiOutputSchema = z.object({
 
 export const guideSectionAiSchema = z.object({
   sectionId: z.string().optional(),
-  title: z.string().min(1),
-  explanation: z.string().min(1),
+  title: z.string().optional(),
+  explanation: z.string().optional(),
   workedExamples: z.array(z.object({
     scenario: z.string().optional(),
     steps: z.array(z.string()).optional(),
@@ -52,8 +52,8 @@ export const guideAiOutputSchema = z.object({
 });
 
 export const cardAiSchema = z.object({
-  front: z.string().min(1),
-  back: z.string().min(1),
+  front: z.string().optional(),
+  back: z.string().optional(),
   conceptTag: z.string().optional(),
 });
 
@@ -76,7 +76,156 @@ export function extractJsonText(raw: string) {
   const end = trimmed.lastIndexOf("}");
   if (start !== -1 && end > start) return trimmed.slice(start, end + 1);
 
+  const arrStart = trimmed.indexOf("[");
+  const arrEnd = trimmed.lastIndexOf("]");
+  if (arrStart !== -1 && arrEnd > arrStart) return trimmed.slice(arrStart, arrEnd + 1);
+
   return trimmed;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function coerceQuestionItems(items: unknown[]) {
+  return items.map((item, index) => {
+    const q = asRecord(item) ?? {};
+    const options = Array.isArray(q.options) ? q.options
+      : Array.isArray(q.choices) ? q.choices
+        : Array.isArray(q.answers) ? q.answers
+          : undefined;
+    const stem = q.stem ?? q.question ?? q.prompt ?? q.text ?? q.body ?? "";
+    let correctAnswer = q.correctAnswer ?? q.answer ?? q.correct ?? q.solution;
+    if (correctAnswer == null && Array.isArray(options) && options.length) {
+      correctAnswer = options[0];
+    }
+    return {
+      id: q.id ?? q.questionId ?? `q-${index + 1}`,
+      type: q.type,
+      stem,
+      options,
+      correctAnswer,
+      explanation: q.explanation ?? q.rationale ?? q.reason ?? "",
+      conceptId: q.conceptId ?? q.concept ?? q.concept_id,
+      moduleId: q.moduleId ?? q.module_id ?? q.module,
+    };
+  }).filter((q) => String(q.stem ?? "").trim().length > 0);
+}
+
+function coerceSectionItems(items: unknown[]) {
+  return items.map((item, index) => {
+    const s = asRecord(item) ?? {};
+    const checkIn = asRecord(s.checkInQuestion ?? s.checkIn ?? s.quiz ?? s.question) ?? {};
+    return {
+      sectionId: s.sectionId ?? s.id ?? `section-${index + 1}`,
+      title: s.title ?? s.name ?? s.heading ?? `Section ${index + 1}`,
+      explanation: s.explanation ?? s.content ?? s.body ?? s.summary ?? s.text ?? "",
+      workedExamples: s.workedExamples ?? s.examples ?? s.workedExample ?? [],
+      checkInQuestion: {
+        question: checkIn.question ?? checkIn.stem ?? checkIn.prompt ?? checkIn.text ?? "",
+        type: checkIn.type,
+        options: checkIn.options ?? checkIn.choices ?? checkIn.answers,
+        correctAnswer: checkIn.correctAnswer ?? checkIn.answer ?? checkIn.correct ?? "",
+        explanation: checkIn.explanation ?? checkIn.rationale ?? checkIn.reason ?? "",
+      },
+      externalSearchSuggestions: s.externalSearchSuggestions
+        ?? s.youtubeSuggestions
+        ?? s.searchSuggestions
+        ?? [],
+      transitionText: s.transitionText ?? s.transition ?? "",
+    };
+  });
+}
+
+function coerceCardItems(items: unknown[]) {
+  return items.map((item) => {
+    const c = asRecord(item) ?? {};
+    return {
+      front: c.front ?? c.term ?? c.question ?? c.prompt ?? "",
+      back: c.back ?? c.definition ?? c.answer ?? c.meaning ?? "",
+      conceptTag: c.conceptTag ?? c.concept ?? c.tag,
+    };
+  }).filter((c) => String(c.front ?? "").trim() && String(c.back ?? "").trim());
+}
+
+export function coerceQuestionsPayload(raw: unknown): unknown {
+  if (Array.isArray(raw)) {
+    return { questions: coerceQuestionItems(raw) };
+  }
+
+  const obj = asRecord(raw);
+  if (!obj) return raw;
+
+  let questions = obj.questions ?? obj.items ?? obj.problems;
+  const inner = asRecord(obj.data);
+  if (!Array.isArray(questions) && inner) {
+    questions = inner.questions ?? inner.items;
+  }
+  if (!Array.isArray(questions)) return raw;
+
+  return {
+    ...obj,
+    questions: coerceQuestionItems(questions),
+  };
+}
+
+export function coerceGuidePayload(raw: unknown): unknown {
+  if (Array.isArray(raw)) {
+    return { sections: coerceSectionItems(raw) };
+  }
+
+  const obj = asRecord(raw);
+  if (!obj) return raw;
+
+  let sections = obj.sections ?? obj.chapters ?? obj.parts;
+  for (const key of ["guide", "learningGuide", "content"]) {
+    const nested = asRecord(obj[key]);
+    if (!Array.isArray(sections) && nested?.sections) sections = nested.sections;
+  }
+  const inner = asRecord(obj.data);
+  if (!Array.isArray(sections) && inner?.sections) sections = inner.sections;
+  if (!Array.isArray(sections)) return raw;
+
+  return {
+    ...obj,
+    sections: coerceSectionItems(sections),
+  };
+}
+
+export function coerceCardsPayload(raw: unknown): unknown {
+  if (Array.isArray(raw)) {
+    return { cards: coerceCardItems(raw) };
+  }
+
+  const obj = asRecord(raw);
+  if (!obj) return raw;
+
+  let cards = obj.cards ?? obj.flashcards ?? obj.deck ?? obj.items;
+  const inner = asRecord(obj.data);
+  if (!Array.isArray(cards) && inner) cards = inner.cards ?? inner.flashcards;
+  if (!Array.isArray(cards)) return raw;
+
+  return {
+    ...obj,
+    cards: coerceCardItems(cards),
+  };
+}
+
+export function coercePayloadForAction(action: string, raw: unknown): unknown {
+  if (action === "generateLearningGuide") return coerceGuidePayload(raw);
+  if (action === "generateFlashcards") return coerceCardsPayload(raw);
+  if (
+    action === "generatePracticeQuestions"
+    || action === "generateDiagnosticQuestions"
+    || action === "generateInterleavedQuestions"
+    || action === "generateJourneyChallenge"
+    || action === "generateCramSession"
+  ) {
+    return coerceQuestionsPayload(raw);
+  }
+  return raw;
 }
 
 export function finalizeQuestion(
@@ -84,6 +233,9 @@ export function finalizeQuestion(
   index: number,
   prefix = "q",
 ) {
+  const stem = clipString(q.stem, 4000);
+  if (!stem) return null;
+
   const type = q.type === "trueFalse" || q.type === "shortAnswer" ? q.type : "multipleChoice";
   let options = q.options;
   if (type === "trueFalse") {
@@ -94,12 +246,14 @@ export function finalizeQuestion(
     options = options.slice(0, 4);
   }
 
+  const correctAnswer = q.correctAnswer ?? options?.[0] ?? "Unknown";
+
   return {
     id: String(q.id ?? `${prefix}-${index + 1}`).trim(),
     type,
-    stem: String(q.stem).trim(),
+    stem,
     options,
-    correctAnswer: q.correctAnswer,
+    correctAnswer,
     explanation: String(q.explanation ?? "").trim(),
     conceptId: q.conceptId ? String(q.conceptId) : undefined,
     moduleId: q.moduleId ? String(q.moduleId) : undefined,
@@ -117,7 +271,8 @@ export function finalizeQuestionsOutput(
 
   const finalized = list
     .slice(0, expectedCount)
-    .map((q, index) => finalizeQuestion(q, index, "q"));
+    .map((q, index) => finalizeQuestion(q, index, "q"))
+    .filter((q): q is NonNullable<typeof q> => q != null);
 
   if (finalized.length < expectedCount) {
     throw new Error(`Generated ${finalized.length}/${expectedCount} ${label}. Try again.`);
@@ -258,5 +413,7 @@ export function finalizeDiagnosticQuestion(
   moduleId: string,
   index: number,
 ) {
-  return { ...finalizeQuestion(q, index, `diag-${moduleId}`), moduleId };
+  const finalized = finalizeQuestion(q, index, `diag-${moduleId}`);
+  if (!finalized) return null;
+  return { ...finalized, moduleId };
 }

@@ -6,7 +6,7 @@ import {
   findFlashcardDuplicates,
 } from '@/api/ai/study';
 import { runStudyAiGeneration } from '@/hooks/ai/runStudyAiGeneration';
-import { extractAiList } from '@/utils/study/normalizeStudyAiResponse';
+import { extractAiList, coerceStudyAiPayload } from '@/utils/study/normalizeStudyAiResponse';
 import { buildGenerateFlashcardsPayload } from '@/api/ai/prompts/flashcards';
 import { parseQuizletFormat } from '@/utils/study/parseQuizletFormat';
 import {
@@ -129,12 +129,15 @@ export const useDeckCreateStore = create((set, get) => ({
 
       const cards = await runStudyAiGeneration({
         generate: () => generateFlashcards(payload),
-        normalize: (result) => extractAiList(result, 'cards').map((c, i) => ({
-          id: `draft-${i}`,
-          front: c.front,
-          back: c.back,
-          conceptTag: c.conceptTag,
-        })),
+        normalize: (result) => {
+          const coerced = coerceStudyAiPayload('generateFlashcards', result);
+          return extractAiList(coerced, 'cards').map((c, i) => ({
+            id: `draft-${i}`,
+            front: c.front,
+            back: c.back,
+            conceptTag: c.conceptTag,
+          }));
+        },
         validate: (list) => {
           if (!list.length) throw new Error('No cards were generated.');
         },

@@ -11,6 +11,7 @@ import DetailBackButton from '@/components/shared/DetailBackButton';
 import ModuleDetailHeader from '@/components/module-detail/ModuleDetailHeader';
 import StageSection from '@/components/module-detail/StageSection';
 import FlashcardDeckList from '@/components/module-detail/FlashcardDeckList';
+import SessionHistoryPanel from '@/components/module-detail/SessionHistoryPanel';
 import { useRecoverStaleGeneratingActivities } from '@/hooks/useRecoverStaleGeneratingActivities';
 
 export default function ModuleDetailPage() {

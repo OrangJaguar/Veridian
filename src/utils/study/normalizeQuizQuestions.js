@@ -1,5 +1,5 @@
 import { ensureUniqueQuestionIds } from '@/utils/study/quizDedup';
-import { extractAiList } from '@/utils/study/normalizeStudyAiResponse';
+import { extractAiList, coerceStudyAiPayload } from '@/utils/study/normalizeStudyAiResponse';
 
 function normalizeOptions(options, type) {
   if (type === 'trueFalse') return ['True', 'False'];
@@ -13,7 +13,8 @@ function normalizeOptions(options, type) {
  * Normalize AI quiz output for QuizRunner.
  */
 export function normalizeQuizQuestions(raw, questionCount) {
-  const list = extractAiList(raw, 'questions');
+  const coerced = coerceStudyAiPayload('generatePracticeQuestions', raw);
+  const list = extractAiList(coerced, 'questions');
   if (!list.length) return [];
 
   const normalized = list.slice(0, questionCount).map((q, index) => {
@@ -21,14 +22,16 @@ export function normalizeQuizQuestions(raw, questionCount) {
       ? q.type
       : 'multipleChoice';
     const options = normalizeOptions(q.options, type);
+    const stem = String(q.stem ?? q.question ?? q.prompt ?? '').trim();
+    const correctAnswer = q.correctAnswer ?? q.answer ?? q.correct ?? options?.[0];
 
     return {
       id: String(q.id ?? `pq-${index + 1}`).trim(),
       type,
-      stem: String(q.stem ?? '').trim(),
+      stem,
       options,
-      correctAnswer: q.correctAnswer,
-      explanation: String(q.explanation ?? '').trim(),
+      correctAnswer,
+      explanation: String(q.explanation ?? q.rationale ?? '').trim(),
       conceptId: q.conceptId ? String(q.conceptId) : undefined,
     };
   }).filter((q) => q.stem && q.correctAnswer != null);

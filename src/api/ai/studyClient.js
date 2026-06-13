@@ -99,5 +99,10 @@ export function parseGeminiStudyResponse(result) {
     data = data.data;
   }
 
+  if (data && typeof data === 'object' && data.usage) {
+    const { usage: _usage, ...rest } = data;
+    data = rest;
+  }
+
   return data;
 }
