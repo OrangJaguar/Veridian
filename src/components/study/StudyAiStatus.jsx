@@ -1,7 +1,9 @@
 import VeridianLoading from '@/components/shared/VeridianLoading';
+import StudyAiRawPanel from '@/components/study/StudyAiRawPanel';
 import {
   formatStudyAiDebugSummary,
   isStudyAiDebugEnabled,
+  getLastRawGemini,
 } from '@/utils/study/studyAiTrace';
 
 export function StudyAiLoading({ label = 'Generating…', className = 'study-mode-view guide-mode-view guide-mode-view--loading' }) {
@@ -24,6 +26,7 @@ export function StudyAiError({
   const debugSummary = isStudyAiDebugEnabled()
     ? formatStudyAiDebugSummary(error)
     : null;
+  const rawText = error?.rawGeminiText ?? getLastRawGemini();
 
   return (
     <div className="study-mode-view study-ai-error">
@@ -32,9 +35,21 @@ export function StudyAiError({
         {debugSummary && (
           <pre className="study-ai-debug-panel">{debugSummary}</pre>
         )}
-        {isStudyAiDebugEnabled() && (
+        {rawText && (
+          <StudyAiRawPanel
+            text={rawText}
+            title="Raw Gemini response (from failed request)"
+            subtitle="Captured before or during the server error — unparsed."
+          />
+        )}
+        {isStudyAiDebugEnabled() && !rawText && (
           <p className="study-ai-debug-hint">
-            Open console and run <code>veridianAiDebug.printLast()</code> for full step detail.
+            No raw text yet. Run <code>veridianAiDebug.rawOn()</code>, reload, and retry — or check Network → geminiStudy response for <code>rawGeminiText</code>.
+          </p>
+        )}
+        {isStudyAiDebugEnabled() && rawText && (
+          <p className="study-ai-debug-hint">
+            Also in console: <code>veridianAiDebug.printRaw()</code>
           </p>
         )}
         <div className="study-ai-error-actions">

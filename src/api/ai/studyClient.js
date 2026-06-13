@@ -2,6 +2,9 @@ import { base44 } from '@/api/base44Client';
 import {
   getActiveStudyAiTrace,
   isStudyAiDebugEnabled,
+  isRawDumpEnabled,
+  captureRawGemini,
+  extractRawGeminiFromPayload,
 } from '@/utils/study/studyAiTrace';
 
 const FUNCTION_NOT_DEPLOYED_MSG =
@@ -31,11 +34,27 @@ function extractServerMessage(err) {
   return null;
 }
 
+function storeDebugAndRawFromPayload(payload, source) {
+  if (!payload) return null;
+
+  if (payload._debug) {
+    window.__veridianLastServerAiDebug = payload._debug;
+  }
+
+  const raw = extractRawGeminiFromPayload(payload);
+  if (raw) {
+    captureRawGemini(raw, { source, status: payload?.error?.status });
+  }
+  return raw;
+}
+
 function normalizeInvokeError(err) {
   const status = err?.status ?? err?.response?.status ?? err?.statusCode;
   const payload = extractErrorPayload(err);
   const serverMessage = extractServerMessage(err);
   const message = serverMessage ?? err?.message ?? String(err);
+
+  storeDebugAndRawFromPayload(payload, 'error');
 
   const normalized = new Error(
     status === 400 && !serverMessage && message.includes('status code 400')
@@ -45,6 +64,7 @@ function normalizeInvokeError(err) {
   normalized.status = status;
   normalized.serverPayload = payload;
   normalized.debug = payload?._debug ?? null;
+  normalized.rawGeminiText = extractRawGeminiFromPayload(payload);
   normalized.rawError = err;
 
   if (status === 404 || message.includes('status code 404')) {
@@ -57,10 +77,6 @@ function normalizeInvokeError(err) {
     normalized.message = 'Please sign in again to use AI features.';
   }
 
-  if (normalized.debug) {
-    window.__veridianLastServerAiDebug = normalized.debug;
-  }
-
   return normalized;
 }
 
@@ -68,7 +84,13 @@ export async function invokeGeminiStudy(action, payload, options = {}) {
   const { signal } = options;
   const trace = getActiveStudyAiTrace();
   const debug = isStudyAiDebugEnabled();
-  const requestPayload = debug ? { ...payload, __debug: true } : payload;
+  const rawDump = isRawDumpEnabled();
+
+  const requestPayload = {
+    ...payload,
+    ...(debug ? { __debug: true } : {}),
+    ...(rawDump ? { __rawDump: true } : {}),
+  };
 
   const user = await base44.auth.me();
   if (!user?.email && !user?.id) {
@@ -78,6 +100,7 @@ export async function invokeGeminiStudy(action, payload, options = {}) {
   if (debug && trace) {
     trace.stepStart('1a_invoke', 'POST geminiStudy', {
       action,
+      rawDump,
       payloadKeys: Object.keys(payload ?? {}),
     });
   }
@@ -97,9 +120,13 @@ export async function invokeGeminiStudy(action, payload, options = {}) {
   }
 
   const handleResult = (result) => {
-    if (result?._debug) {
-      window.__veridianLastServerAiDebug = result._debug;
-      if (debug) console.log('[Veridian AI] server _debug (success):', result._debug);
+    storeDebugAndRawFromPayload(result, 'success');
+    if (debug && trace) {
+      trace.stepOk('1a_invoke', 'POST geminiStudy', {
+        resultKeys: Object.keys(result ?? {}),
+        hasRaw: Boolean(extractRawGeminiFromPayload(result)),
+        hasDebug: Boolean(result?._debug),
+      });
     }
     return result;
   };
@@ -107,12 +134,13 @@ export async function invokeGeminiStudy(action, payload, options = {}) {
   const handleFailure = (err) => {
     const normalized = normalizeInvokeError(err);
     if (debug) {
-      console.group('[Veridian AI] invoke failed — raw error');
+      console.group('[Veridian AI] invoke failed — full server payload');
       console.log('status:', normalized.status);
       console.log('message:', normalized.message);
       console.log('serverPayload:', normalized.serverPayload);
       console.log('server _debug:', normalized.debug);
-      console.log('rawError:', normalized.rawError);
+      console.log('rawGeminiText length:', normalized.rawGeminiText?.length ?? 0);
+      if (normalized.rawGeminiText) console.log('rawGeminiText:', normalized.rawGeminiText);
       console.groupEnd();
     }
     if (trace && debug) {
@@ -120,6 +148,7 @@ export async function invokeGeminiStudy(action, payload, options = {}) {
         status: normalized.status,
         serverPayload: normalized.serverPayload,
         serverDebug: normalized.debug,
+        rawLength: normalized.rawGeminiText?.length ?? 0,
       });
     }
     throw normalized;
@@ -141,27 +170,30 @@ export async function invokeGeminiStudy(action, payload, options = {}) {
 export function parseGeminiStudyResponse(result) {
   if (!result) throw new Error('Empty response from AI service');
 
+  storeDebugAndRawFromPayload(result, 'parse');
+
+  if (result.rawGeminiText || result.data?.rawGeminiText) {
+    return {
+      rawGeminiText: result.rawGeminiText ?? result.data?.rawGeminiText,
+      parsedSkipped: true,
+      action: result.data?.action,
+    };
+  }
+
   if (result.error) {
-    if (result._debug) window.__veridianLastServerAiDebug = result._debug;
     const err = new Error(result.error.message || result.error);
     err.status = result.error.status ?? result.status;
     err.debug = result._debug;
+    err.rawGeminiText = result.rawGeminiText;
     throw normalizeInvokeError(err);
   }
 
   let data = result.data ?? result;
   if (data?.error) {
-    if (data._debug || result._debug) {
-      window.__veridianLastServerAiDebug = data._debug ?? result._debug;
-    }
     const err = new Error(data.error.message || data.error);
     err.status = data.error.status ?? 500;
     err.data = data;
     throw normalizeInvokeError(err);
-  }
-
-  if (result._debug) {
-    window.__veridianLastServerAiDebug = result._debug;
   }
 
   if (data?.data && typeof data.data === 'object' && !data.questions && !data.cards && !data.sections) {

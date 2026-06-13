@@ -6514,6 +6514,51 @@
       color: rgba(125, 211, 252, 0.95);
     }
 
+    .study-ai-raw-panel {
+      padding: 1.5rem 1rem 2rem;
+      max-width: 52rem;
+      margin: 0 auto;
+    }
+
+    .study-ai-raw-panel-inner {
+      text-align: left;
+    }
+
+    .study-ai-raw-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin: 0 0 0.35rem;
+    }
+
+    .study-ai-raw-subtitle {
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.6);
+      margin: 0 0 0.5rem;
+    }
+
+    .study-ai-raw-meta {
+      font-size: 0.75rem;
+      color: rgba(251, 191, 36, 0.9);
+      margin: 0 0 0.75rem;
+    }
+
+    .study-ai-raw-textarea {
+      display: block;
+      width: 100%;
+      min-height: 16rem;
+      max-height: 50vh;
+      padding: 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.72rem;
+      line-height: 1.4;
+      color: rgba(255, 255, 255, 0.9);
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(251, 191, 36, 0.35);
+      border-radius: 0.5rem;
+      resize: vertical;
+      margin-bottom: 1rem;
+    }
+
     .study-guide-sidebar {
       display: flex;
       flex-direction: column;

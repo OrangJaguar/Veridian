@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'veridian:ai-debug';
+const RAW_DUMP_KEY = 'veridian:ai-raw-dump';
 const MAX_RUNS = 10;
 
 /** @type {StudyAiTraceRun | null} */
@@ -36,13 +37,74 @@ export function isStudyAiDebugEnabled() {
   }
 }
 
+export function isRawDumpEnabled() {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(RAW_DUMP_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function enableRawDumpMode() {
+  enableStudyAiDebug();
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(RAW_DUMP_KEY, '1');
+  console.info(
+    '%c[Veridian AI] RAW DUMP MODE ON',
+    'color:#fbbf24;font-weight:bold;font-size:13px',
+    '— Gemini response will be returned with NO parsing. Reload the page, then trigger the AI action.',
+  );
+}
+
+export function disableRawDumpMode() {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(RAW_DUMP_KEY);
+  console.info('%c[Veridian AI] Raw dump mode OFF', 'color:#94a3b8;font-weight:bold');
+}
+
+export function captureRawGemini(text, meta = {}) {
+  if (!text) return null;
+  window.__veridianLastRawGemini = text;
+  window.__veridianLastRawGeminiMeta = meta;
+
+  console.group(
+    '%c[Veridian AI] FULL RAW GEMINI RESPONSE (unparsed)',
+    'color:#fbbf24;font-weight:bold;font-size:14px',
+  );
+  console.log(text);
+  console.log('Character length:', text.length);
+  console.log('Meta:', meta);
+  console.groupEnd();
+
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      console.info('%c[Veridian AI] Raw response copied to clipboard.', 'color:#86efac');
+    }).catch(() => {});
+  }
+
+  return text;
+}
+
+export function getLastRawGemini() {
+  return window.__veridianLastRawGemini ?? null;
+}
+
+export function extractRawGeminiFromPayload(payload) {
+  if (!payload) return null;
+  return payload.rawGeminiText
+    ?? payload.data?.rawGeminiText
+    ?? payload._debug?.lastRawGeminiText
+    ?? null;
+}
+
 export function enableStudyAiDebug() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(STORAGE_KEY, '1');
   console.info(
     '%c[Veridian AI Debug] ON',
     'color:#7dd3fc;font-weight:bold',
-    '— retry your AI action, then run veridianAiDebug.lastRun() or veridianAiDebug.lastServer()',
+    '— For full unparsed Gemini text run veridianAiDebug.rawOn() then reload',
   );
 }
 
@@ -57,13 +119,32 @@ export function initStudyAiDebugFromUrl() {
   if (new URLSearchParams(window.location.search).get('aiDebug') === '1') {
     enableStudyAiDebug();
   }
+  if (new URLSearchParams(window.location.search).get('aiRaw') === '1') {
+    enableRawDumpMode();
+  }
 
   window.veridianAiDebug = {
     on: enableStudyAiDebug,
-    off: disableStudyAiDebug,
+    off: () => {
+      disableStudyAiDebug();
+      disableRawDumpMode();
+    },
+    rawOn: enableRawDumpMode,
+    rawOff: disableRawDumpMode,
     isOn: isStudyAiDebugEnabled,
+    isRawOn: isRawDumpEnabled,
     lastRun: () => runHistory[runHistory.length - 1] ?? null,
     lastServer: () => window.__veridianLastServerAiDebug ?? null,
+    lastRaw: getLastRawGemini,
+    printRaw: () => {
+      const raw = getLastRawGemini();
+      if (!raw) {
+        console.warn('[Veridian AI] No raw Gemini text captured yet.');
+        return null;
+      }
+      console.log(raw);
+      return raw;
+    },
     history: () => [...runHistory],
     printLast: () => {
       const run = runHistory[runHistory.length - 1];
@@ -179,6 +260,8 @@ export function createStudyAiTraceRun(opts = {}) {
       if (window.__veridianLastServerAiDebug) {
         console.log('Server _debug:', window.__veridianLastServerAiDebug);
       }
+      const rawFail = getLastRawGemini();
+      if (rawFail) console.log('Raw Gemini (length %d):', rawFail.length, rawFail);
       console.groupEnd();
     },
 
@@ -196,6 +279,8 @@ export function createStudyAiTraceRun(opts = {}) {
       if (window.__veridianLastServerAiDebug) {
         console.log('Server _debug:', window.__veridianLastServerAiDebug);
       }
+      const rawPrint = getLastRawGemini();
+      if (rawPrint) console.log('Raw Gemini (length %d):', rawPrint.length, rawPrint);
       console.groupEnd();
     },
 

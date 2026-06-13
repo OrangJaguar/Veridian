@@ -12,10 +12,10 @@ import {
 } from "./aiNormalize.ts";
 import {
   createAiDebugTrace,
-  stripDebugFlag,
+  stripDebugFlags,
   zodIssueSummary,
   payloadShapeSummary,
-  type AiDebugTrace,
+  type AiDebugSnapshot,
 } from "./aiDebug.ts";
 
 const MODEL = "gemini-2.5-flash-lite";
@@ -83,11 +83,22 @@ function jsonResponse(body: unknown, status = 200) {
   return Response.json(body, { status });
 }
 
-function errorResponse(message: string, status = 400, debug?: AiDebugTrace) {
+function errorResponse(message: string, status = 400, debug?: ReturnType<typeof createAiDebugTrace>) {
+  const snap: AiDebugSnapshot | undefined = debug?.enabled ? debug.snapshot() : undefined;
   return jsonResponse({
     error: { message, status },
-    ...(debug?.enabled ? { _debug: debug } : {}),
+    ...(snap?.lastRawGeminiText ? { rawGeminiText: snap.lastRawGeminiText } : {}),
+    ...(snap ? { _debug: snap } : {}),
   }, status);
+}
+
+function debugExtras(debug?: ReturnType<typeof createAiDebugTrace>) {
+  if (!debug?.enabled) return {};
+  const snap = debug.snapshot();
+  return {
+    ...(snap.lastRawGeminiText ? { rawGeminiText: snap.lastRawGeminiText } : {}),
+    _debug: snap,
+  };
 }
 
 function estimateTokens(text: string) {
@@ -163,6 +174,42 @@ async function checkStudyQuota(
   return null;
 }
 
+async function callGeminiRaw(
+  apiKey: string,
+  system: string,
+  user: string,
+  debug?: ReturnType<typeof createAiDebugTrace>,
+) {
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: MODEL,
+    systemInstruction: system,
+    generationConfig: {
+      temperature: TEMPERATURE,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
+      responseMimeType: "application/json",
+    },
+  });
+
+  const started = Date.now();
+  const result = await model.generateContent(user);
+  const text = result.response.text();
+  debug?.setRawGeminiText(text);
+  debug?.record("raw_dump", true, {
+    textLength: text.length,
+    note: "Validation skipped — full raw Gemini text returned to client.",
+  }, undefined, Date.now() - started);
+
+  const usage = result.response.usageMetadata;
+  return {
+    rawGeminiText: text,
+    usage: {
+      inputTokens: usage?.promptTokenCount ?? estimateTokens(user),
+      outputTokens: usage?.candidatesTokenCount ?? estimateTokens(text),
+    },
+  };
+}
+
 async function callGeminiJson(
   apiKey: string,
   system: string,
@@ -193,6 +240,7 @@ async function callGeminiJson(
     try {
       const result = await model.generateContent(prompt);
       const text = result.response.text();
+      debug?.setRawGeminiText(text);
       debug?.record("gemini_generateContent", true, {
         attempt: attempt + 1,
         textLength: text.length,
@@ -201,11 +249,17 @@ async function callGeminiJson(
 
       let parsed: unknown;
       try {
-        parsed = JSON.parse(extractJsonText(text));
-        debug?.record("json_parse", true, payloadShapeSummary(parsed));
+        const extracted = extractJsonText(text);
+        parsed = JSON.parse(extracted);
+        debug?.setParsedShape(parsed);
+        debug?.record("json_parse", true, {
+          ...payloadShapeSummary(parsed),
+          extractedLength: extracted.length,
+        });
       } catch (parseErr) {
         debug?.record("json_parse", false, {
-          preview: text.slice(0, 600),
+          fullRawText: text,
+          textLength: text.length,
         }, parseErr instanceof Error ? parseErr.message : String(parseErr));
         throw parseErr;
       }
@@ -235,6 +289,7 @@ async function callGeminiJson(
         debug?.record("schema_validate", false, {
           parsed: payloadShapeSummary(parsed),
           zodIssues: zodIssueSummary(schemaErr),
+          fullRawText: text,
         }, schemaErr instanceof Error ? schemaErr.message : String(schemaErr));
         throw schemaErr;
       }
@@ -709,12 +764,13 @@ Deno.serve(async (req) => {
 
     const body = requestSchema.parse(await req.json());
     const { action, payload: rawPayload } = body;
-    const { debugEnabled, cleanPayload } = stripDebugFlag(rawPayload as Record<string, unknown>);
+    const { debugEnabled, rawDumpOnly, cleanPayload } = stripDebugFlags(rawPayload as Record<string, unknown>);
     const payload = cleanPayload;
     debug = createAiDebugTrace(debugEnabled);
 
     debug.record("request_received", true, {
       action,
+      rawDumpOnly,
       payloadKeys: Object.keys(payload),
     });
 
@@ -728,7 +784,7 @@ Deno.serve(async (req) => {
       return jsonResponse({
         data: result.data,
         usage: result.usage,
-        ...(debug.enabled ? { _debug: debug } : {}),
+        ...debugExtras(debug),
       });
     }
 
@@ -738,6 +794,17 @@ Deno.serve(async (req) => {
 
     const quotaErr = await checkStudyQuota(base44, userKey, action, estInput);
     if (quotaErr) return quotaErr;
+
+    if (rawDumpOnly) {
+      debug.record("raw_dump_mode", true, { action, note: "Skipping parse, coerce, validate, finalize." });
+      const { rawGeminiText, usage } = await callGeminiRaw(apiKey, system, userPrompt, debug);
+      return jsonResponse({
+        data: { rawGeminiText, action, parsedSkipped: true },
+        rawGeminiText,
+        usage,
+        ...debugExtras(debug),
+      });
+    }
 
     const schema = schemaForAction(action);
     const retrySuffix = retrySuffixForAction(action, payload);
@@ -768,7 +835,7 @@ Deno.serve(async (req) => {
     return jsonResponse({
       data,
       usage,
-      ...(debug.enabled ? { _debug: debug } : {}),
+      ...debugExtras(debug),
     });
   } catch (err) {
     let message = "AI request failed";

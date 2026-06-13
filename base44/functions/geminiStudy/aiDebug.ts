@@ -7,16 +7,32 @@ export type AiDebugStep = {
   error?: string;
 };
 
-export type AiDebugTrace = {
+export type AiDebugSnapshot = {
   enabled: boolean;
   steps: AiDebugStep[];
+  lastRawGeminiText: string | null;
+  lastParsedShape: Record<string, unknown> | null;
 };
 
 export function createAiDebugTrace(enabled: boolean) {
   const steps: AiDebugStep[] = [];
+  let lastRawGeminiText: string | null = null;
+  let lastParsedShape: Record<string, unknown> | null = null;
+
   return {
     enabled,
     steps,
+    get lastRawGeminiText() {
+      return lastRawGeminiText;
+    },
+    setRawGeminiText(text: string) {
+      if (!enabled) return;
+      lastRawGeminiText = text;
+    },
+    setParsedShape(value: unknown) {
+      if (!enabled) return;
+      lastParsedShape = payloadShapeSummary(value);
+    },
     record(
       step: string,
       ok: boolean,
@@ -34,14 +50,30 @@ export function createAiDebugTrace(enabled: boolean) {
         ...(error ? { error } : {}),
       });
     },
+    snapshot(): AiDebugSnapshot {
+      return {
+        enabled,
+        steps,
+        lastRawGeminiText,
+        lastParsedShape,
+      };
+    },
   };
 }
 
-export function stripDebugFlag(payload: Record<string, unknown>) {
-  const debugEnabled = Boolean(payload.__debug);
+export function stripDebugFlags(payload: Record<string, unknown>) {
+  const rawDumpOnly = Boolean(payload.__rawDump);
+  const debugEnabled = Boolean(payload.__debug) || rawDumpOnly;
   const clean = { ...payload };
   delete clean.__debug;
-  return { debugEnabled, cleanPayload: clean };
+  delete clean.__rawDump;
+  return { debugEnabled, rawDumpOnly, cleanPayload: clean };
+}
+
+/** @deprecated use stripDebugFlags */
+export function stripDebugFlag(payload: Record<string, unknown>) {
+  const { debugEnabled, cleanPayload } = stripDebugFlags(payload);
+  return { debugEnabled, cleanPayload };
 }
 
 export function zodIssueSummary(err: unknown) {
@@ -53,11 +85,15 @@ export function zodIssueSummary(err: unknown) {
   }));
 }
 
-export function payloadShapeSummary(value: unknown) {
+export function payloadShapeSummary(value: unknown): Record<string, unknown> {
   if (Array.isArray(value)) {
-    return { type: "array", length: value.length, sampleKeys: value[0] && typeof value[0] === "object"
-      ? Object.keys(value[0] as object).slice(0, 12)
-      : [] };
+    return {
+      type: "array",
+      length: value.length,
+      sampleKeys: value[0] && typeof value[0] === "object"
+        ? Object.keys(value[0] as object).slice(0, 12)
+        : [],
+    };
   }
   if (value && typeof value === "object") {
     const obj = value as Record<string, unknown>;

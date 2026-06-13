@@ -1,8 +1,9 @@
 import { invokeGeminiStudy, parseGeminiStudyResponse } from '@/api/ai/studyClient';
-import { getActiveStudyAiTrace, isStudyAiDebugEnabled } from '@/utils/study/studyAiTrace';
+import { getActiveStudyAiTrace, isStudyAiDebugEnabled, isRawDumpEnabled } from '@/utils/study/studyAiTrace';
 
 async function callStudy(action, payload, options) {
   const trace = getActiveStudyAiTrace();
+  const rawDump = isRawDumpEnabled();
 
   let result;
   try {
@@ -13,16 +14,17 @@ async function callStudy(action, payload, options) {
 
   const parseStart = Date.now();
   if (isStudyAiDebugEnabled() && trace) {
-    trace.stepStart('1b_parse', 'Parse geminiStudy response', {
+    trace.stepStart('1b_parse', rawDump ? 'Raw dump response (skip parse)' : 'Parse geminiStudy response', {
       resultKeys: Object.keys(result ?? {}),
       hasDebug: Boolean(result?._debug),
+      hasRaw: Boolean(result?.rawGeminiText ?? result?.data?.rawGeminiText),
     });
   }
 
   try {
     const parsed = parseGeminiStudyResponse(result);
     if (isStudyAiDebugEnabled() && trace) {
-      trace.stepOk('1b_parse', 'Parse geminiStudy response', trace.summarizeCounts(parsed), Date.now() - parseStart);
+      trace.stepOk('1b_parse', rawDump ? 'Raw dump response' : 'Parse geminiStudy response', trace.summarizeCounts(parsed), Date.now() - parseStart);
     }
     return parsed;
   } catch (err) {
@@ -34,6 +36,11 @@ async function callStudy(action, payload, options) {
     }
     throw err;
   }
+}
+
+/** Fetch raw Gemini text only — no server-side validation. Requires raw dump mode + published geminiStudy. */
+export function fetchGeminiStudyRaw(action, payload, options) {
+  return callStudy(action, payload, options);
 }
 
 export function generateLearningGuide(payload, options) {

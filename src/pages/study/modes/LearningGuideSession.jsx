@@ -3,7 +3,8 @@ import { toast } from 'sonner';
 import LearningGuideViewer from '@/components/study/learning-guide/LearningGuideViewer';
 import SessionSummary from '@/components/study/SessionSummary';
 import { StudyAiLoading, StudyAiError } from '@/components/study/StudyAiStatus';
-import { generateLearningGuide } from '@/api/ai/study';
+import StudyAiRawPanel from '@/components/study/StudyAiRawPanel';
+import { generateLearningGuide, fetchGeminiStudyRaw } from '@/api/ai/study';
 import { sectionCountForConcepts } from '@/api/ai/prompts/learningGuide';
 import { normalizeGuideContent } from '@/utils/study/normalizeGuideContent';
 import { hasLearningGuideContent } from '@/utils/study/activityContent';
@@ -13,8 +14,10 @@ import { useAbandonSession } from '@/hooks/study/useAbandonSession';
 import { useUpdateActivity } from '@/hooks/mutations/useActivityMutations';
 import { useUpdateSession } from '@/hooks/mutations/useSessionMutations';
 import { useJourney } from '@/hooks/queries/useJourneys';
+import { isRawDumpEnabled, getLastRawGemini } from '@/utils/study/studyAiTrace';
 
 export default function LearningGuideSession({ session, activity, module, journeyId }) {
+  const rawDumpMode = isRawDumpEnabled();
   const { data: journey } = useJourney(journeyId);
   const guideReady = hasLearningGuideContent(activity);
   const [content, setContent] = useState(() => (
@@ -24,6 +27,9 @@ export default function LearningGuideSession({ session, activity, module, journe
     () => activity.content?.progress?.completedSectionIds ?? [],
   );
   const [phase, setPhase] = useState('active');
+  const [rawText, setRawText] = useState(null);
+  const [rawLoading, setRawLoading] = useState(false);
+  const [rawError, setRawError] = useState(null);
   const { completeSessionInBackground } = useCompleteSession();
   const abandonSession = useAbandonSession();
   const updateActivity = useUpdateActivity();
@@ -51,6 +57,33 @@ export default function LearningGuideSession({ session, activity, module, journe
     };
   }, [journey?.priorKnowledge, journey?.subject, module]);
 
+  useEffect(() => {
+    if (!rawDumpMode || !moduleId || !journey || guideReady) return undefined;
+
+    let cancelled = false;
+    setRawLoading(true);
+    setRawError(null);
+
+    fetchGeminiStudyRaw('generateLearningGuide', buildPayload())
+      .then((result) => {
+        if (cancelled) return;
+        setRawText(result?.rawGeminiText ?? getLastRawGemini());
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setRawError(err instanceof Error ? err : new Error(String(err)));
+        const captured = getLastRawGemini();
+        if (captured) setRawText(captured);
+      })
+      .finally(() => {
+        if (!cancelled) setRawLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [rawDumpMode, moduleId, journey, guideReady, buildPayload]);
+
   const markSessionGenerating = useCallback(async () => {
     await updateSession.mutateAsync({
       sessionId: session.sessionId,
@@ -67,7 +100,7 @@ export default function LearningGuideSession({ session, activity, module, journe
 
   const { isLoading, isError, error, retry } = useStudyAiAutoGeneration({
     action: 'generateLearningGuide',
-    enabled: Boolean(moduleId && journey && !guideReady),
+    enabled: Boolean(moduleId && journey && !guideReady) && !rawDumpMode,
     hasContent: guideReady,
     beforeGenerate: markSessionGenerating,
     generate: async () => generateLearningGuide(buildPayload()),
@@ -165,6 +198,32 @@ export default function LearningGuideSession({ session, activity, module, journe
       startedAt: session.startedAt,
     });
   };
+
+  if (rawDumpMode) {
+    if (rawLoading) {
+      return <StudyAiLoading label="Fetching raw Gemini response (no parsing)…" />;
+    }
+    if (rawText) {
+      return (
+        <StudyAiRawPanel
+          text={rawText}
+          title="Learning guide — raw Gemini dump"
+          onExit={handleExit}
+        />
+      );
+    }
+    if (rawError) {
+      return (
+        <>
+          <StudyAiError
+            message={rawError.message || 'Raw dump request failed.'}
+            error={rawError}
+            onExit={handleExit}
+          />
+        </>
+      );
+    }
+  }
 
   if (isLoading) {
     return <StudyAiLoading label="Generating your learning guide…" />;
