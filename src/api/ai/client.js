@@ -7,7 +7,7 @@ const KEY_NOT_CONFIGURED_MSG =
   'GEMINI_API_KEY is not configured on the server. Run: base44 secrets set GEMINI_API_KEY=your_key';
 
 function extractServerMessage(err) {
-  const payload = err?.response?.data ?? err?.data ?? err?.body;
+  const payload = err?.data ?? err?.response?.data ?? err?.body;
   if (payload?.error?.message) return payload.error.message;
   if (typeof payload?.error === 'string') return payload.error;
   if (typeof payload?.message === 'string') return payload.message;

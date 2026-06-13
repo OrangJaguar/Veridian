@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { toast } from 'sonner';
-import VeridianLoading from '@/components/shared/VeridianLoading';
 import QuizSetupModal from '@/components/study/quiz/QuizSetupModal';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
 import QuizSummary from '@/components/study/quiz/QuizSummary';
+import { StudyAiLoading, StudyAiError } from '@/components/study/StudyAiStatus';
 import { generatePracticeQuestions, generateConceptRefresher } from '@/api/ai/study';
 import { focusGuidanceForPreset } from '@/api/ai/prompts/practiceQuiz';
 import { getWeakConceptIds } from '@/utils/study/conceptWeakness';
@@ -13,6 +12,8 @@ import {
   underrepresentedConceptIds,
 } from '@/utils/study/quizDedup';
 import { normalizeQuizQuestions } from '@/utils/study/normalizeQuizQuestions';
+import { requireGeneratedQuestions } from '@/utils/study/requireGeneratedQuestions';
+import { runStudyAiGeneration } from '@/hooks/ai/runStudyAiGeneration';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
 import { useUpdateSession } from '@/hooks/mutations/useSessionMutations';
@@ -38,6 +39,7 @@ export default function PracticeQuizSession({ session, activity, module, journey
   const [loading, setLoading] = useState(
     () => !!initialConfig?.questionCount && !session.sessionData?.questions?.length,
   );
+  const [genError, setGenError] = useState(null);
   const [refresherContent, setRefresherContent] = useState(null);
   const [summaryData, setSummaryData] = useState(() => (
     session.status === 'completed' && session.sessionData?.answers
@@ -59,24 +61,23 @@ export default function PracticeQuizSession({ session, activity, module, journey
     abandonSession({ sessionId: session.sessionId, journeyId, returnPath: '/home' });
   };
 
-  const handleStart = useCallback(async (setupConfig) => {
-    setLoading(true);
-    try {
-      const { avoidQuestionIds, avoidStemPreviews, seen } = buildQuizAvoidList(
-        activity,
-        sessions,
-        module?.moduleId,
-      );
+  const generateQuestions = useCallback(async (setupConfig) => {
+    const { avoidQuestionIds, avoidStemPreviews, seen } = buildQuizAvoidList(
+      activity,
+      sessions,
+      module?.moduleId,
+    );
 
-      let focusGuidance = focusGuidanceForPreset(setupConfig.focusPreset, { weakConceptIds });
-      if (setupConfig.focusPreset === 'newMaterial') {
-        const under = underrepresentedConceptIds(concepts, seen);
-        if (under.length) {
-          focusGuidance += ` Underrepresented concepts: ${under.join(', ')}.`;
-        }
+    let focusGuidance = focusGuidanceForPreset(setupConfig.focusPreset, { weakConceptIds });
+    if (setupConfig.focusPreset === 'newMaterial') {
+      const under = underrepresentedConceptIds(concepts, seen);
+      if (under.length) {
+        focusGuidance += ` Underrepresented concepts: ${under.join(', ')}.`;
       }
+    }
 
-      const raw = await generatePracticeQuestions({
+    return runStudyAiGeneration({
+      generate: () => generatePracticeQuestions({
         journeyTitle: journey?.title,
         subject: journey?.subject,
         moduleName: module?.name,
@@ -89,33 +90,25 @@ export default function PracticeQuizSession({ session, activity, module, journey
         weakConceptIds,
         avoidQuestionIds,
         avoidStemPreviews,
-      });
-
-      const nextQuestions = normalizeQuizQuestions(raw, setupConfig.questionCount);
-      if (nextQuestions.length < setupConfig.questionCount) {
-        throw new Error(`Expected ${setupConfig.questionCount} questions but got ${nextQuestions.length}.`);
-      }
-
-      setQuestions(nextQuestions);
-      setConfig(setupConfig);
-      setPhase('active');
-
-      await updateSession.mutateAsync({
-        sessionId: session.sessionId,
-        journeyId,
-        patch: {
-          sessionData: {
-            quizConfig: setupConfig,
-            questions: nextQuestions,
+      }),
+      normalize: (raw) => normalizeQuizQuestions(raw, setupConfig.questionCount),
+      validate: (nextQuestions) => {
+        requireGeneratedQuestions(nextQuestions, setupConfig.questionCount, 'questions');
+      },
+      persist: async (nextQuestions) => {
+        await updateSession.mutateAsync({
+          sessionId: session.sessionId,
+          journeyId,
+          patch: {
+            sessionData: {
+              quizConfig: setupConfig,
+              questions: nextQuestions,
+              aiGeneration: { status: 'ready', completedAt: Date.now() },
+            },
           },
-        },
-      });
-    } catch (err) {
-      toast.error(err.message || 'Failed to generate questions');
-      setPhase('setup');
-    } finally {
-      setLoading(false);
-    }
+        });
+      },
+    });
   }, [
     activity,
     concepts,
@@ -131,6 +124,36 @@ export default function PracticeQuizSession({ session, activity, module, journey
     weakConceptIds,
     journeyId,
   ]);
+
+  const handleStart = useCallback(async (setupConfig) => {
+    setLoading(true);
+    setGenError(null);
+    try {
+      await updateSession.mutateAsync({
+        sessionId: session.sessionId,
+        journeyId,
+        skipInvalidate: true,
+        patch: {
+          sessionData: {
+            ...session.sessionData,
+            quizConfig: setupConfig,
+            aiGeneration: { status: 'generating', startedAt: Date.now() },
+          },
+        },
+      });
+
+      const nextQuestions = await generateQuestions(setupConfig);
+      setQuestions(nextQuestions);
+      setConfig(setupConfig);
+      setPhase('active');
+    } catch (err) {
+      const message = err?.message || 'Failed to generate questions';
+      setGenError(message);
+      setPhase('setup');
+    } finally {
+      setLoading(false);
+    }
+  }, [generateQuestions, journeyId, session.sessionData, session.sessionId, updateSession]);
 
   useEffect(() => {
     const pendingConfig = session.sessionData?.quizConfig;
@@ -218,11 +241,16 @@ export default function PracticeQuizSession({ session, activity, module, journey
   }
 
   if (loading && !questions.length) {
+    return <StudyAiLoading label="Generating your quiz…" />;
+  }
+
+  if (genError && phase === 'setup' && !loading) {
     return (
-      <div className="study-mode-view guide-mode-view guide-mode-view--loading">
-        <VeridianLoading fullPage />
-        <p className="guide-generating-label">Generating your quiz…</p>
-      </div>
+      <StudyAiError
+        message={genError}
+        onRetry={() => handleStart(config?.questionCount ? config : activity.content?.lastConfig ?? config)}
+        onExit={handleExit}
+      />
     );
   }
 

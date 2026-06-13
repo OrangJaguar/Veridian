@@ -1,11 +1,11 @@
 /**
  * Normalize AI diagnostic output — force correct moduleId tags and ids.
  */
+import { extractAiList } from '@/utils/study/normalizeStudyAiResponse';
+
 function extractQuestionList(rawQuestions) {
   if (Array.isArray(rawQuestions)) return rawQuestions;
-  if (Array.isArray(rawQuestions?.questions)) return rawQuestions.questions;
-  if (Array.isArray(rawQuestions?.data?.questions)) return rawQuestions.data.questions;
-  return [];
+  return extractAiList(rawQuestions, 'questions');
 }
 
 export function normalizeDiagnosticQuestions(rawQuestions, modules, perModule = 3) {

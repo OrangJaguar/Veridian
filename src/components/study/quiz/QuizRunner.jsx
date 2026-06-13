@@ -214,6 +214,17 @@ export default function QuizRunner({
     return () => window.removeEventListener('keydown', onKeyDown);
   });
 
+  if (!questions.length) {
+    return (
+      <div className="study-mode-view quiz-runner-empty">
+        <p className="journeys-status">No questions loaded yet.</p>
+        {onExit && (
+          <button type="button" className="btn btn-secondary" onClick={onExit}>Go back</button>
+        )}
+      </div>
+    );
+  }
+
   if (!q) return null;
 
   const options = q.options ?? (q.type === 'trueFalse' ? ['True', 'False'] : []);

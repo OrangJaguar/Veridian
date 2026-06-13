@@ -1,6 +1,14 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 import { GoogleGenerativeAI } from "npm:@google/generative-ai";
 import { z } from "npm:zod";
+import {
+  aiSchemaForAction,
+  diagnosticQuestionAiSchema,
+  extractJsonText,
+  finalizeDiagnosticQuestion,
+  finalizeForAction,
+  questionCountRetrySuffix,
+} from "./aiNormalize.ts";
 
 const MODEL = "gemini-2.5-flash-lite";
 const MAX_OUTPUT_TOKENS = 4096;
@@ -57,26 +65,6 @@ const questionSchema = z.object({
 
 const diagnosticQuestionSchema = questionSchema.extend({
   moduleId: z.string(),
-});
-
-const diagnosticAnswerSchema = z.preprocess(
-  (val) => {
-    if (typeof val === "number" || typeof val === "boolean") return String(val);
-    if (Array.isArray(val)) return val.map((item) => String(item));
-    return val;
-  },
-  z.union([z.string(), z.array(z.string())]),
-);
-
-const diagnosticQuestionAiSchema = z.object({
-  id: z.string().optional(),
-  type: z.string().optional(),
-  stem: z.string().min(1),
-  options: z.array(z.string()).optional(),
-  correctAnswer: diagnosticAnswerSchema,
-  explanation: z.string().optional(),
-  conceptId: z.string().optional(),
-  moduleId: z.string().optional(),
 });
 
 function utcDateKey() {
@@ -190,7 +178,7 @@ async function callGeminiJson(
     try {
       const result = await model.generateContent(prompt);
       const text = result.response.text();
-      const parsed = JSON.parse(text);
+      const parsed = JSON.parse(extractJsonText(text));
       const data = schema.parse(parsed);
       const usage = result.response.usageMetadata;
       return {
@@ -455,37 +443,41 @@ Rules:
 - Prefer multipleChoice with exactly 4 options.
 - Cover different concepts across the questions when possible.`;
 
+const INTERLEAVED_SYSTEM = `You write mixed practice questions spanning multiple modules in one journey.
+
+${LATEX_RULE}
+
+Rules:
+- Output ONLY valid JSON: { questions: [...] }.
+- Generate EXACTLY the requested questionCount.
+- Tag each question with conceptId when possible.
+- Mostly multipleChoice with 4 plausible options; some trueFalse.
+- Require understanding — no trivia. JSON only.`;
+
+const CHALLENGE_SYSTEM = `You write exam-style journey challenge questions across all modules.
+
+${LATEX_RULE}
+
+Rules:
+- Output ONLY valid JSON: { questions: [...] }.
+- Generate EXACTLY the requested questionCount.
+- Balance modules per weighting (balanced or weak-area bias from input).
+- Multi-step reasoning, plausible distractors, concise explanations. JSON only.`;
+
+const CRAM_SYSTEM = `You write a short cram quiz prioritizing weak and overdue material.
+
+${LATEX_RULE}
+
+Rules:
+- Output ONLY valid JSON: { questions: [...] }.
+- Generate EXACTLY the requested questionCount.
+- Prioritize weakConceptIds and high-yield ideas from moduleMaps.
+- Fast to answer but not guessable. JSON only.`;
+
 function diagnosticModuleSchema(count: number) {
   return z.object({
     questions: z.array(diagnosticQuestionAiSchema).min(1).max(count + 2),
   });
-}
-
-function finalizeDiagnosticQuestion(
-  q: z.infer<typeof diagnosticQuestionAiSchema>,
-  moduleId: string,
-  index: number,
-): z.infer<typeof diagnosticQuestionSchema> {
-  const type = q.type === "trueFalse" || q.type === "shortAnswer" ? q.type : "multipleChoice";
-  let options = q.options;
-  if (type === "trueFalse") {
-    options = ["True", "False"];
-  } else if (type === "multipleChoice") {
-    options = [...(options ?? [])];
-    while (options.length < 4) options.push(`Option ${options.length + 1}`);
-    options = options.slice(0, 4);
-  }
-
-  return {
-    id: String(q.id ?? `diag-${moduleId}-${index + 1}`),
-    type,
-    stem: q.stem,
-    options,
-    correctAnswer: q.correctAnswer,
-    explanation: q.explanation ?? "",
-    conceptId: q.conceptId,
-    moduleId,
-  };
 }
 
 type DiagnosticModuleInput = {
@@ -574,17 +566,17 @@ function buildSystem(action: string) {
     feynmanSummarizeConcept: FEYNMAN_SUMMARIZE_SYSTEM,
     gradeFreeRecall: FREE_RECALL_GRADE_SYSTEM,
     generateFreeRecallHint: FREE_RECALL_HINT_SYSTEM,
-    generateInterleavedQuestions: `${base} Mixed questions from multiple modules.`,
-    generateJourneyChallenge: `${base} Exam-wide challenge questions across modules.`,
+    generateInterleavedQuestions: INTERLEAVED_SYSTEM,
+    generateJourneyChallenge: CHALLENGE_SYSTEM,
     generateConceptRefresher: `${base} Short inline concept recap under 150 words.`,
-    generateCramSession: `${base} Prioritize weak/overdue concepts in question set.`,
+    generateCramSession: CRAM_SYSTEM,
   };
   return map[action] ?? base;
 }
 
 function schemaForAction(action: string) {
-  if (action === "generateLearningGuide") return guideOutputSchema;
-  if (action === "generateFlashcards") return cardsOutputSchema;
+  const aiSchema = aiSchemaForAction(action);
+  if (aiSchema) return aiSchema;
   if (action === "parseQuizletImport") return quizletParseSchema;
   if (action === "extractDeckSource") return extractDeckSourceSchema;
   if (action === "findFlashcardDuplicates") return duplicateGroupsSchema;
@@ -596,6 +588,17 @@ function schemaForAction(action: string) {
   if (action === "generateConceptRefresher") return refresherOutputSchema;
   if (action === "generateDiagnosticQuestions") return diagnosticOutputSchema;
   return questionsOutputSchema;
+}
+
+function retrySuffixForAction(action: string, payload: Record<string, unknown>) {
+  if (action === "generateLearningGuide") {
+    return "\n\nReturn ONLY valid JSON with sections array. Each section needs explanation, workedExamples, checkInQuestion with 4 options, and 2 externalSearchSuggestions.";
+  }
+  const count = Number(payload.questionCount ?? 0);
+  if (count > 0 && aiSchemaForAction(action)) {
+    return questionCountRetrySuffix(count);
+  }
+  return undefined;
 }
 
 Deno.serve(async (req) => {
@@ -637,7 +640,12 @@ Deno.serve(async (req) => {
     const quotaErr = await checkStudyQuota(base44, userKey, action, estInput);
     if (quotaErr) return quotaErr;
 
-    const { data, usage } = await callGeminiJson(apiKey, system, userPrompt, schemaForAction(action));
+    const schema = schemaForAction(action);
+    const retrySuffix = retrySuffixForAction(action, payload as Record<string, unknown>);
+    const { data: raw, usage } = await callGeminiJson(apiKey, system, userPrompt, schema, retrySuffix);
+    const data = aiSchemaForAction(action)
+      ? finalizeForAction(action, raw, payload as Record<string, unknown>)
+      : raw;
     return jsonResponse({ data, usage });
   } catch (err) {
     let message = "AI request failed";

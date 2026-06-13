@@ -1,11 +1,12 @@
 import { ACTIVITY_LABELS } from '@/utils/studyPlanner';
+import { isLegacyGeneratingActivity } from '@/utils/study/activityContent';
 
 export function getActivityDisplayName(activity) {
   return activity.title ?? ACTIVITY_LABELS[activity.type] ?? activity.type;
 }
 
 export function getActivityActionLabel(activity) {
-  if (activity.status === 'generating') return 'Generating…';
+  if (isLegacyGeneratingActivity(activity)) return 'Generating…';
   if (activity.status === 'failed') return 'Retry';
   if (activity.type === 'flashcardSet') return 'Review';
   if (activity.type === 'learningGuide' && activity.status === 'notGenerated') return 'Generate';
@@ -14,7 +15,7 @@ export function getActivityActionLabel(activity) {
 }
 
 export function getActivityStatusNote(activity, cardCount = 0) {
-  if (activity.status === 'generating') return 'Generating…';
+  if (isLegacyGeneratingActivity(activity)) return 'Generating…';
   if (activity.status === 'failed') return 'Generation failed — tap to retry';
 
   if (activity.type === 'flashcardSet') {

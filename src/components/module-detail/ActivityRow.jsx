@@ -6,6 +6,7 @@ import {
   getActivityActionLabel,
   getActivityStatusNote,
 } from '@/utils/study/activityUi';
+import { isLegacyGeneratingActivity } from '@/utils/study/activityContent';
 
 const STAGE_ACTIVITIES = {
   A: ['learningGuide'],
@@ -37,7 +38,7 @@ export default function ActivityRow({ activity, cardCount = 0, journeyId, module
           activity={activity}
           journeyId={journeyId}
           moduleId={moduleId}
-          disabled={activity.status === 'generating'}
+          disabled={isLegacyGeneratingActivity(activity)}
         >
           {actionLabel}
         </PracticeQuizStartButton>
@@ -52,7 +53,7 @@ export default function ActivityRow({ activity, cardCount = 0, journeyId, module
           <button
             type="button"
             className="btn btn-secondary btn-sm"
-            disabled={activity.status === 'generating'}
+            disabled={isLegacyGeneratingActivity(activity)}
             onClick={handleLaunch}
           >
             {actionLabel}
@@ -62,7 +63,7 @@ export default function ActivityRow({ activity, cardCount = 0, journeyId, module
         <button
           type="button"
           className="btn btn-secondary btn-sm"
-          disabled={activity.status === 'generating'}
+          disabled={isLegacyGeneratingActivity(activity)}
           onClick={handleLaunch}
         >
           {actionLabel}

@@ -1,5 +1,5 @@
 /**
- * Reference prompts for generateLearningGuide — live copy lives in geminiStudy/entry/entry.ts.
+ * Reference prompts for generateLearningGuide — canonical server copy: base44/functions/geminiStudy/entry/entry.ts + aiNormalize.ts
  * UI layout (LearningGuideViewer):
  *   title → zigzag explanation (+ 2 decorative SVG slots, client-side) → worked example →
  *   check-in → YouTube chips → transition → Continue

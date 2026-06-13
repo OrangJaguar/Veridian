@@ -14,7 +14,9 @@ import VeridianLoading from '@/components/shared/VeridianLoading';
 import DiagnosticIntro from '@/components/diagnostic/DiagnosticIntro';
 import DiagnosticSummary from '@/components/diagnostic/DiagnosticSummary';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
+import { StudyAiError } from '@/components/study/StudyAiStatus';
 import { generateDiagnosticQuestions } from '@/api/ai/study';
+import { runStudyAiGeneration } from '@/hooks/ai/runStudyAiGeneration';
 import { applyDiagnosticResults } from '@/api/entities/applyDiagnosticResults';
 import { ensureDiagnosticActivity } from '@/api/entities/ensureDiagnosticActivity';
 import { updateJourney } from '@/api/entities/journeys';
@@ -80,6 +82,7 @@ export default function DiagnosticPage() {
   const [questions, setQuestions] = useState([]);
   const [summaryData, setSummaryData] = useState(null);
   const [activityReady, setActivityReady] = useState(false);
+  const [genError, setGenError] = useState(null);
   const generatingRef = useRef(false);
 
   const resolvedPhase = phase ?? (journey ? initialPhase(journey, resumableSession) : null);
@@ -138,6 +141,7 @@ export default function DiagnosticPage() {
     if (generatingRef.current || generating || !modules.length || !activityReady) return;
     generatingRef.current = true;
     setGenerating(true);
+    setGenError(null);
 
     try {
       if (resumableSession) {
@@ -157,37 +161,37 @@ export default function DiagnosticPage() {
       }
 
       const activity = diagnosticActivity ?? await ensureDiagnosticActivity(journeyId, activities);
-
       const priorKnowledge = journey?.priorKnowledge ?? 'some';
-      const data = await generateDiagnosticQuestions({
-        title: journey.title,
-        subject: journey.subject,
-        priorKnowledge,
-        difficultyGuidance: difficultyGuidanceForPriorKnowledge(priorKnowledge),
-        questionsPerModule: DIAGNOSTIC_QUESTIONS_PER_MODULE,
-        modules: modules.map((mod) => ({
-          moduleId: mod.moduleId,
-          name: mod.name,
-          description: mod.description,
-          concepts: mod.knowledgeMap?.concepts ?? [],
-        })),
+
+      const interleaved = await runStudyAiGeneration({
+        generate: () => generateDiagnosticQuestions({
+          title: journey.title,
+          subject: journey.subject,
+          priorKnowledge,
+          difficultyGuidance: difficultyGuidanceForPriorKnowledge(priorKnowledge),
+          questionsPerModule: DIAGNOSTIC_QUESTIONS_PER_MODULE,
+          modules: modules.map((mod) => ({
+            moduleId: mod.moduleId,
+            name: mod.name,
+            description: mod.description,
+            concepts: mod.knowledgeMap?.concepts ?? [],
+          })),
+        }),
+        normalize: (data) => {
+          const rawQuestions = normalizeDiagnosticQuestions(
+            data,
+            modules,
+            DIAGNOSTIC_QUESTIONS_PER_MODULE,
+          );
+          if (!rawQuestions.length) {
+            throw new Error('AI returned no usable diagnostic questions. Try again in a moment.');
+          }
+          const validation = validateDiagnosticQuestions(rawQuestions, modules);
+          if (!validation.valid) throw new Error(validation.message);
+          return interleaveDiagnosticQuestions(rawQuestions, modules);
+        },
       });
 
-      const rawQuestions = normalizeDiagnosticQuestions(
-        data,
-        modules,
-        DIAGNOSTIC_QUESTIONS_PER_MODULE,
-      );
-      if (!rawQuestions.length) {
-        throw new Error('AI returned no usable diagnostic questions. Try again in a moment.');
-      }
-
-      const validation = validateDiagnosticQuestions(rawQuestions, modules);
-      if (!validation.valid) {
-        throw new Error(validation.message);
-      }
-
-      const interleaved = interleaveDiagnosticQuestions(rawQuestions, modules);
       const newSession = await createSession.mutateAsync({
         journeyId,
         input: {
@@ -199,6 +203,7 @@ export default function DiagnosticPage() {
             diagnostic: true,
             questions: interleaved,
             quizConfig: DIAGNOSTIC_CONFIG,
+            aiGeneration: { status: 'ready', completedAt: Date.now() },
           },
         },
       });
@@ -207,7 +212,7 @@ export default function DiagnosticPage() {
       setQuestions(interleaved);
       setPhase('active');
     } catch (err) {
-      toast.error(err.message || 'Failed to generate diagnostic questions');
+      setGenError(err.message || 'Failed to generate diagnostic questions');
     } finally {
       generatingRef.current = false;
       setGenerating(false);
@@ -341,6 +346,14 @@ export default function DiagnosticPage() {
 
       {!activityReady && (
         <p className="diagnostic-setup-note">Setting up diagnostic…</p>
+      )}
+
+      {genError && (
+        <StudyAiError
+          message={genError}
+          onRetry={handleStart}
+          retryLabel="Try again"
+        />
       )}
 
       <DiagnosticIntro

@@ -27,7 +27,8 @@ export function useUpdateSession() {
 
   return useMutation({
     mutationFn: ({ sessionId, journeyId, patch }) => updateSession(sessionId, patch),
-    onSuccess: (_, { journeyId }) => {
+    onSuccess: (_, { journeyId, skipInvalidate }) => {
+      if (skipInvalidate) return;
       queryClient.invalidateQueries({ queryKey: queryKeys.sessions.byJourney(journeyId) });
     },
   });

@@ -1,4 +1,5 @@
 import { ensureUniqueQuestionIds } from '@/utils/study/quizDedup';
+import { extractAiList } from '@/utils/study/normalizeStudyAiResponse';
 
 function normalizeOptions(options, type) {
   if (type === 'trueFalse') return ['True', 'False'];
@@ -12,8 +13,8 @@ function normalizeOptions(options, type) {
  * Normalize AI quiz output for QuizRunner.
  */
 export function normalizeQuizQuestions(raw, questionCount) {
-  const list = raw?.questions ?? raw;
-  if (!Array.isArray(list) || !list.length) return [];
+  const list = extractAiList(raw, 'questions');
+  if (!list.length) return [];
 
   const normalized = list.slice(0, questionCount).map((q, index) => {
     const type = q.type === 'trueFalse' || q.type === 'shortAnswer'

@@ -14,6 +14,7 @@ import DiagnosticBanner from '@/components/diagnostic/DiagnosticBanner';
 import RecommendedStudyPlan from '@/components/journey-detail/RecommendedStudyPlan';
 import ModuleListItem from '@/components/journey-detail/ModuleListItem';
 import JourneyLevelActions from '@/components/journey-detail/JourneyLevelActions';
+import JourneyInsightsPanel from '@/components/journey-detail/JourneyInsightsPanel';
 import { useRecoverStaleGeneratingActivities } from '@/hooks/useRecoverStaleGeneratingActivities';
 
 export default function JourneyDetailPage() {

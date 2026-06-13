@@ -7,6 +7,7 @@ import {
   getActivityActionLabel,
   getActivityStatusNote,
 } from '@/utils/study/activityUi';
+import { isLegacyGeneratingActivity } from '@/utils/study/activityContent';
 import { stageActivityTypes } from '@/components/module-detail/ActivityRow';
 
 const STAGE_LABELS = { A: 'Learn', B: 'Practice', C: 'Mastery' };
@@ -48,7 +49,7 @@ function DrawerActivityRow({ activity, journeyId, moduleId, cardsByActivity }) {
           activity={activity}
           journeyId={journeyId}
           moduleId={moduleId}
-          disabled={activity.status === 'generating'}
+          disabled={isLegacyGeneratingActivity(activity)}
         >
           {actionLabel}
         </PracticeQuizStartButton>
@@ -63,7 +64,7 @@ function DrawerActivityRow({ activity, journeyId, moduleId, cardsByActivity }) {
           <button
             type="button"
             className="btn btn-secondary btn-sm"
-            disabled={activity.status === 'generating'}
+            disabled={isLegacyGeneratingActivity(activity)}
             onClick={handleLaunch}
           >
             {actionLabel}
@@ -73,7 +74,7 @@ function DrawerActivityRow({ activity, journeyId, moduleId, cardsByActivity }) {
         <button
           type="button"
           className="btn btn-secondary btn-sm"
-          disabled={activity.status === 'generating'}
+          disabled={isLegacyGeneratingActivity(activity)}
           onClick={handleLaunch}
         >
           {actionLabel}

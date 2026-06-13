@@ -6480,6 +6480,14 @@
       text-align: center;
     }
 
+    .study-ai-error-actions {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: center;
+      margin-top: 1.25rem;
+      flex-wrap: wrap;
+    }
+
     .study-guide-sidebar {
       display: flex;
       flex-direction: column;

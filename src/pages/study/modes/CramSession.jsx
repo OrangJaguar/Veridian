@@ -1,17 +1,21 @@
-import { useState, useEffect, useMemo } from 'react';
-import { toast } from 'sonner';
-import VeridianLoading from '@/components/shared/VeridianLoading';
+import { useState, useMemo } from 'react';
 import StudyChrome from '@/components/study/StudyChrome';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
 import SessionSummary from '@/components/study/SessionSummary';
+import { StudyAiLoading, StudyAiError } from '@/components/study/StudyAiStatus';
 import { generateCramSession } from '@/api/ai/study';
 import { normalizeQuizQuestions } from '@/utils/study/normalizeQuizQuestions';
+import { requireGeneratedQuestions } from '@/utils/study/requireGeneratedQuestions';
+import { useStudyAiAutoGeneration } from '@/hooks/ai/useStudyAiGeneration';
 import { getDueCards } from '@/utils/fsrs';
 import { getWeakConceptIds } from '@/utils/study/conceptWeakness';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
+import { useUpdateSession } from '@/hooks/mutations/useSessionMutations';
 import { useSessions } from '@/hooks/queries/useSessions';
 import { useJourney } from '@/hooks/queries/useJourneys';
+
+const QUESTION_COUNT = 8;
 
 export default function CramSession({ session, activity, journeyId, modules = [], cards = [] }) {
   const { data: journey } = useJourney(journeyId);
@@ -20,6 +24,7 @@ export default function CramSession({ session, activity, journeyId, modules = []
   const { data: sessions = [] } = useSessions(journeyId);
   const { completeSessionInBackground } = useCompleteSession();
   const abandonSession = useAbandonSession();
+  const updateSession = useUpdateSession();
   const returnPath = `/journeys/${journeyId}`;
 
   const weakConcepts = useMemo(
@@ -27,36 +32,65 @@ export default function CramSession({ session, activity, journeyId, modules = []
     [modules, sessions],
   );
   const overdueCount = getDueCards(cards).length;
+  const canGenerate = Boolean(journey && modules.length);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const raw = await generateCramSession({
-          journeyTitle: journey?.title,
-          subject: journey?.subject,
-          questionCount: 8,
-          weakConceptIds: weakConcepts,
-          overdueCardCount: overdueCount,
-          moduleNames: modules.map((m) => m.name),
-          moduleMaps: modules.map((m) => ({
-            moduleId: m.moduleId,
-            name: m.name,
-            concepts: m.knowledgeMap?.concepts ?? [],
-          })),
-        });
-        if (cancelled) return;
-        setQuestions(normalizeQuizQuestions(raw, 8));
-        setPhase('active');
-      } catch (err) {
-        if (!cancelled) {
-          toast.error(err.message || 'Failed to generate cram session');
-          setPhase('error');
-        }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [journey, modules, weakConcepts, overdueCount]);
+  const handleExit = () => {
+    abandonSession({ sessionId: session.sessionId, journeyId, returnPath });
+  };
+
+  const { isLoading, isError, error, retry } = useStudyAiAutoGeneration({
+    enabled: canGenerate,
+    hasContent: false,
+    beforeGenerate: async () => {
+      await updateSession.mutateAsync({
+        sessionId: session.sessionId,
+        journeyId,
+        skipInvalidate: true,
+        patch: {
+          sessionData: {
+            ...session.sessionData,
+            aiGeneration: { status: 'generating', startedAt: Date.now() },
+          },
+        },
+      });
+    },
+    generate: async () => generateCramSession({
+      journeyTitle: journey.title,
+      subject: journey.subject,
+      questionCount: QUESTION_COUNT,
+      weakConceptIds: weakConcepts,
+      overdueCardCount: overdueCount,
+      moduleNames: modules.map((m) => m.name),
+      moduleMaps: modules.map((m) => ({
+        moduleId: m.moduleId,
+        name: m.name,
+        concepts: m.knowledgeMap?.concepts ?? [],
+      })),
+    }),
+    normalize: (raw) => normalizeQuizQuestions(raw, QUESTION_COUNT),
+    validate: (nextQuestions) => {
+      requireGeneratedQuestions(nextQuestions, QUESTION_COUNT, 'cram questions');
+    },
+    persist: async (nextQuestions) => {
+      await updateSession.mutateAsync({
+        sessionId: session.sessionId,
+        journeyId,
+        skipInvalidate: true,
+        patch: {
+          sessionData: {
+            ...session.sessionData,
+            questions: nextQuestions,
+            aiGeneration: { status: 'ready', completedAt: Date.now() },
+          },
+        },
+      });
+    },
+    onSuccess: (nextQuestions) => {
+      setQuestions(nextQuestions);
+      setPhase('active');
+    },
+    onError: () => setPhase('error'),
+  });
 
   const handleComplete = async (answers) => {
     const correct = answers.filter((a) => a.correct).length;
@@ -81,10 +115,22 @@ export default function CramSession({ session, activity, journeyId, modules = []
     });
   };
 
-  if (phase === 'loading') {
+  if (isLoading || phase === 'loading') {
     return (
-      <StudyChrome title="Cram Mode" onExit={() => abandonSession({ sessionId: session.sessionId, journeyId, returnPath })}>
-        <VeridianLoading />
+      <StudyChrome title="Cram Mode" onExit={handleExit}>
+        <StudyAiLoading label="Generating cram questions…" className="study-mode-view" />
+      </StudyChrome>
+    );
+  }
+
+  if (isError || phase === 'error') {
+    return (
+      <StudyChrome title="Cram Mode" onExit={handleExit}>
+        <StudyAiError
+          message={error?.message || 'Could not load cram questions.'}
+          onRetry={retry}
+          onExit={handleExit}
+        />
       </StudyChrome>
     );
   }
@@ -93,17 +139,9 @@ export default function CramSession({ session, activity, journeyId, modules = []
     return <SessionSummary title="Cram session complete" returnHref={returnPath} />;
   }
 
-  if (phase === 'error') {
-    return (
-      <StudyChrome title="Cram Mode" onExit={() => abandonSession({ sessionId: session.sessionId, journeyId, returnPath })}>
-        <p className="journeys-status">Could not load cram questions.</p>
-      </StudyChrome>
-    );
-  }
-
   return (
-    <StudyChrome title="Cram Mode" onExit={() => abandonSession({ sessionId: session.sessionId, journeyId, returnPath })}>
-      <QuizRunner questions={questions} onComplete={handleComplete} />
+    <StudyChrome title="Cram Mode" onExit={handleExit}>
+      <QuizRunner questions={questions} onComplete={handleComplete} onExit={handleExit} />
     </StudyChrome>
   );
 }

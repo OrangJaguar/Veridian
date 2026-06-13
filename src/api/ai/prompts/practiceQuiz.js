@@ -1,5 +1,5 @@
 /**
- * Reference prompts for generatePracticeQuestions — live copy in geminiStudy/entry/entry.ts.
+ * Reference prompts for generatePracticeQuestions — canonical server copy: base44/functions/geminiStudy/entry/entry.ts + aiNormalize.ts
  * Questions are ephemeral per session (sessionData); dedup registry lives on activity.content.quizRegistry.
  */
 

@@ -269,6 +269,11 @@ Deno.serve(async (req) => {
       return errorResponse("Authentication required.", 401);
     }
 
+    const userKey = user.email ?? user.id;
+    if (!userKey) {
+      return errorResponse("Authentication required.", 401);
+    }
+
     const body = requestSchema.parse(await req.json());
     const { action, payload } = body;
 
@@ -300,7 +305,7 @@ Deno.serve(async (req) => {
     const estInput = estimateTokens(system + userPrompt);
     const quotaErr = await checkAndIncrementQuota(
       base44,
-      user.email,
+      userKey,
       action,
       estInput,
     );
