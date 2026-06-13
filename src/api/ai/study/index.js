@@ -1,8 +1,39 @@
 import { invokeGeminiStudy, parseGeminiStudyResponse } from '@/api/ai/studyClient';
+import { getActiveStudyAiTrace, isStudyAiDebugEnabled } from '@/utils/study/studyAiTrace';
 
 async function callStudy(action, payload, options) {
-  const result = await invokeGeminiStudy(action, payload, options);
-  return parseGeminiStudyResponse(result);
+  const trace = getActiveStudyAiTrace();
+
+  let result;
+  try {
+    result = await invokeGeminiStudy(action, payload, options);
+  } catch (err) {
+    throw err;
+  }
+
+  const parseStart = Date.now();
+  if (isStudyAiDebugEnabled() && trace) {
+    trace.stepStart('1b_parse', 'Parse geminiStudy response', {
+      resultKeys: Object.keys(result ?? {}),
+      hasDebug: Boolean(result?._debug),
+    });
+  }
+
+  try {
+    const parsed = parseGeminiStudyResponse(result);
+    if (isStudyAiDebugEnabled() && trace) {
+      trace.stepOk('1b_parse', 'Parse geminiStudy response', trace.summarizeCounts(parsed), Date.now() - parseStart);
+    }
+    return parsed;
+  } catch (err) {
+    if (isStudyAiDebugEnabled() && trace) {
+      trace.stepFail('1b_parse', 'Parse geminiStudy response', err, {
+        resultKeys: Object.keys(result ?? {}),
+        serverDebug: result?._debug ?? window.__veridianLastServerAiDebug,
+      }, Date.now() - parseStart);
+    }
+    throw err;
+  }
 }
 
 export function generateLearningGuide(payload, options) {

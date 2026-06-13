@@ -7,6 +7,9 @@ import AuthProvider from '@/providers/AuthProvider';
 import { Toaster } from '@/components/ui/sonner';
 import '@/css/app.css';
 import '@/index.css';
+import { initStudyAiDebugFromUrl } from '@/utils/study/studyAiTrace';
+
+initStudyAiDebugFromUrl();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <QueryProvider>

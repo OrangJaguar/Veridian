@@ -39,6 +39,7 @@ export default function CramSession({ session, activity, journeyId, modules = []
   };
 
   const { isLoading, isError, error, retry } = useStudyAiAutoGeneration({
+    action: 'generateCramSession',
     enabled: canGenerate,
     hasContent: false,
     beforeGenerate: async () => {
@@ -128,6 +129,7 @@ export default function CramSession({ session, activity, journeyId, modules = []
       <StudyChrome title="Cram Mode" onExit={handleExit}>
         <StudyAiError
           message={error?.message || 'Could not load cram questions.'}
+          error={error}
           onRetry={retry}
           onExit={handleExit}
         />

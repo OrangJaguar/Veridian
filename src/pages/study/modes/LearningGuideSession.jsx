@@ -66,6 +66,7 @@ export default function LearningGuideSession({ session, activity, module, journe
   }, [journeyId, session.sessionData, session.sessionId, updateSession]);
 
   const { isLoading, isError, error, retry } = useStudyAiAutoGeneration({
+    action: 'generateLearningGuide',
     enabled: Boolean(moduleId && journey && !guideReady),
     hasContent: guideReady,
     beforeGenerate: markSessionGenerating,
@@ -173,6 +174,7 @@ export default function LearningGuideSession({ session, activity, module, journe
     return (
       <StudyAiError
         message={error?.message || 'Failed to generate learning guide.'}
+        error={error}
         onRetry={retry}
         onExit={handleExit}
       />

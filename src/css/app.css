@@ -6488,6 +6488,32 @@
       flex-wrap: wrap;
     }
 
+    .study-ai-debug-panel {
+      margin: 1rem auto 0;
+      max-width: 36rem;
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-size: 0.75rem;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border-radius: 0.5rem;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    .study-ai-debug-hint {
+      margin-top: 0.75rem;
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.55);
+    }
+
+    .study-ai-debug-hint code {
+      font-size: 0.78rem;
+      color: rgba(125, 211, 252, 0.95);
+    }
+
     .study-guide-sidebar {
       display: flex;
       flex-direction: column;

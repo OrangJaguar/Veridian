@@ -6,6 +6,8 @@ import { runStudyAiGeneration } from '@/hooks/ai/runStudyAiGeneration';
  * Supports retry without effect re-entry loops.
  */
 export function useStudyAiAutoGeneration({
+  action,
+  label,
   enabled = true,
   hasContent = false,
   generate,
@@ -26,6 +28,8 @@ export function useStudyAiAutoGeneration({
   });
 
   pipelineRef.current = {
+    action,
+    label,
     generate, normalize, validate, persist, onSuccess, onError, beforeGenerate,
   };
 
@@ -41,6 +45,8 @@ export function useStudyAiAutoGeneration({
       }
 
       const result = await runStudyAiGeneration({
+        action: pipeline.action,
+        label: pipeline.label,
         generate: pipeline.generate,
         normalize: pipeline.normalize,
         validate: pipeline.validate,

@@ -164,6 +164,7 @@ export default function DiagnosticPage() {
       const priorKnowledge = journey?.priorKnowledge ?? 'some';
 
       const interleaved = await runStudyAiGeneration({
+        action: 'generateDiagnosticQuestions',
         generate: () => generateDiagnosticQuestions({
           title: journey.title,
           subject: journey.subject,
@@ -212,7 +213,7 @@ export default function DiagnosticPage() {
       setQuestions(interleaved);
       setPhase('active');
     } catch (err) {
-      setGenError(err.message || 'Failed to generate diagnostic questions');
+      setGenError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       generatingRef.current = false;
       setGenerating(false);
@@ -350,7 +351,8 @@ export default function DiagnosticPage() {
 
       {genError && (
         <StudyAiError
-          message={genError}
+          message={genError?.message || 'Failed to generate diagnostic questions'}
+          error={genError}
           onRetry={handleStart}
           retryLabel="Try again"
         />

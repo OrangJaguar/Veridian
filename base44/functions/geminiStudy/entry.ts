@@ -10,6 +10,13 @@ import {
   coercePayloadForAction,
   questionCountRetrySuffix,
 } from "./aiNormalize.ts";
+import {
+  createAiDebugTrace,
+  stripDebugFlag,
+  zodIssueSummary,
+  payloadShapeSummary,
+  type AiDebugTrace,
+} from "./aiDebug.ts";
 
 const MODEL = "gemini-2.5-flash-lite";
 const MAX_OUTPUT_TOKENS = 4096;
@@ -76,8 +83,11 @@ function jsonResponse(body: unknown, status = 200) {
   return Response.json(body, { status });
 }
 
-function errorResponse(message: string, status = 400) {
-  return jsonResponse({ error: { message, status } }, status);
+function errorResponse(message: string, status = 400, debug?: AiDebugTrace) {
+  return jsonResponse({
+    error: { message, status },
+    ...(debug?.enabled ? { _debug: debug } : {}),
+  }, status);
 }
 
 function estimateTokens(text: string) {
@@ -160,6 +170,7 @@ async function callGeminiJson(
   schema: z.ZodType,
   retrySuffix?: string,
   coerceAction?: string,
+  debug?: ReturnType<typeof createAiDebugTrace>,
 ) {
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({
@@ -176,25 +187,60 @@ async function callGeminiJson(
   const attempts = [user, user + (retrySuffix ?? fallbackRetry)];
   let lastError: Error | null = null;
 
-  for (const prompt of attempts) {
+  for (let attempt = 0; attempt < attempts.length; attempt += 1) {
+    const prompt = attempts[attempt];
+    const attemptStart = Date.now();
     try {
       const result = await model.generateContent(prompt);
       const text = result.response.text();
-      let parsed = JSON.parse(extractJsonText(text));
+      debug?.record("gemini_generateContent", true, {
+        attempt: attempt + 1,
+        textLength: text.length,
+        preview: text.slice(0, 400),
+      }, undefined, Date.now() - attemptStart);
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(extractJsonText(text));
+        debug?.record("json_parse", true, payloadShapeSummary(parsed));
+      } catch (parseErr) {
+        debug?.record("json_parse", false, {
+          preview: text.slice(0, 600),
+        }, parseErr instanceof Error ? parseErr.message : String(parseErr));
+        throw parseErr;
+      }
+
+      const beforeCoerce = parsed;
       if (coerceAction) {
         parsed = coercePayloadForAction(coerceAction, parsed);
+        debug?.record("coerce_payload", true, {
+          coerceAction,
+          before: payloadShapeSummary(beforeCoerce),
+          after: payloadShapeSummary(parsed),
+        });
       }
-      const data = schema.parse(parsed);
-      const usage = result.response.usageMetadata;
-      return {
-        data,
-        usage: {
-          inputTokens: usage?.promptTokenCount ?? estimateTokens(prompt),
-          outputTokens: usage?.candidatesTokenCount ?? estimateTokens(text),
-        },
-      };
+
+      try {
+        const data = schema.parse(parsed);
+        debug?.record("schema_validate", true, payloadShapeSummary(data));
+        const usage = result.response.usageMetadata;
+        return {
+          data,
+          usage: {
+            inputTokens: usage?.promptTokenCount ?? estimateTokens(prompt),
+            outputTokens: usage?.candidatesTokenCount ?? estimateTokens(text),
+          },
+        };
+      } catch (schemaErr) {
+        debug?.record("schema_validate", false, {
+          parsed: payloadShapeSummary(parsed),
+          zodIssues: zodIssueSummary(schemaErr),
+        }, schemaErr instanceof Error ? schemaErr.message : String(schemaErr));
+        throw schemaErr;
+      }
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
+      debug?.record("attempt_failed", false, { attempt: attempt + 1 }, lastError.message);
     }
   }
   throw lastError ?? new Error("AI validation failed");
@@ -495,6 +541,7 @@ type DiagnosticModuleInput = {
 async function generateDiagnosticQuestionsBatch(
   apiKey: string,
   payload: Record<string, unknown>,
+  debug?: ReturnType<typeof createAiDebugTrace>,
 ) {
   const modules = (payload.modules as DiagnosticModuleInput[]) ?? [];
   const questionsPerModule = Number(payload.questionsPerModule ?? 3);
@@ -502,6 +549,11 @@ async function generateDiagnosticQuestionsBatch(
   if (!Number.isFinite(questionsPerModule) || questionsPerModule < 1) {
     throw new Error("Invalid questionsPerModule.");
   }
+
+  debug?.record("diagnostic_batch_start", true, {
+    moduleCount: modules.length,
+    questionsPerModule,
+  });
 
   const system = DIAGNOSTIC_SYSTEM;
   const schema = diagnosticModuleSchema(questionsPerModule);
@@ -515,6 +567,12 @@ async function generateDiagnosticQuestionsBatch(
     if (!concepts.length) {
       throw new Error(`Module "${mod.name ?? mod.moduleId}" has no concepts for diagnostic generation.`);
     }
+
+    debug?.record("diagnostic_module_start", true, {
+      moduleId: mod.moduleId,
+      moduleName: mod.name,
+      conceptCount: concepts.length,
+    });
 
     const modulePrompt = JSON.stringify({
       action: "generateDiagnosticQuestions",
@@ -541,11 +599,22 @@ async function generateDiagnosticQuestionsBatch(
       schema,
       retrySuffix,
       "generateDiagnosticQuestions",
+      debug,
     );
     const finalized = data.questions
       .slice(0, questionsPerModule)
       .map((q, index) => finalizeDiagnosticQuestion(q, mod.moduleId, index))
       .filter((q): q is z.infer<typeof diagnosticQuestionSchema> => q != null);
+
+    debug?.record("diagnostic_module_finalize", finalized.length >= questionsPerModule, {
+      moduleId: mod.moduleId,
+      parsedCount: data.questions.length,
+      finalizedCount: finalized.length,
+      expected: questionsPerModule,
+    }, finalized.length < questionsPerModule
+      ? `Generated ${finalized.length}/${questionsPerModule} usable questions`
+      : undefined);
+
     if (finalized.length < questionsPerModule) {
       throw new Error(
         `Generated ${finalized.length}/${questionsPerModule} questions for "${mod.name ?? mod.moduleId}". Try again.`,
@@ -557,6 +626,8 @@ async function generateDiagnosticQuestionsBatch(
     inputTokens += usage.inputTokens;
     outputTokens += usage.outputTokens;
   }
+
+  debug?.record("diagnostic_batch_complete", true, { totalQuestions: allQuestions.length });
 
   return {
     data: { questions: allQuestions },
@@ -619,6 +690,8 @@ Deno.serve(async (req) => {
     return errorResponse("Method not allowed.", 405);
   }
 
+  let debug = createAiDebugTrace(false);
+
   try {
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) return errorResponse("GEMINI_API_KEY is not configured.", 503);
@@ -635,15 +708,28 @@ Deno.serve(async (req) => {
     }
 
     const body = requestSchema.parse(await req.json());
-    const { action, payload } = body;
+    const { action, payload: rawPayload } = body;
+    const { debugEnabled, cleanPayload } = stripDebugFlag(rawPayload as Record<string, unknown>);
+    const payload = cleanPayload;
+    debug = createAiDebugTrace(debugEnabled);
+
+    debug.record("request_received", true, {
+      action,
+      payloadKeys: Object.keys(payload),
+    });
 
     if (action === "generateDiagnosticQuestions") {
       const estInput = estimateTokens(JSON.stringify(payload));
       const quotaErr = await checkStudyQuota(base44, userKey, action, estInput);
       if (quotaErr) return quotaErr;
 
-      const result = await generateDiagnosticQuestionsBatch(apiKey, payload as Record<string, unknown>);
-      return jsonResponse({ data: result.data, usage: result.usage });
+      const result = await generateDiagnosticQuestionsBatch(apiKey, payload, debug);
+      debug.record("response_ready", true, { questionCount: result.data.questions.length });
+      return jsonResponse({
+        data: result.data,
+        usage: result.usage,
+        ...(debug.enabled ? { _debug: debug } : {}),
+      });
     }
 
     const system = buildSystem(action);
@@ -654,7 +740,7 @@ Deno.serve(async (req) => {
     if (quotaErr) return quotaErr;
 
     const schema = schemaForAction(action);
-    const retrySuffix = retrySuffixForAction(action, payload as Record<string, unknown>);
+    const retrySuffix = retrySuffixForAction(action, payload);
     const { data: raw, usage } = await callGeminiJson(
       apiKey,
       system,
@@ -662,11 +748,28 @@ Deno.serve(async (req) => {
       schema,
       retrySuffix,
       action,
+      debug,
     );
-    const data = aiSchemaForAction(action)
-      ? finalizeForAction(action, raw, payload as Record<string, unknown>)
-      : raw;
-    return jsonResponse({ data, usage });
+
+    let data: unknown;
+    try {
+      data = aiSchemaForAction(action)
+        ? finalizeForAction(action, raw, payload)
+        : raw;
+      debug.record("finalize", true, payloadShapeSummary(data));
+    } catch (finalizeErr) {
+      debug.record("finalize", false, payloadShapeSummary(raw), finalizeErr instanceof Error
+        ? finalizeErr.message
+        : String(finalizeErr));
+      throw finalizeErr;
+    }
+
+    debug.record("response_ready", true, payloadShapeSummary(data));
+    return jsonResponse({
+      data,
+      usage,
+      ...(debug.enabled ? { _debug: debug } : {}),
+    });
   } catch (err) {
     let message = "AI request failed";
     if (err instanceof z.ZodError) {
@@ -676,6 +779,7 @@ Deno.serve(async (req) => {
     } else if (err instanceof Error) {
       message = err.message;
     }
-    return errorResponse(message, 400);
+    debug.record("handler_error", false, { message }, message);
+    return errorResponse(message, 400, debug.enabled ? debug : undefined);
   }
 });
