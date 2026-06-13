@@ -19,6 +19,7 @@ import { applyDiagnosticResults } from '@/api/entities/applyDiagnosticResults';
 import { ensureDiagnosticActivity } from '@/api/entities/ensureDiagnosticActivity';
 import { updateJourney } from '@/api/entities/journeys';
 import { queryKeys } from '@/api/query-keys';
+import { normalizeDiagnosticQuestions } from '@/utils/study/normalizeDiagnosticQuestions';
 import {
   DIAGNOSTIC_QUESTIONS_PER_MODULE,
   computeDiagnosticPlacement,
@@ -161,7 +162,11 @@ export default function DiagnosticPage() {
         })),
       });
 
-      const rawQuestions = data?.questions ?? [];
+      const rawQuestions = normalizeDiagnosticQuestions(
+        data,
+        modules,
+        DIAGNOSTIC_QUESTIONS_PER_MODULE,
+      );
       const validation = validateDiagnosticQuestions(rawQuestions, modules);
       if (!validation.valid) {
         throw new Error(validation.message);

@@ -6,9 +6,26 @@ const FUNCTION_NOT_DEPLOYED_MSG =
 const KEY_NOT_CONFIGURED_MSG =
   'GEMINI_API_KEY is not configured on the server.';
 
+function extractServerMessage(err) {
+  const payload = err?.response?.data ?? err?.data ?? err?.body;
+  if (payload?.error?.message) return payload.error.message;
+  if (typeof payload?.error === 'string') return payload.error;
+  if (typeof payload?.message === 'string') return payload.message;
+  if (typeof payload === 'string') {
+    try {
+      const parsed = JSON.parse(payload);
+      if (parsed?.error?.message) return parsed.error.message;
+    } catch {
+      // not JSON
+    }
+  }
+  return null;
+}
+
 function normalizeInvokeError(err) {
   const status = err?.status ?? err?.response?.status ?? err?.statusCode;
-  const message = err?.message ?? String(err);
+  const serverMessage = extractServerMessage(err);
+  const message = serverMessage ?? err?.message ?? String(err);
 
   if (status === 404 || message.includes('status code 404')) {
     return new Error(FUNCTION_NOT_DEPLOYED_MSG);
@@ -22,6 +39,12 @@ function normalizeInvokeError(err) {
   if (status === 401) {
     return new Error('Please sign in again to use AI features.');
   }
+  if (status === 400 && serverMessage) {
+    return new Error(serverMessage);
+  }
+  if (status === 400 && message.includes('status code 400')) {
+    return new Error('AI could not generate valid study content. Try again in a moment.');
+  }
 
   return err instanceof Error ? err : new Error(message);
 }
@@ -30,7 +53,7 @@ export async function invokeGeminiStudy(action, payload, options = {}) {
   const { signal } = options;
 
   const user = await base44.auth.me();
-  if (!user?.email) {
+  if (!user?.email && !user?.id) {
     throw new Error('Please sign in to use AI features.');
   }
 

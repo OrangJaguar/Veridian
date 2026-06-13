@@ -144,7 +144,13 @@ async function checkStudyQuota(
   return null;
 }
 
-async function callGeminiJson(apiKey: string, system: string, user: string, schema: z.ZodType) {
+async function callGeminiJson(
+  apiKey: string,
+  system: string,
+  user: string,
+  schema: z.ZodType,
+  retrySuffix?: string,
+) {
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({
     model: MODEL,
@@ -156,7 +162,8 @@ async function callGeminiJson(apiKey: string, system: string, user: string, sche
     },
   });
 
-  const attempts = [user, user + "\n\nReturn ONLY valid compact JSON. Use $...$ for LaTeX."];
+  const fallbackRetry = "\n\nReturn ONLY valid compact JSON. Use $...$ for LaTeX.";
+  const attempts = [user, user + (retrySuffix ?? fallbackRetry)];
   let lastError: Error | null = null;
 
   for (const prompt of attempts) {
@@ -414,6 +421,89 @@ Rules:
 - Match deckPurpose (definitions / conceptual / procedures / exam_facts).
 - One concept per card. Atomic pairs. Fronts concise when possible.`;
 
+const DIAGNOSTIC_SYSTEM = `You are designing a diagnostic assessment to measure true mastery — not guessability.
+
+${LATEX_RULE}
+
+Rules:
+- Output ONLY valid JSON: { questions: [...] }.
+- Generate EXACTLY the requested number of questions for the ONE module in the input.
+- Every question MUST include moduleId copied EXACTLY from the input (character-for-character).
+- Each question MUST include conceptId from that module's concepts list.
+- Questions must require understanding — plausible distractors, application scenarios, or multi-step reasoning.
+- Avoid yes/no trivia, trick wording, and elimination-only questions.
+- Prefer multipleChoice with exactly 4 options.
+- Cover different concepts across the questions when possible.`;
+
+function diagnosticModuleSchema(count: number) {
+  return z.object({
+    questions: z.array(diagnosticQuestionSchema).length(count),
+  });
+}
+
+type DiagnosticModuleInput = {
+  moduleId: string;
+  name?: string;
+  description?: string;
+  concepts?: Array<{ id: string; term: string; definition: string }>;
+};
+
+async function generateDiagnosticQuestionsBatch(
+  apiKey: string,
+  payload: Record<string, unknown>,
+) {
+  const modules = (payload.modules as DiagnosticModuleInput[]) ?? [];
+  const questionsPerModule = Number(payload.questionsPerModule ?? 3);
+  if (!modules.length) throw new Error("Diagnostic requires at least one module.");
+  if (!Number.isFinite(questionsPerModule) || questionsPerModule < 1) {
+    throw new Error("Invalid questionsPerModule.");
+  }
+
+  const system = DIAGNOSTIC_SYSTEM;
+  const schema = diagnosticModuleSchema(questionsPerModule);
+  const allQuestions: Array<z.infer<typeof diagnosticQuestionSchema>> = [];
+  let inputTokens = 0;
+  let outputTokens = 0;
+
+  for (const mod of modules) {
+    if (!mod?.moduleId) throw new Error("Each module must include moduleId.");
+    const concepts = mod.concepts ?? [];
+    if (!concepts.length) {
+      throw new Error(`Module "${mod.name ?? mod.moduleId}" has no concepts for diagnostic generation.`);
+    }
+
+    const modulePrompt = JSON.stringify({
+      action: "generateDiagnosticQuestions",
+      title: payload.title,
+      subject: payload.subject,
+      priorKnowledge: payload.priorKnowledge,
+      difficultyGuidance: payload.difficultyGuidance,
+      questionsPerModule,
+      modules: [{
+        moduleId: mod.moduleId,
+        name: mod.name,
+        description: mod.description,
+        concepts,
+      }],
+    });
+
+    const retrySuffix =
+      `\n\nReturn EXACTLY ${questionsPerModule} questions. Every question MUST use moduleId "${mod.moduleId}" exactly. JSON only.`;
+
+    const { data, usage } = await callGeminiJson(apiKey, system, modulePrompt, schema, retrySuffix);
+    for (const q of data.questions) {
+      allQuestions.push({ ...q, moduleId: mod.moduleId });
+    }
+    inputTokens += usage.inputTokens;
+    outputTokens += usage.outputTokens;
+  }
+
+  return {
+    data: { questions: allQuestions },
+    usage: { inputTokens, outputTokens },
+  };
+}
+
 function buildSystem(action: string) {
   const base = `You are a study tutor. ${LATEX_RULE}`;
   const map: Record<string, string> = {
@@ -424,7 +514,7 @@ function buildSystem(action: string) {
     extractDeckSource: `${base} Extract testable source from raw text into { cleanedText, summary }. Do not generate flashcards yet.`,
     findFlashcardDuplicates: `${base} Find groups of cards testing the same knowledge. Output { groups: [{ cardIndexes, reason }] }. Indexes are 0-based.`,
     applyDeckAiEdit: `${base} Apply a deck edit action. Output { message, cards?, needsClarification?, clarifyingQuestion? }. Keep message under 40 words, friendly.`,
-    generateDiagnosticQuestions: `${base} Design a diagnostic assessment measuring true mastery (not guessability). Generate EXACTLY 3 questions per module in the input. Every question MUST include moduleId copied exactly from input modules. Each question MUST include conceptId from that module's concepts. Cover different concepts per module. Require understanding — plausible distractors, application scenarios, or multi-step reasoning. Avoid trivia and elimination-only questions. Prefer multipleChoice with 4 options.`,
+    generateDiagnosticQuestions: DIAGNOSTIC_SYSTEM,
     feynmanConversationTurn: FEYNMAN_TURN_SYSTEM,
     feynmanSummarizeConcept: FEYNMAN_SUMMARIZE_SYSTEM,
     gradeFreeRecall: FREE_RECALL_GRADE_SYSTEM,
@@ -468,14 +558,28 @@ Deno.serve(async (req) => {
       return errorResponse("Authentication required.", 401);
     }
 
+    const userKey = user.email ?? user.id;
+    if (!userKey) {
+      return errorResponse("Authentication required.", 401);
+    }
+
     const body = requestSchema.parse(await req.json());
     const { action, payload } = body;
+
+    if (action === "generateDiagnosticQuestions") {
+      const estInput = estimateTokens(JSON.stringify(payload));
+      const quotaErr = await checkStudyQuota(base44, userKey, action, estInput);
+      if (quotaErr) return quotaErr;
+
+      const result = await generateDiagnosticQuestionsBatch(apiKey, payload as Record<string, unknown>);
+      return jsonResponse(result);
+    }
 
     const system = buildSystem(action);
     const userPrompt = JSON.stringify({ action, ...payload }).slice(0, 32_000);
     const estInput = estimateTokens(system + userPrompt);
 
-    const quotaErr = await checkStudyQuota(base44, user.email, action, estInput);
+    const quotaErr = await checkStudyQuota(base44, userKey, action, estInput);
     if (quotaErr) return quotaErr;
 
     const { data, usage } = await callGeminiJson(apiKey, system, userPrompt, schemaForAction(action));
