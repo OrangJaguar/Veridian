@@ -7,10 +7,11 @@ const KEY_NOT_CONFIGURED_MSG =
   'GEMINI_API_KEY is not configured on the server.';
 
 function extractServerMessage(err) {
-  const payload = err?.response?.data ?? err?.data ?? err?.body;
+  const payload = err?.data ?? err?.response?.data ?? err?.body;
   if (payload?.error?.message) return payload.error.message;
   if (typeof payload?.error === 'string') return payload.error;
   if (typeof payload?.message === 'string') return payload.message;
+  if (typeof payload?.detail === 'string') return payload.detail;
   if (typeof payload === 'string') {
     try {
       const parsed = JSON.parse(payload);
@@ -80,11 +81,23 @@ export async function invokeGeminiStudy(action, payload, options = {}) {
 
 export function parseGeminiStudyResponse(result) {
   if (!result) throw new Error('Empty response from AI service');
-  const data = result.data ?? result;
+
+  if (result.error) {
+    const err = new Error(result.error.message || result.error);
+    err.status = result.error.status ?? result.status;
+    throw normalizeInvokeError(err);
+  }
+
+  let data = result.data ?? result;
   if (data?.error) {
     const err = new Error(data.error.message || data.error);
     err.status = data.error.status ?? 500;
     throw normalizeInvokeError(err);
   }
+
+  if (data?.data && typeof data.data === 'object' && !data.questions && !data.cards && !data.sections) {
+    data = data.data;
+  }
+
   return data;
 }

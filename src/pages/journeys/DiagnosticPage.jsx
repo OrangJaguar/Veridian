@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -80,6 +80,7 @@ export default function DiagnosticPage() {
   const [questions, setQuestions] = useState([]);
   const [summaryData, setSummaryData] = useState(null);
   const [activityReady, setActivityReady] = useState(false);
+  const generatingRef = useRef(false);
 
   const resolvedPhase = phase ?? (journey ? initialPhase(journey, resumableSession) : null);
 
@@ -134,7 +135,8 @@ export default function DiagnosticPage() {
   };
 
   const handleStart = async () => {
-    if (generating || !modules.length || !activityReady) return;
+    if (generatingRef.current || generating || !modules.length || !activityReady) return;
+    generatingRef.current = true;
     setGenerating(true);
 
     try {
@@ -143,6 +145,15 @@ export default function DiagnosticPage() {
         setQuestions(resumableSession.sessionData.questions);
         setPhase('active');
         return;
+      }
+
+      const modulesWithoutConcepts = modules.filter(
+        (mod) => !(mod.knowledgeMap?.concepts?.length),
+      );
+      if (modulesWithoutConcepts.length) {
+        throw new Error(
+          `Cannot generate diagnostic — missing concepts for: ${modulesWithoutConcepts.map((m) => m.name).join(', ')}`,
+        );
       }
 
       const activity = diagnosticActivity ?? await ensureDiagnosticActivity(journeyId, activities);
@@ -167,6 +178,10 @@ export default function DiagnosticPage() {
         modules,
         DIAGNOSTIC_QUESTIONS_PER_MODULE,
       );
+      if (!rawQuestions.length) {
+        throw new Error('AI returned no usable diagnostic questions. Try again in a moment.');
+      }
+
       const validation = validateDiagnosticQuestions(rawQuestions, modules);
       if (!validation.valid) {
         throw new Error(validation.message);
@@ -194,6 +209,7 @@ export default function DiagnosticPage() {
     } catch (err) {
       toast.error(err.message || 'Failed to generate diagnostic questions');
     } finally {
+      generatingRef.current = false;
       setGenerating(false);
     }
   };

@@ -14,7 +14,7 @@ import DiagnosticBanner from '@/components/diagnostic/DiagnosticBanner';
 import RecommendedStudyPlan from '@/components/journey-detail/RecommendedStudyPlan';
 import ModuleListItem from '@/components/journey-detail/ModuleListItem';
 import JourneyLevelActions from '@/components/journey-detail/JourneyLevelActions';
-import JourneyInsightsPanel from '@/components/journey-detail/JourneyInsightsPanel';
+import { useRecoverStaleGeneratingActivities } from '@/hooks/useRecoverStaleGeneratingActivities';
 
 export default function JourneyDetailPage() {
   const { id: journeyId } = useParams();
@@ -26,6 +26,8 @@ export default function JourneyDetailPage() {
   const { data: sessions = [] } = useSessions(journeyId);
   const { data: cards = [] } = useCardsByJourney(journeyId);
   const { data: plan, isLoading: planLoading } = useStudyPlan(journeyId);
+
+  useRecoverStaleGeneratingActivities(journeyId, activities, sessions);
 
   const cardsByActivity = {};
   for (const card of cards) {

@@ -35,7 +35,8 @@ export function useUpdateActivity() {
 
   return useMutation({
     mutationFn: ({ activityId, patch }) => updateActivity(activityId, patch),
-    onSuccess: (_, { moduleId, journeyId }) => {
+    onSuccess: (_, { moduleId, journeyId, skipInvalidate }) => {
+      if (skipInvalidate) return;
       invalidateActivityQueries(queryClient, { moduleId, journeyId });
     },
   });

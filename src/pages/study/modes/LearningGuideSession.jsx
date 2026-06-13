@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import VeridianLoading from '@/components/shared/VeridianLoading';
 import LearningGuideViewer from '@/components/study/learning-guide/LearningGuideViewer';
@@ -17,50 +17,71 @@ export default function LearningGuideSession({ session, activity, module, journe
   const [completedIds, setCompletedIds] = useState(content.progress?.completedSectionIds ?? []);
   const [loading, setLoading] = useState(
     !activity.content?.sections?.length
-      && (activity.status === 'notGenerated' || activity.status === 'generating'),
+      && (activity.status === 'notGenerated'
+        || activity.status === 'generating'
+        || activity.status === 'failed'),
   );
   const [phase, setPhase] = useState('active');
+  const generationStartedRef = useRef(false);
   const { completeSessionInBackground } = useCompleteSession();
   const abandonSession = useAbandonSession();
   const updateActivity = useUpdateActivity();
 
   const sections = content.sections ?? [];
   const returnPath = `/journeys/${journeyId}/modules/${module?.moduleId}`;
+  const moduleId = module?.moduleId;
 
   useEffect(() => {
     if (activity.content?.sections?.length) {
       setContent(activity.content);
+      setLoading(false);
     }
   }, [activity.content]);
 
   useEffect(() => {
+    if (generationStartedRef.current) return;
+
+    if (activity.content?.sections?.length) {
+      setLoading(false);
+      return undefined;
+    }
+
     if (activity.status === 'ready' && activity.content?.sections?.length) {
       setLoading(false);
       return undefined;
     }
-    if (activity.status !== 'notGenerated' && activity.status !== 'generating') {
+
+    if (activity.status !== 'notGenerated'
+      && activity.status !== 'generating'
+      && activity.status !== 'failed') {
+      setLoading(false);
       return undefined;
     }
-    if (!module) return undefined;
 
+    if (!moduleId || !journey) return undefined;
+
+    generationStartedRef.current = true;
     let cancelled = false;
 
     (async () => {
       try {
-        await updateActivity.mutateAsync({
-          activityId: activity.activityId,
-          journeyId,
-          moduleId: module.moduleId,
-          patch: { status: 'generating' },
-        });
+        if (activity.status !== 'generating') {
+          await updateActivity.mutateAsync({
+            activityId: activity.activityId,
+            journeyId,
+            moduleId,
+            patch: { status: 'generating' },
+            skipInvalidate: true,
+          });
+        }
 
         const concepts = module.knowledgeMap?.concepts ?? [];
         const payload = {
           moduleName: module.name,
           moduleDescription: module.description,
           concepts,
-          subject: journey?.subject ?? 'General',
-          priorKnowledge: journey?.priorKnowledge ?? 'some',
+          subject: journey.subject ?? 'General',
+          priorKnowledge: journey.priorKnowledge ?? 'some',
           sectionCount: sectionCountForConcepts(concepts),
         };
 
@@ -76,7 +97,7 @@ export default function LearningGuideSession({ session, activity, module, journe
         await updateActivity.mutateAsync({
           activityId: activity.activityId,
           journeyId,
-          moduleId: module.moduleId,
+          moduleId,
           patch: {
             status: 'ready',
             content: normalized,
@@ -91,7 +112,7 @@ export default function LearningGuideSession({ session, activity, module, journe
         await updateActivity.mutateAsync({
           activityId: activity.activityId,
           journeyId,
-          moduleId: module.moduleId,
+          moduleId,
           patch: { status: 'failed' },
         }).catch(() => {});
       } finally {
@@ -102,12 +123,12 @@ export default function LearningGuideSession({ session, activity, module, journe
     return () => { cancelled = true; };
   }, [
     activity.activityId,
-    activity.status,
     activity.content?.sections?.length,
-    journey?.subject,
-    journey?.priorKnowledge,
+    activity.status,
+    journey,
     journeyId,
     module,
+    moduleId,
     updateActivity,
   ]);
 
@@ -124,7 +145,7 @@ export default function LearningGuideSession({ session, activity, module, journe
     await updateActivity.mutateAsync({
       activityId: activity.activityId,
       journeyId,
-      moduleId: module?.moduleId,
+      moduleId,
       patch: { content: nextContent },
     });
   };

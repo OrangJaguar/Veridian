@@ -11,7 +11,7 @@ import DetailBackButton from '@/components/shared/DetailBackButton';
 import ModuleDetailHeader from '@/components/module-detail/ModuleDetailHeader';
 import StageSection from '@/components/module-detail/StageSection';
 import FlashcardDeckList from '@/components/module-detail/FlashcardDeckList';
-import SessionHistoryPanel from '@/components/module-detail/SessionHistoryPanel';
+import { useRecoverStaleGeneratingActivities } from '@/hooks/useRecoverStaleGeneratingActivities';
 
 export default function ModuleDetailPage() {
   const { id: journeyId, moduleId } = useParams();
@@ -26,6 +26,8 @@ export default function ModuleDetailPage() {
   const flashcardDecks = activities.filter((a) => a.type === 'flashcardSet');
   const recommendedStage = mod?.stage || 'A';
   const waitingForCore = (journeyPending && !journey) || (modulesPending && !mod);
+
+  useRecoverStaleGeneratingActivities(journeyId, activities, sessions);
 
   const cardsByActivity = {};
   for (const card of journeyCards) {

@@ -59,6 +59,26 @@ const diagnosticQuestionSchema = questionSchema.extend({
   moduleId: z.string(),
 });
 
+const diagnosticAnswerSchema = z.preprocess(
+  (val) => {
+    if (typeof val === "number" || typeof val === "boolean") return String(val);
+    if (Array.isArray(val)) return val.map((item) => String(item));
+    return val;
+  },
+  z.union([z.string(), z.array(z.string())]),
+);
+
+const diagnosticQuestionAiSchema = z.object({
+  id: z.string().optional(),
+  type: z.string().optional(),
+  stem: z.string().min(1),
+  options: z.array(z.string()).optional(),
+  correctAnswer: diagnosticAnswerSchema,
+  explanation: z.string().optional(),
+  conceptId: z.string().optional(),
+  moduleId: z.string().optional(),
+});
+
 function utcDateKey() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -437,8 +457,35 @@ Rules:
 
 function diagnosticModuleSchema(count: number) {
   return z.object({
-    questions: z.array(diagnosticQuestionSchema).length(count),
+    questions: z.array(diagnosticQuestionAiSchema).min(1).max(count + 2),
   });
+}
+
+function finalizeDiagnosticQuestion(
+  q: z.infer<typeof diagnosticQuestionAiSchema>,
+  moduleId: string,
+  index: number,
+): z.infer<typeof diagnosticQuestionSchema> {
+  const type = q.type === "trueFalse" || q.type === "shortAnswer" ? q.type : "multipleChoice";
+  let options = q.options;
+  if (type === "trueFalse") {
+    options = ["True", "False"];
+  } else if (type === "multipleChoice") {
+    options = [...(options ?? [])];
+    while (options.length < 4) options.push(`Option ${options.length + 1}`);
+    options = options.slice(0, 4);
+  }
+
+  return {
+    id: String(q.id ?? `diag-${moduleId}-${index + 1}`),
+    type,
+    stem: q.stem,
+    options,
+    correctAnswer: q.correctAnswer,
+    explanation: q.explanation ?? "",
+    conceptId: q.conceptId,
+    moduleId,
+  };
 }
 
 type DiagnosticModuleInput = {
@@ -491,8 +538,16 @@ async function generateDiagnosticQuestionsBatch(
       `\n\nReturn EXACTLY ${questionsPerModule} questions. Every question MUST use moduleId "${mod.moduleId}" exactly. JSON only.`;
 
     const { data, usage } = await callGeminiJson(apiKey, system, modulePrompt, schema, retrySuffix);
-    for (const q of data.questions) {
-      allQuestions.push({ ...q, moduleId: mod.moduleId });
+    const finalized = data.questions
+      .slice(0, questionsPerModule)
+      .map((q, index) => finalizeDiagnosticQuestion(q, mod.moduleId, index));
+    if (finalized.length < questionsPerModule) {
+      throw new Error(
+        `Generated ${finalized.length}/${questionsPerModule} questions for "${mod.name ?? mod.moduleId}". Try again.`,
+      );
+    }
+    for (const q of finalized) {
+      allQuestions.push(q);
     }
     inputTokens += usage.inputTokens;
     outputTokens += usage.outputTokens;
@@ -572,7 +627,7 @@ Deno.serve(async (req) => {
       if (quotaErr) return quotaErr;
 
       const result = await generateDiagnosticQuestionsBatch(apiKey, payload as Record<string, unknown>);
-      return jsonResponse(result);
+      return jsonResponse({ data: result.data, usage: result.usage });
     }
 
     const system = buildSystem(action);
@@ -585,7 +640,14 @@ Deno.serve(async (req) => {
     const { data, usage } = await callGeminiJson(apiKey, system, userPrompt, schemaForAction(action));
     return jsonResponse({ data, usage });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "AI request failed";
+    let message = "AI request failed";
+    if (err instanceof z.ZodError) {
+      const issue = err.issues[0];
+      const path = issue?.path?.length ? issue.path.join(".") : "response";
+      message = `AI returned an invalid format (${path}). Try again.`;
+    } else if (err instanceof Error) {
+      message = err.message;
+    }
     return errorResponse(message, 400);
   }
 });

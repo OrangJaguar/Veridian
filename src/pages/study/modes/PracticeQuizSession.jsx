@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
+import VeridianLoading from '@/components/shared/VeridianLoading';
 import QuizSetupModal from '@/components/study/quiz/QuizSetupModal';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
 import QuizSummary from '@/components/study/quiz/QuizSummary';
@@ -19,9 +20,9 @@ import { useUpdateActivity } from '@/hooks/mutations/useActivityMutations';
 import { useJourney } from '@/hooks/queries/useJourneys';
 import { useSessions } from '@/hooks/queries/useSessions';
 
-function initialPhase(session, initialConfig) {
+function initialPhase(session) {
   if (session.status === 'completed' && session.sessionData?.answers?.length) return 'summary';
-  if (initialConfig) return 'active';
+  if (session.sessionData?.questions?.length) return 'active';
   return 'setup';
 }
 
@@ -29,11 +30,14 @@ export default function PracticeQuizSession({ session, activity, module, journey
   const initialConfig = session.sessionData?.quizConfig;
   const { data: journey } = useJourney(journeyId);
   const { data: sessions = [] } = useSessions(journeyId);
+  const autoStartedRef = useRef(false);
 
-  const [phase, setPhase] = useState(() => initialPhase(session, initialConfig));
+  const [phase, setPhase] = useState(() => initialPhase(session));
   const [questions, setQuestions] = useState(() => session.sessionData?.questions ?? []);
   const [config, setConfig] = useState(initialConfig ?? activity.content?.lastConfig ?? {});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(
+    () => !!initialConfig?.questionCount && !session.sessionData?.questions?.length,
+  );
   const [refresherContent, setRefresherContent] = useState(null);
   const [summaryData, setSummaryData] = useState(() => (
     session.status === 'completed' && session.sessionData?.answers
@@ -55,7 +59,7 @@ export default function PracticeQuizSession({ session, activity, module, journey
     abandonSession({ sessionId: session.sessionId, journeyId, returnPath: '/home' });
   };
 
-  const handleStart = async (setupConfig) => {
+  const handleStart = useCallback(async (setupConfig) => {
     setLoading(true);
     try {
       const { avoidQuestionIds, avoidStemPreviews, seen } = buildQuizAvoidList(
@@ -108,10 +112,35 @@ export default function PracticeQuizSession({ session, activity, module, journey
       });
     } catch (err) {
       toast.error(err.message || 'Failed to generate questions');
+      setPhase('setup');
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    activity,
+    concepts,
+    journey?.subject,
+    journey?.title,
+    module?.description,
+    module?.moduleId,
+    module?.name,
+    module?.stage,
+    sessions,
+    session.sessionId,
+    updateSession,
+    weakConceptIds,
+    journeyId,
+  ]);
+
+  useEffect(() => {
+    const pendingConfig = session.sessionData?.quizConfig;
+    if (!pendingConfig?.questionCount) return;
+    if (session.sessionData?.questions?.length) return;
+    if (autoStartedRef.current) return;
+
+    autoStartedRef.current = true;
+    handleStart(pendingConfig);
+  }, [session.sessionId, session.sessionData?.quizConfig, session.sessionData?.questions?.length, handleStart]);
 
   const handleIntervention = async (conceptId) => {
     const concept = concepts.find((c) => c.id === conceptId);
@@ -188,6 +217,15 @@ export default function PracticeQuizSession({ session, activity, module, journey
     );
   }
 
+  if (loading && !questions.length) {
+    return (
+      <div className="study-mode-view guide-mode-view guide-mode-view--loading">
+        <VeridianLoading fullPage />
+        <p className="guide-generating-label">Generating your quiz…</p>
+      </div>
+    );
+  }
+
   return (
     <>
       <QuizSetupModal
@@ -197,7 +235,7 @@ export default function PracticeQuizSession({ session, activity, module, journey
         onStart={handleStart}
         loading={loading}
       />
-      {phase === 'active' && (
+      {phase === 'active' && questions.length > 0 && (
         <QuizRunner
           questions={questions}
           config={config}

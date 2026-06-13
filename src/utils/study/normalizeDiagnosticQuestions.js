@@ -1,9 +1,16 @@
 /**
  * Normalize AI diagnostic output — force correct moduleId tags and ids.
  */
+function extractQuestionList(rawQuestions) {
+  if (Array.isArray(rawQuestions)) return rawQuestions;
+  if (Array.isArray(rawQuestions?.questions)) return rawQuestions.questions;
+  if (Array.isArray(rawQuestions?.data?.questions)) return rawQuestions.data.questions;
+  return [];
+}
+
 export function normalizeDiagnosticQuestions(rawQuestions, modules, perModule = 3) {
-  const list = rawQuestions?.questions ?? rawQuestions;
-  if (!Array.isArray(list)) return [];
+  const list = extractQuestionList(rawQuestions);
+  if (!list.length) return [];
 
   const moduleById = Object.fromEntries(modules.map((m) => [m.moduleId, m]));
   const moduleByName = Object.fromEntries(

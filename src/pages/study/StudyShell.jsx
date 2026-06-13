@@ -30,7 +30,7 @@ export default function StudyShell() {
 
   useEffect(() => {
     if (session && activity) hydrate({ session, activity });
-  }, [session, activity, hydrate]);
+  }, [session, activity?.activityId, hydrate]);
 
   if (sessionPending && !session) {
     return (
