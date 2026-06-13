@@ -1,4 +1,4 @@
-import { createClientFromRequest } from "npm:@base44/sdk";
+import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 import { GoogleGenerativeAI } from "npm:@google/generative-ai";
 import { z } from "npm:zod";
 
@@ -54,7 +54,6 @@ const regeneratePayloadSchema = z.object({
 const requestSchema = z.object({
   action: z.enum(["proposeJourney", "regenerateModules"]),
   payload: z.record(z.unknown()),
-  devBypassQuota: z.boolean().optional(),
 });
 
 function utcDateKey() {
@@ -89,10 +88,7 @@ async function checkAndIncrementQuota(
   userEmail: string,
   action: "proposeJourney" | "regenerateModules",
   estimatedInputTokens: number,
-  devBypassQuota: boolean,
 ) {
-  if (devBypassQuota) return null;
-
   const quota = await getOrCreateQuota(base44, userEmail);
   const now = Date.now();
 
@@ -257,6 +253,10 @@ async function callGemini(
 }
 
 Deno.serve(async (req) => {
+  if (req.method !== "POST") {
+    return errorResponse("Method not allowed.", 405);
+  }
+
   try {
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) {
@@ -265,12 +265,12 @@ Deno.serve(async (req) => {
 
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
-    if (!user?.email) {
+    if (!user) {
       return errorResponse("Authentication required.", 401);
     }
 
     const body = requestSchema.parse(await req.json());
-    const { action, payload, devBypassQuota = false } = body;
+    const { action, payload } = body;
 
     let system = PROPOSE_SYSTEM;
     let userPrompt = "";
@@ -303,7 +303,6 @@ Deno.serve(async (req) => {
       user.email,
       action,
       estInput,
-      devBypassQuota,
     );
     if (quotaErr) return quotaErr;
 

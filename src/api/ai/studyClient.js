@@ -27,7 +27,7 @@ function normalizeInvokeError(err) {
 }
 
 export async function invokeGeminiStudy(action, payload, options = {}) {
-  const { signal, devBypassQuota = false } = options;
+  const { signal } = options;
 
   const user = await base44.auth.me();
   if (!user?.email) {
@@ -39,7 +39,6 @@ export async function invokeGeminiStudy(action, payload, options = {}) {
     invokePromise = base44.functions.invoke('geminiStudy', {
       action,
       payload,
-      devBypassQuota: import.meta.env.DEV && devBypassQuota,
     });
   } catch (err) {
     throw normalizeInvokeError(err);

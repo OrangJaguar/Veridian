@@ -54,22 +54,21 @@ const regeneratePayloadSchema = z.object({
 const requestSchema = z.object({
   action: z.enum(["proposeJourney", "regenerateModules"]),
   payload: z.record(z.unknown()),
-  devBypassQuota: z.boolean().optional(),
 });
 
 function utcDateKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function jsonResponse(body, status = 200) {
+function jsonResponse(body: unknown, status = 200) {
   return Response.json(body, { status });
 }
 
-function errorResponse(message, status = 400) {
+function errorResponse(message: string, status = 400) {
   return jsonResponse({ error: { message, status } }, status);
 }
 
-async function getOrCreateQuota(base44, userEmail) {
+async function getOrCreateQuota(base44: ReturnType<typeof createClientFromRequest>, userEmail: string) {
   const dateKey = utcDateKey();
   const rows = await base44.entities.UserAiQuota.filter({ userEmail, dateKey });
   if (rows[0]) return rows[0];
@@ -84,9 +83,12 @@ async function getOrCreateQuota(base44, userEmail) {
   });
 }
 
-async function checkAndIncrementQuota(base44, userEmail, action, estimatedInputTokens, devBypassQuota) {
-  if (devBypassQuota) return null;
-
+async function checkAndIncrementQuota(
+  base44: ReturnType<typeof createClientFromRequest>,
+  userEmail: string,
+  action: "proposeJourney" | "regenerateModules",
+  estimatedInputTokens: number,
+) {
   const quota = await getOrCreateQuota(base44, userEmail);
   const now = Date.now();
 
@@ -121,7 +123,7 @@ async function checkAndIncrementQuota(base44, userEmail, action, estimatedInputT
   return null;
 }
 
-function estimateTokens(text) {
+function estimateTokens(text: string) {
   return Math.ceil(text.length / 4);
 }
 
@@ -138,13 +140,13 @@ Rules:
 
 const REGENERATE_SYSTEM = `Reorganize modules from existing concepts only. Do not add concepts. Output ONLY valid JSON. Max 8 modules. Same schema as proposeJourney.`;
 
-function clipString(value, max) {
+function clipString(value: unknown, max: number) {
   const text = String(value ?? "").trim();
   if (!text) return "";
   return text.length > max ? text.slice(0, max).trim() : text;
 }
 
-function extractJsonText(raw) {
+function extractJsonText(raw: string) {
   const trimmed = String(raw ?? "").trim();
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenced) return fenced[1].trim();
@@ -156,10 +158,18 @@ function extractJsonText(raw) {
   return trimmed;
 }
 
-function normalizeProposal(raw) {
+function normalizeProposal(raw: unknown) {
   if (!raw || typeof raw !== "object") return raw;
 
-  const obj = raw;
+  const obj = raw as {
+    journeySummary?: unknown;
+    modules?: Array<{
+      name?: unknown;
+      description?: unknown;
+      concepts?: Array<{ id?: unknown; term?: unknown; definition?: unknown }>;
+    }>;
+  };
+
   const modules = Array.isArray(obj.modules) ? obj.modules : [];
 
   return {
@@ -187,7 +197,7 @@ function normalizeProposal(raw) {
   };
 }
 
-function formatValidationError(err) {
+function formatValidationError(err: unknown) {
   if (err instanceof z.ZodError) {
     const details = err.issues
       .map((issue) => `${issue.path.join(".") || "root"}: ${issue.message}`)
@@ -200,7 +210,12 @@ function formatValidationError(err) {
   return err instanceof Error ? err.message : "AI response validation failed";
 }
 
-async function callGemini(apiKey, system, userPrompt, retrySuffix = "") {
+async function callGemini(
+  apiKey: string,
+  system: string,
+  user: string,
+  retrySuffix = "",
+) {
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({
     model: MODEL,
@@ -212,8 +227,8 @@ async function callGemini(apiKey, system, userPrompt, retrySuffix = "") {
     },
   });
 
-  const attempts = retrySuffix ? [userPrompt, userPrompt + retrySuffix] : [userPrompt];
-  let lastError = null;
+  const attempts = retrySuffix ? [user, user + retrySuffix] : [user];
+  let lastError: Error | null = null;
 
   for (const prompt of attempts) {
     try {
@@ -238,6 +253,10 @@ async function callGemini(apiKey, system, userPrompt, retrySuffix = "") {
 }
 
 Deno.serve(async (req) => {
+  if (req.method !== "POST") {
+    return errorResponse("Method not allowed.", 405);
+  }
+
   try {
     const apiKey = Deno.env.get("GEMINI_API_KEY");
     if (!apiKey) {
@@ -246,12 +265,12 @@ Deno.serve(async (req) => {
 
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
-    if (!user?.email) {
+    if (!user) {
       return errorResponse("Authentication required.", 401);
     }
 
     const body = requestSchema.parse(await req.json());
-    const { action, payload, devBypassQuota = false } = body;
+    const { action, payload } = body;
 
     let system = PROPOSE_SYSTEM;
     let userPrompt = "";
@@ -284,7 +303,6 @@ Deno.serve(async (req) => {
       user.email,
       action,
       estInput,
-      devBypassQuota,
     );
     if (quotaErr) return quotaErr;
 

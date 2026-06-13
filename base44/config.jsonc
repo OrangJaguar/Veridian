@@ -1,6 +1,6 @@
 {
   "name": "Veridian",
-  "functionsDir": "../functions",
+  "functionsDir": "./functions",
   "entitiesDir": "./entities",
   "site": {
     "installCommand": "npm install",
