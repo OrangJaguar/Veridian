@@ -1,4 +1,4 @@
-import { BookOpen } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { NAV_ITEMS } from '@/components/app-shell/nav-items';
 import SidebarNavLink from '@/components/app-shell/SidebarNavLink';
 
@@ -15,7 +15,7 @@ export default function AppSidebarMobile() {
           className="app-sidebar-mobile-link"
         />
       ))}
-      <SidebarNavLink to="/app" label="Study App" icon={BookOpen} className="app-sidebar-mobile-link" />
+      <SidebarNavLink to="/settings" label="Settings" icon={Settings} className="app-sidebar-mobile-link" />
     </nav>
   );
 }

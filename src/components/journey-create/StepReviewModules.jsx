@@ -124,7 +124,7 @@ export default function StepReviewModules({ onBack }) {
           onClick={handleConfirm}
           disabled={confirmMutation.isPending || regenerating}
         >
-          {confirmMutation.isPending ? 'Creating…' : 'Looks good, start studying'}
+          {confirmMutation.isPending ? 'Creating…' : 'Looks good — continue'}
         </button>
       </div>
     </div>

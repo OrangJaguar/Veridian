@@ -56,9 +56,6 @@ export default function LandingPage() {
                   </>
                 )}
               </div>
-              <Link to="/app" className="landing-guest-link">
-                Continue without an account →
-              </Link>
             </div>
             <LandingHeroScene />
           </div>
@@ -166,18 +163,17 @@ export default function LandingPage() {
             <p className="landing-eyebrow">Roadmap</p>
             <h2 className="landing-section-title">Built in the open — here is what is next</h2>
             <p className="landing-section-lead">
-              Veridian is actively in development. The study app works today; the full Journey platform is coming in phases — all toward one goal: you walking into the exam knowing you did the right work.
+              Veridian is actively shipping toward v1. The core study loop works today — journey creation, diagnostics, and live AI study sessions. Next up: library, profile, settings, and journey-wide review.
             </p>
             <LandingRoadmapTimeline />
           </div>
         </section>
 
         <section className="landing-section landing-closing">
-          <div className="landing-closing-bg" aria-hidden="true" />
           <div className="landing-section-inner landing-section-inner-center">
             <h2 className="landing-section-title">Stop planning. Start studying.</h2>
             <p className="landing-section-lead">
-              Create a free account to save Journeys across devices, explore the Community Library, or jump into the study app as a guest right now.
+              Create a free account to save journeys across devices and follow a real study plan from day one.
             </p>
             <div className="landing-cta-row">
               {!isLoading && user ? (
@@ -186,7 +182,6 @@ export default function LandingPage() {
                 <Link to="/signup" className="btn btn-primary">Get Started — it&apos;s free</Link>
               )}
               <Link to="/library" className="btn">Browse Library</Link>
-              <Link to="/app" className="btn">Try as guest</Link>
             </div>
           </div>
         </section>

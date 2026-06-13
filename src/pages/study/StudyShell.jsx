@@ -11,7 +11,6 @@ import FlashcardSession from '@/pages/study/modes/FlashcardSession';
 import LearningGuideSession from '@/pages/study/modes/LearningGuideSession';
 import FeynmanSession from '@/pages/study/modes/FeynmanSession';
 import FreeRecallSession from '@/pages/study/modes/FreeRecallSession';
-import SynthesisSession from '@/pages/study/modes/SynthesisSession';
 import InterleavedSession from '@/pages/study/modes/InterleavedSession';
 import JourneyChallengeSession from '@/pages/study/modes/JourneyChallengeSession';
 import CramSession from '@/pages/study/modes/CramSession';
@@ -79,8 +78,6 @@ export default function StudyShell() {
       return <FeynmanSession {...props} />;
     case 'freeRecall':
       return <FreeRecallSession {...props} />;
-    case 'synthesis':
-      return <SynthesisSession {...props} modules={modules} />;
     case 'interleavedReview':
       return <InterleavedSession {...props} modules={modules} />;
     case 'journeyChallenge':

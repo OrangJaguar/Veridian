@@ -8,7 +8,6 @@ const ACTION_VERBS = {
   learningGuide: 'Continue',
   feynman: 'Start',
   freeRecall: 'Start',
-  synthesis: 'Start',
   interleavedReview: 'Start',
   journeyChallenge: 'Start',
 };

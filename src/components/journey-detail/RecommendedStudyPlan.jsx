@@ -29,7 +29,7 @@ function buildOverallPlanParagraphs(journey, modules, plan) {
     'Stage B (Practice): Aim for one practice quiz every 2–3 days per module, plus daily flashcard reviews when cards are due. This is where most exam readiness is built.',
   );
   paragraphs.push(
-    'Stage C (Mastery): Introduce Feynman, Free Recall, and Synthesis once a module is above ~70% mastery — these deepen understanding, not replace practice.',
+    'Stage C (Mastery): Introduce Feynman and Free Recall once a module is above ~70% mastery — these deepen understanding, not replace practice.',
   );
 
   if (stageBCount >= 2) {

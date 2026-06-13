@@ -9,11 +9,14 @@ import LibraryPreviewStubPage from '@/pages/stubs/LibraryPreviewStubPage';
 import HomePage from '@/pages/home/HomePage';
 import JourneysPage from '@/pages/journeys/JourneysPage';
 import CreateJourneyPage from '@/pages/journeys/CreateJourneyPage';
+import DiagnosticPage from '@/pages/journeys/DiagnosticPage';
 import JourneyDetailPage from '@/pages/journeys/JourneyDetailPage';
 import ModuleDetailPage from '@/pages/journeys/ModuleDetailPage';
+import CreateDeckPage from '@/pages/decks/CreateDeckPage';
+import EditDeckPage from '@/pages/decks/EditDeckPage';
 import StudyShell from '@/pages/study/StudyShell';
 import ProfileStubPage from '@/pages/stubs/ProfileStubPage';
-import LegacyAppPage from '@/pages/legacy/LegacyAppPage';
+import SettingsStubPage from '@/pages/stubs/SettingsStubPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
 export default function App() {
@@ -29,15 +32,17 @@ export default function App() {
         <Route path="/home" element={<HomePage />} />
         <Route path="/journeys" element={<JourneysPage />} />
         <Route path="/journeys/new" element={<CreateJourneyPage />} />
+        <Route path="/journeys/:id/diagnostic" element={<DiagnosticPage />} />
         <Route path="/journeys/:id" element={<JourneyDetailPage />} />
+        <Route path="/journeys/:id/modules/:moduleId/decks/new" element={<CreateDeckPage />} />
+        <Route path="/journeys/:id/modules/:moduleId/decks/:activityId/edit" element={<EditDeckPage />} />
         <Route path="/journeys/:id/modules/:moduleId" element={<ModuleDetailPage />} />
         <Route path="/study/:sessionId" element={<StudyShell />} />
         <Route path="/profile" element={<ProfileStubPage />} />
+        <Route path="/settings" element={<SettingsStubPage />} />
         <Route path="/library" element={<LibraryStubPage />} />
         <Route path="/library/:journeyId" element={<LibraryPreviewStubPage />} />
       </Route>
-
-      <Route path="/app" element={<LegacyAppPage />} />
 
       <Route element={<MarketingLayout />}>
         <Route path="*" element={<NotFoundPage />} />

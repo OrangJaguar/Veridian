@@ -1,8 +1,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { useJourneys } from '@/hooks/queries/useJourneys';
 import { useDueToday } from '@/hooks/queries/useDueToday';
-import { useEnsureStarterJourney } from '@/hooks/useEnsureStarterJourney';
-import { useSyncStarterLearningGuide } from '@/hooks/useSyncStarterLearningGuide';
+import { useRemoveStarterJourney } from '@/hooks/useRemoveStarterJourney';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
 import VeridianLoading from '@/components/shared/VeridianLoading';
 import HomeWelcomeHeader from '@/components/home/HomeWelcomeHeader';
@@ -14,8 +13,7 @@ export default function HomePage() {
   const { isAuthenticated } = useAuth();
   const { data: journeys = [], isPending: journeysPending } = useJourneys({ archived: false });
   const { data: dueItems = [], isPending: duePending } = useDueToday();
-  const { provisioning, error: provisionError } = useEnsureStarterJourney();
-  useSyncStarterLearningGuide();
+  useRemoveStarterJourney();
 
   if (!isAuthenticated) {
     return (
@@ -27,18 +25,6 @@ export default function HomePage() {
         <LoginPrompt action="save your progress and sync across devices" />
       </div>
     );
-  }
-
-  if (provisionError) {
-    return (
-      <div className="home-page">
-        <p className="journeys-status">Could not load your starter journey. Please refresh.</p>
-      </div>
-    );
-  }
-
-  if (provisioning) {
-    return <VeridianLoading fullPage label="Setting up your first journey" />;
   }
 
   if (journeysPending && journeys.length === 0) {

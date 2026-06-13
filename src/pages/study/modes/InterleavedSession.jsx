@@ -4,34 +4,42 @@ import StudyChrome from '@/components/study/StudyChrome';
 import QuizSetupForm from '@/components/study/quiz/QuizSetupForm';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
 import SessionSummary from '@/components/study/SessionSummary';
-// import { generateInterleavedQuestions } from '@/api/ai/study';
-import { pickQuestions } from '@/fixtures/starterJourney/aiJourneyContent';
+import { generateInterleavedQuestions } from '@/api/ai/study';
+import { normalizeQuizQuestions } from '@/utils/study/normalizeQuizQuestions';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
+import { useJourney } from '@/hooks/queries/useJourneys';
 
 export default function InterleavedSession({ session, activity, journeyId, modules = [] }) {
-  const preloaded = activity.content?.questions ?? [];
+  const { data: journey } = useJourney(journeyId);
   const [phase, setPhase] = useState('setup');
   const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [selectedModuleIds, setSelectedModuleIds] = useState(modules.map((m) => m.moduleId));
   const { completeSessionInBackground } = useCompleteSession();
   const abandonSession = useAbandonSession();
   const returnPath = `/journeys/${journeyId}`;
 
   const handleStart = async (config) => {
+    setLoading(true);
     try {
-      if (preloaded.length > 0) {
-        setQuestions(pickQuestions(preloaded, config.questionCount));
-      } else {
-        toast.error('No interleaved questions available yet.');
-        return;
-      }
-      // AI generation (disabled):
-      // const result = await generateInterleavedQuestions({ moduleMaps, questionCount: config.questionCount });
-      // setQuestions(result.data?.questions ?? []);
+      const selected = modules.filter((m) => selectedModuleIds.includes(m.moduleId));
+      const raw = await generateInterleavedQuestions({
+        journeyTitle: journey?.title,
+        subject: journey?.subject,
+        questionCount: config.questionCount,
+        moduleMaps: selected.map((m) => ({
+          moduleId: m.moduleId,
+          name: m.name,
+          concepts: m.knowledgeMap?.concepts ?? [],
+        })),
+      });
+      setQuestions(normalizeQuizQuestions(raw, config.questionCount));
       setPhase('active');
     } catch (err) {
       toast.error(err.message || 'Failed to load questions');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -81,7 +89,7 @@ export default function InterleavedSession({ session, activity, journeyId, modul
               </label>
             ))}
           </fieldset>
-          <QuizSetupForm onStart={handleStart} />
+          <QuizSetupForm onStart={handleStart} loading={loading} />
         </>
       )}
       {phase === 'active' && <QuizRunner questions={questions} onComplete={handleComplete} />}

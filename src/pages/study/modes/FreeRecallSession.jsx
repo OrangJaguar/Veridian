@@ -1,106 +1,151 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import StudyChrome from '@/components/study/StudyChrome';
-import SessionSummary from '@/components/study/SessionSummary';
-import OpenResponseEditor from '@/components/study/shared/OpenResponseEditor';
-// import { gradeFreeRecall } from '@/api/ai/study';
-import { mockGradeFreeRecall } from '@/fixtures/study/mockGrading';
+import VeridianLoading from '@/components/shared/VeridianLoading';
+import FreeRecallEditor from '@/components/study/free-recall/FreeRecallEditor';
+import FreeRecallSummary from '@/components/study/free-recall/FreeRecallSummary';
+import { generateFreeRecallHint, gradeFreeRecall } from '@/api/ai/study';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
-
-const HINTS = [
-  (mod) => `Section: ${mod?.name ?? 'Module overview'}`,
-  (mod) => {
-    const term = mod?.knowledgeMap?.concepts?.[0]?.term;
-    return term ? `Key term: ${term}` : 'Think about core vocabulary';
-  },
-  () => 'Focus on relationships between the main ideas.',
-];
+import { useJourney } from '@/hooks/queries/useJourneys';
 
 export default function FreeRecallSession({ session, activity, module, journeyId }) {
+  const { data: journey } = useJourney(journeyId);
   const [response, setResponse] = useState('');
-  const [hintsUsed, setHintsUsed] = useState(0);
-  const [hintTiers, setHintTiers] = useState([]);
+  const [hints, setHints] = useState([]);
+  const [hintModalOpen, setHintModalOpen] = useState(false);
+  const [hintLoading, setHintLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [phase, setPhase] = useState('active');
   const [result, setResult] = useState(null);
-  const [phase, setPhase] = useState('recall');
+  const [summaryMeta, setSummaryMeta] = useState(null);
+
   const { completeSessionInBackground } = useCompleteSession();
   const abandonSession = useAbandonSession();
   const returnPath = `/journeys/${journeyId}/modules/${module?.moduleId}`;
+  const moduleName = module?.name ?? 'this module';
 
-  const revealHint = () => {
-    if (hintsUsed >= HINTS.length) return;
-    setHintsUsed(hintsUsed + 1);
-    setHintTiers([...hintTiers, hintsUsed + 1]);
+  const handleExit = () => {
+    abandonSession({ sessionId: session.sessionId, journeyId, returnPath });
   };
 
-  const submit = async () => {
+  const handleGenerateHint = async () => {
+    if (hints.length >= 3 || hintLoading) return;
+    setHintLoading(true);
     try {
-      // AI grading (disabled until geminiStudy is deployed):
-      // const graded = await gradeFreeRecall({ recallPrompt, studentResponse: response, hintsUsed, knowledgeMap });
-      const data = mockGradeFreeRecall({ studentResponse: response, hintsUsed });
-      setResult(data);
-      setPhase('result');
+      const tier = hints.length + 1;
+      const data = await generateFreeRecallHint({
+        tier,
+        moduleName,
+        moduleDescription: module?.description,
+        knowledgeMap: module?.knowledgeMap,
+        studentResponseSoFar: response,
+        previousHints: hints.map((h) => h.text),
+      });
+      const text = String(data?.hint ?? '').trim();
+      if (!text) throw new Error('Empty hint from AI');
+      setHints((prev) => [...prev, { tier, text }]);
     } catch (err) {
-      toast.error(err.message || 'Grading failed');
+      toast.error(err.message || 'Failed to generate hint');
+    } finally {
+      setHintLoading(false);
     }
   };
 
-  const finish = async () => {
-    const sessionData = {
-      recallPrompt: module?.name ?? '',
-      rawStudentResponse: response,
-      wasVoiceInput: false,
-      hintsUsed,
-      hintTiersRevealed: hintTiers,
-      coveragePercent: result?.coveragePercent ?? 0,
-      conceptsCovered: result?.conceptsCovered ?? [],
-      conceptsMissed: result?.conceptsMissed ?? [],
-      incorrectIdeas: result?.incorrectIdeas ?? [],
-      aiGradingSummary: result?.aiGradingSummary ?? '',
-      nextConceptRecommendation: result?.nextConceptRecommendation ?? '',
-    };
-    setPhase('summary');
-    completeSessionInBackground({
-      sessionId: session.sessionId,
-      journeyId,
-      activityId: activity.activityId,
-      activity,
-      sessionData,
-      score: result?.coveragePercent ?? 0,
-      outcomeSummary: { nextAction: result?.nextConceptRecommendation },
-      startedAt: session.startedAt,
-    });
+  const handleSubmit = async ({ elapsedSec, wasVoice }) => {
+    setSubmitting(true);
+    try {
+      const graded = await gradeFreeRecall({
+        recallPrompt: moduleName,
+        moduleName,
+        moduleDescription: module?.description,
+        studentResponse: response,
+        hintsUsed: hints.length,
+        hints: hints.map((h) => h.text),
+        knowledgeMap: module?.knowledgeMap,
+      });
+
+      const sessionData = {
+        recallPrompt: moduleName,
+        rawStudentResponse: response,
+        wasVoiceInput: wasVoice,
+        durationSec: elapsedSec,
+        characterCount: response.length,
+        hintsUsed: hints.length,
+        hints,
+        coveragePercent: graded?.coveragePercent ?? 0,
+        coverageEstimate: graded?.coverageEstimate ?? '',
+        missedIdeas: graded?.missedIdeas ?? graded?.conceptsMissed ?? [],
+        incorrectIdeas: graded?.incorrectIdeas ?? [],
+        hintsUsedNote: graded?.hintsUsedNote ?? '',
+        aiGradingSummary: graded?.feedback ?? graded?.aiGradingSummary ?? '',
+        nextConceptRecommendation: graded?.nextConceptToRevisit ?? graded?.nextConceptRecommendation ?? '',
+      };
+
+      setResult(graded);
+      setSummaryMeta({
+        elapsedSec,
+        wasVoice,
+        characterCount: response.length,
+        hintsUsed: hints.length,
+      });
+      setPhase('summary');
+
+      completeSessionInBackground({
+        sessionId: session.sessionId,
+        journeyId,
+        activityId: activity.activityId,
+        activity,
+        sessionData,
+        score: graded?.coveragePercent ?? 0,
+        outcomeSummary: {
+          nextAction: graded?.nextConceptToRevisit ?? graded?.nextConceptRecommendation,
+        },
+        startedAt: session.startedAt,
+      });
+    } catch (err) {
+      toast.error(err.message || 'Grading failed');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  if (phase === 'summary') {
-    return <SessionSummary title="Free Recall complete" stats={[{ label: 'Coverage', value: `${result?.coveragePercent ?? 0}%` }]} returnHref={returnPath} />;
+  if (phase === 'summary' && result && summaryMeta) {
+    return (
+      <FreeRecallSummary
+        response={response}
+        characterCount={summaryMeta.characterCount}
+        totalTimeSec={summaryMeta.elapsedSec}
+        hintsUsed={summaryMeta.hintsUsed}
+        result={result}
+        moduleTitle={moduleName}
+        journeyTitle={journey?.title}
+        returnHref="/home"
+      />
+    );
+  }
+
+  if (submitting) {
+    return (
+      <div className="study-mode-view free-recall-mode-view">
+        <VeridianLoading fullPage label="Grading your recall…" />
+      </div>
+    );
   }
 
   return (
-    <StudyChrome title="Free Recall" onExit={() => abandonSession({ sessionId: session.sessionId, journeyId, returnPath })}>
-      {phase === 'recall' && (
-        <>
-          <p>Write everything you remember about <strong>{module?.name}</strong>:</p>
-          <OpenResponseEditor value={response} onChange={setResponse} placeholder="Brain dump…" />
-          <div className="study-hint-row">
-            <button type="button" className="btn btn-secondary btn-sm" disabled={hintsUsed >= HINTS.length} onClick={revealHint}>
-              Hint ({hintsUsed}/{HINTS.length})
-            </button>
-            {hintTiers.map((tier) => (
-              <p key={tier} className="study-hint-text">{HINTS[tier - 1](module)}</p>
-            ))}
-          </div>
-          <button type="button" className="btn btn-primary" disabled={!response.trim()} onClick={submit}>Submit recall</button>
-        </>
-      )}
-      {phase === 'result' && result && (
-        <>
-          <p>Coverage: <strong>{result.coveragePercent}%</strong></p>
-          <p>{result.aiGradingSummary}</p>
-          <p>Next: {result.nextConceptRecommendation}</p>
-          <button type="button" className="btn btn-primary" onClick={finish}>Finish</button>
-        </>
-      )}
-    </StudyChrome>
+    <FreeRecallEditor
+      moduleName={moduleName}
+      response={response}
+      onResponseChange={setResponse}
+      hints={hints}
+      hintLoading={hintLoading}
+      hintModalOpen={hintModalOpen}
+      onHintModalOpen={() => setHintModalOpen(true)}
+      onHintModalClose={() => setHintModalOpen(false)}
+      onGenerateHint={handleGenerateHint}
+      onSubmit={handleSubmit}
+      submitting={submitting}
+      onExit={handleExit}
+    />
   );
 }

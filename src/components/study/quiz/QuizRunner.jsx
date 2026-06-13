@@ -27,6 +27,7 @@ export default function QuizRunner({
   const strictMode = config.strictMode === true || config.strictTimedMode === true;
   const strictTimedMode = strictMode;
   const instantFeedback = !strictMode && config.instantFeedback !== false;
+  const diagnosticMode = config.diagnosticMode === true;
   const strictSecondsPerQuestion = config.strictSecondsPerQuestion ?? 60;
   const totalLimitSec = strictTimedMode
     ? questions.length * strictSecondsPerQuestion
@@ -126,8 +127,10 @@ export default function QuizRunner({
     const timeSec = (Date.now() - questionStartRef.current) / 1000;
     const correct = isCorrect(response, q);
 
-    playStudySound(correct ? 'correct' : 'wrong');
-    triggerStudyHaptic(correct ? 'correct' : 'wrong');
+    if (!diagnosticMode) {
+      playStudySound(correct ? 'correct' : 'wrong');
+      triggerStudyHaptic(correct ? 'correct' : 'wrong');
+    }
 
     const ans = {
       questionId: q.id,
@@ -145,7 +148,7 @@ export default function QuizRunner({
     });
     setSelected(response);
 
-    if (!correct && q.conceptId) {
+    if (!correct && q.conceptId && !diagnosticMode) {
       const misses = (consecutiveMisses[q.conceptId] ?? 0) + 1;
       setConsecutiveMisses({ ...consecutiveMisses, [q.conceptId]: misses });
       if (misses >= 3 && onIntervention) {
@@ -156,7 +159,7 @@ export default function QuizRunner({
     }
 
     setAnswered(true);
-  }, [q, index, isCorrect, consecutiveMisses, onIntervention]);
+  }, [q, index, isCorrect, consecutiveMisses, onIntervention, diagnosticMode]);
 
   const handleSelect = (option) => {
     if (answered || paused) return;

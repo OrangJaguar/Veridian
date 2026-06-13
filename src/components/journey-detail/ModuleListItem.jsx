@@ -52,6 +52,23 @@ function DrawerActivityRow({ activity, journeyId, moduleId, cardsByActivity }) {
         >
           {actionLabel}
         </PracticeQuizStartButton>
+      ) : activity.type === 'flashcardSet' ? (
+        <div className="journey-module-drawer-actions">
+          <Link
+            to={`/journeys/${journeyId}/modules/${moduleId}/decks/${activity.activityId}/edit`}
+            className="btn btn-secondary btn-sm"
+          >
+            Edit
+          </Link>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            disabled={activity.status === 'generating'}
+            onClick={handleLaunch}
+          >
+            {actionLabel}
+          </button>
+        </div>
       ) : (
         <button
           type="button"

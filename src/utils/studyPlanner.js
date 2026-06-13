@@ -11,7 +11,6 @@ const ACTIVITY_LABELS = {
   flashcardSet: 'Flashcard Review',
   feynman: 'Feynman Technique',
   freeRecall: 'Free Recall',
-  synthesis: 'Synthesis',
   interleavedReview: 'Interleaved Review',
   journeyChallenge: 'Journey Challenge',
 };
@@ -22,7 +21,6 @@ const ESTIMATED_MIN = {
   flashcardSet: 10,
   feynman: 15,
   freeRecall: 12,
-  synthesis: 15,
   interleavedReview: 20,
   journeyChallenge: 25,
 };
@@ -245,7 +243,7 @@ export function generateStudyPlan(journey, modules, activities, sessions, cards)
 
   // 6. Ready for Stage C
   for (const mod of modules.filter((m) => m.stage === 'B' && (m.masteryScore ?? 0) > 70)) {
-    for (const type of ['feynman', 'freeRecall', 'synthesis']) {
+    for (const type of ['feynman', 'freeRecall']) {
       const act = findActivity(journeyActivities, mod.moduleId, type);
       if (act) {
         addCandidate(buildItem({

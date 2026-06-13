@@ -189,11 +189,15 @@ export function LandingSRDiagram() {
 }
 
 const ROADMAP = [
-  { phase: '3', title: 'App Home', desc: 'Due Today feed & Journey grid', status: 'next' },
-  { phase: '4', title: 'AI Journey Builder', desc: 'Notes → full structured Journey', status: 'planned' },
-  { phase: '5', title: 'Diagnostic Mode', desc: 'Find weak spots before the exam', status: 'planned' },
-  { phase: '6', title: 'Study Sessions', desc: 'Quiz, cards, typing in React', status: 'planned' },
-  { phase: '8', title: 'Community Library', desc: 'Browse & clone shared Journeys', status: 'planned' },
+  { phase: '✓', title: 'App Home', desc: 'Due Today feed & journey dashboard', status: 'done' },
+  { phase: '✓', title: 'AI Journey Builder', desc: 'Notes → structured journey with modules', status: 'done' },
+  { phase: '✓', title: 'Diagnostic Assessment', desc: 'Placement into Stage A or B per module', status: 'done' },
+  { phase: '✓', title: 'Study Sessions', desc: 'Guides, quizzes, flashcards, Feynman & Free Recall', status: 'done' },
+  { phase: '→', title: 'Community Library', desc: 'Browse & clone shared journeys', status: 'next' },
+  { phase: '→', title: 'Learner Profile', desc: 'Progress, history & knowledge trends', status: 'next' },
+  { phase: '→', title: 'Settings', desc: 'Account preferences & app customization', status: 'next' },
+  { phase: '—', title: 'Journey-wide Activities', desc: 'Interleaved review & journey challenges', status: 'planned' },
+  { phase: '—', title: 'Personalization', desc: 'Smarter scheduling tuned to how you study', status: 'planned' },
 ];
 
 export function LandingRoadmapTimeline() {

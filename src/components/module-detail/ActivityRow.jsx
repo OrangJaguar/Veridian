@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useLaunchStudy } from '@/hooks/study/useLaunchStudy';
 import PracticeQuizStartButton from '@/components/study/quiz/PracticeQuizStartButton';
 import {
@@ -9,7 +10,7 @@ import {
 const STAGE_ACTIVITIES = {
   A: ['learningGuide'],
   B: ['practiceQuiz', 'flashcardSet'],
-  C: ['feynman', 'freeRecall', 'synthesis'],
+  C: ['feynman', 'freeRecall'],
 };
 
 export default function ActivityRow({ activity, cardCount = 0, journeyId, moduleId, compact = false }) {
@@ -40,6 +41,23 @@ export default function ActivityRow({ activity, cardCount = 0, journeyId, module
         >
           {actionLabel}
         </PracticeQuizStartButton>
+      ) : activity.type === 'flashcardSet' ? (
+        <div className="module-deck-card-actions">
+          <Link
+            to={`/journeys/${journeyId}/modules/${moduleId}/decks/${activity.activityId}/edit`}
+            className="btn btn-secondary btn-sm"
+          >
+            Edit
+          </Link>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            disabled={activity.status === 'generating'}
+            onClick={handleLaunch}
+          >
+            {actionLabel}
+          </button>
+        </div>
       ) : (
         <button
           type="button"

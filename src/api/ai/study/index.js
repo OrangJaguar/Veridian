@@ -17,16 +17,40 @@ export function generateFlashcards(payload, options) {
   return callStudy('generateFlashcards', payload, options);
 }
 
-export function gradeFeynman(payload, options) {
-  return callStudy('gradeFeynman', payload, options);
+export function parseQuizletImport(payload, options) {
+  return callStudy('parseQuizletImport', payload, options);
+}
+
+export function extractDeckSource(payload, options) {
+  return callStudy('extractDeckSource', payload, options);
+}
+
+export function findFlashcardDuplicates(payload, options) {
+  return callStudy('findFlashcardDuplicates', payload, options);
+}
+
+export function applyDeckAiEdit(payload, options) {
+  return callStudy('applyDeckAiEdit', payload, options);
+}
+
+export function generateDiagnosticQuestions(payload, options) {
+  return callStudy('generateDiagnosticQuestions', payload, options);
+}
+
+export function feynmanConversationTurn(payload, options) {
+  return callStudy('feynmanConversationTurn', payload, options);
+}
+
+export function feynmanSummarizeConcept(payload, options) {
+  return callStudy('feynmanSummarizeConcept', payload, options);
 }
 
 export function gradeFreeRecall(payload, options) {
   return callStudy('gradeFreeRecall', payload, options);
 }
 
-export function generateSynthesisQuestions(payload, options) {
-  return callStudy('generateSynthesisQuestions', payload, options);
+export function generateFreeRecallHint(payload, options) {
+  return callStudy('generateFreeRecallHint', payload, options);
 }
 
 export function generateInterleavedQuestions(payload, options) {

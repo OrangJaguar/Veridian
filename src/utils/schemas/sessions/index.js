@@ -58,42 +58,43 @@ export const learningGuideSessionDataSchema = z.object({
 });
 
 export const feynmanSessionDataSchema = z.object({
-  conceptPrompt: z.string(),
-  rawStudentResponse: z.string(),
-  wasVoiceInput: z.boolean(),
-  aiFeedback: z.string(),
-  missingConcepts: z.array(z.string()).optional(),
-  misconceptionsDetected: z.array(z.string()).optional(),
-  weakestPoint: z.string().optional(),
-  followUpQuestion: z.string().optional(),
-  followUpResponse: z.string().nullable().optional(),
-  overallConfidenceRating: z.enum(['strong', 'partial', 'weak']),
+  discussedConceptIds: z.array(z.string()),
+  overallScore: z.number().optional(),
+  conceptThreads: z.record(z.object({
+    messages: z.array(z.object({
+      id: z.string(),
+      role: z.enum(['ai', 'user']),
+      text: z.string().optional(),
+      type: z.string().optional(),
+      readyToComplete: z.boolean().optional(),
+    })),
+    aiTurnCount: z.number(),
+    summary: z.object({
+      confidencePercent: z.number(),
+      thoroughness: z.string(),
+      strengths: z.array(z.string()),
+      weaknesses: z.array(z.string()),
+      suggestedNextSteps: z.array(z.string()),
+    }).nullable().optional(),
+  })),
 });
 
 export const freeRecallSessionDataSchema = z.object({
   recallPrompt: z.string(),
   rawStudentResponse: z.string(),
   wasVoiceInput: z.boolean(),
+  durationSec: z.number().optional(),
+  characterCount: z.number().optional(),
   hintsUsed: z.number(),
-  hintTiersRevealed: z.array(z.number()),
+  hints: z.array(z.object({ tier: z.number(), text: z.string() })).optional(),
   coveragePercent: z.number(),
-  conceptsCovered: z.array(z.string()).optional(),
+  coverageEstimate: z.string().optional(),
+  missedIdeas: z.array(z.string()).optional(),
   conceptsMissed: z.array(z.string()).optional(),
   incorrectIdeas: z.array(z.string()).optional(),
+  hintsUsedNote: z.string().optional(),
   aiGradingSummary: z.string().optional(),
   nextConceptRecommendation: z.string().optional(),
-});
-
-export const synthesisSessionDataSchema = z.object({
-  modulesInvolved: z.array(z.string()),
-  questions: z.array(quizQuestionSchema),
-  answers: z.array(z.object({
-    questionId: z.string(),
-    response: z.union([z.string(), z.array(z.string())]),
-    correct: z.boolean(),
-  })),
-  crossModuleConfusionNotes: z.string().optional(),
-  integrationReadinessSignal: z.enum(['strong', 'partial', 'weak']).optional(),
 });
 
 export const interleavedSessionDataSchema = z.object({

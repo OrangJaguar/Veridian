@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BookOpen } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import VeridianLogo from '@/components/layout/VeridianLogo';
 import { NAV_ITEMS } from '@/components/app-shell/nav-items';
 import SidebarNavLink from '@/components/app-shell/SidebarNavLink';
@@ -18,7 +18,7 @@ export default function AppSidebar() {
         ))}
       </nav>
       <div className="app-sidebar-footer">
-        <SidebarNavLink to="/app" label="Study App" icon={BookOpen} />
+        <SidebarNavLink to="/settings" label="Settings" icon={Settings} />
       </div>
     </aside>
   );

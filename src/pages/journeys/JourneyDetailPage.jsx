@@ -10,6 +10,7 @@ import { useCardsByJourney } from '@/hooks/queries/useCards';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
 import VeridianLoading from '@/components/shared/VeridianLoading';
 import JourneyDetailHeader from '@/components/journey-detail/JourneyDetailHeader';
+import DiagnosticBanner from '@/components/diagnostic/DiagnosticBanner';
 import RecommendedStudyPlan from '@/components/journey-detail/RecommendedStudyPlan';
 import ModuleListItem from '@/components/journey-detail/ModuleListItem';
 import JourneyLevelActions from '@/components/journey-detail/JourneyLevelActions';
@@ -56,6 +57,7 @@ export default function JourneyDetailPage() {
   return (
     <div className="journey-detail-page">
       <JourneyDetailHeader journey={journey} modules={modules} />
+      <DiagnosticBanner journey={journey} journeyId={journeyId} />
 
       <section className="journey-detail-modules detail-section-box">
         <h2 className="journey-detail-section-title">Modules</h2>

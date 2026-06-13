@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
 
 export default function StubPage({
@@ -7,7 +6,7 @@ export default function StubPage({
   description,
   loginAction,
   children,
-  showStudyAppLink = true,
+  showStudyAppLink = false,
 }) {
   return (
     <div className="stub-page">
@@ -16,11 +15,6 @@ export default function StubPage({
       <p className="stub-description">{description}</p>
       {loginAction && <LoginPrompt action={loginAction} />}
       {children}
-      {showStudyAppLink && (
-        <Link to="/app" className="btn btn-primary stub-study-link">
-          Open Study App
-        </Link>
-      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 /**
- * @typedef {'learningGuide' | 'practiceQuiz' | 'flashcardSet' | 'feynman' | 'freeRecall' | 'synthesis' | 'interleavedReview' | 'journeyChallenge'} ActivityType
+ * @typedef {'learningGuide' | 'practiceQuiz' | 'flashcardSet' | 'feynman' | 'freeRecall' | 'interleavedReview' | 'journeyChallenge'} ActivityType
  */
 
 /**

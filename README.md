@@ -10,7 +10,7 @@ A study platform for students — deck library, quiz mode, flashcard learn sessi
 
 ```
 VITE_BASE44_APP_ID=your_app_id
-VITE_BASE44_APP_BASE_URL=your_backend_url
+VITE_BASE44_APP_BASE_URL=https://veridianstudy.base44.app
 ```
 
 4. `npm run dev`
@@ -31,7 +31,7 @@ Backend function [`functions/geminiJourney/entry.ts`](functions/geminiJourney/en
 
 ## App Editor vs Backend Platform (read this)
 
-Veridian was created in the **Base44 App Editor** (`useveridian.base44.app`). That is different from a **Backend Platform** project created with `base44 create`.
+Veridian was created in the **Base44 App Editor** (`veridianstudy.base44.app`, custom domain `veridian.study`). That is different from a **Backend Platform** project created with `base44 create`.
 
 | Your workflow | Works? |
 |---------------|--------|

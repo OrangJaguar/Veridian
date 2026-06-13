@@ -3,37 +3,47 @@ import { toast } from 'sonner';
 import StudyChrome from '@/components/study/StudyChrome';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
 import SessionSummary from '@/components/study/SessionSummary';
-// import { generateJourneyChallenge } from '@/api/ai/study';
-import { pickQuestions } from '@/fixtures/starterJourney/aiJourneyContent';
+import { generateJourneyChallenge } from '@/api/ai/study';
+import { normalizeQuizQuestions } from '@/utils/study/normalizeQuizQuestions';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
+import { useJourney } from '@/hooks/queries/useJourneys';
 
 const LENGTH_MAP = { short: 8, medium: 10, long: 12 };
 
 export default function JourneyChallengeSession({ session, activity, journeyId, modules = [] }) {
-  const preloaded = activity.content?.questions ?? [];
+  const { data: journey } = useJourney(journeyId);
   const [phase, setPhase] = useState('setup');
   const [questions, setQuestions] = useState([]);
   const [length, setLength] = useState('medium');
   const [weighting, setWeighting] = useState('balanced');
+  const [loading, setLoading] = useState(false);
   const { completeSessionInBackground } = useCompleteSession();
   const abandonSession = useAbandonSession();
   const returnPath = `/journeys/${journeyId}`;
 
   const start = async () => {
+    setLoading(true);
     try {
-      if (preloaded.length > 0) {
-        setQuestions(pickQuestions(preloaded, LENGTH_MAP[length]));
-      } else {
-        toast.error('No challenge questions available yet.');
-        return;
-      }
-      // AI generation (disabled):
-      // const result = await generateJourneyChallenge({ moduleMaps, questionCount: LENGTH_MAP[length], weighting });
-      // setQuestions(result.data?.questions ?? []);
+      const count = LENGTH_MAP[length];
+      const raw = await generateJourneyChallenge({
+        journeyTitle: journey?.title,
+        subject: journey?.subject,
+        questionCount: count,
+        weighting,
+        moduleMaps: modules.map((m) => ({
+          moduleId: m.moduleId,
+          name: m.name,
+          stage: m.stage,
+          concepts: m.knowledgeMap?.concepts ?? [],
+        })),
+      });
+      setQuestions(normalizeQuizQuestions(raw, count));
       setPhase('active');
     } catch (err) {
       toast.error(err.message || 'Failed to start challenge');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -86,7 +96,9 @@ export default function JourneyChallengeSession({ session, activity, journeyId, 
               <option value="weak">Bias weak areas</option>
             </select>
           </label>
-          <button type="button" className="btn btn-primary" onClick={start}>Start challenge</button>
+          <button type="button" className="btn btn-primary" disabled={loading} onClick={start}>
+            {loading ? 'Generating…' : 'Start challenge'}
+          </button>
         </>
       )}
       {phase === 'active' && <QuizRunner questions={questions} onComplete={handleComplete} />}

@@ -34,11 +34,6 @@ export async function invokeGeminiStudy(action, payload, options = {}) {
     throw new Error('Please sign in to use AI features.');
   }
 
-  if (import.meta.env.DEV && import.meta.env.VITE_MOCK_STUDY_AI === 'true') {
-    const { getMockStudyResponse } = await import('@/fixtures/study/mockStudyAi');
-    return getMockStudyResponse(action, payload);
-  }
-
   let invokePromise;
   try {
     invokePromise = base44.functions.invoke('geminiStudy', {

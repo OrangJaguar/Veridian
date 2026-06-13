@@ -3,18 +3,21 @@ import { toast } from 'sonner';
 import QuizSetupModal from '@/components/study/quiz/QuizSetupModal';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
 import QuizSummary from '@/components/study/quiz/QuizSummary';
-import { pickQuestions } from '@/fixtures/starterJourney/aiJourneyContent';
+import { generatePracticeQuestions, generateConceptRefresher } from '@/api/ai/study';
+import { focusGuidanceForPreset } from '@/api/ai/prompts/practiceQuiz';
+import { getWeakConceptIds } from '@/utils/study/conceptWeakness';
+import {
+  buildQuizAvoidList,
+  mergeQuizRegistry,
+  underrepresentedConceptIds,
+} from '@/utils/study/quizDedup';
+import { normalizeQuizQuestions } from '@/utils/study/normalizeQuizQuestions';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
+import { useUpdateSession } from '@/hooks/mutations/useSessionMutations';
+import { useUpdateActivity } from '@/hooks/mutations/useActivityMutations';
 import { useJourney } from '@/hooks/queries/useJourneys';
-
-const STATIC_REFRESHERS = {
-  supervised: { recap: 'Supervised learning maps inputs to known outputs using labeled examples.', example: 'Email → spam/not spam labels train the classifier.' },
-  loss: { recap: 'Loss measures prediction error; training minimizes it via gradient descent.', example: 'Cross-entropy penalizes confident wrong class predictions.' },
-  'gradient-descent': { recap: 'Parameters update opposite the loss gradient: θ ← θ − η∇L.', example: 'Learning rate η controls step size on the loss surface.' },
-  backprop: { recap: 'Backprop applies the chain rule to compute ∂loss/∂weight through layers.', example: 'Output error propagates backward to adjust early-layer weights.' },
-  overfitting: { recap: 'Overfitting = great training performance, poor test performance.', example: 'Add validation monitoring, regularization, or more diverse data.' },
-};
+import { useSessions } from '@/hooks/queries/useSessions';
 
 function initialPhase(session, initialConfig) {
   if (session.status === 'completed' && session.sessionData?.answers?.length) return 'summary';
@@ -23,16 +26,12 @@ function initialPhase(session, initialConfig) {
 }
 
 export default function PracticeQuizSession({ session, activity, module, journeyId }) {
-  const preloaded = activity.content?.questions ?? [];
   const initialConfig = session.sessionData?.quizConfig;
   const { data: journey } = useJourney(journeyId);
+  const { data: sessions = [] } = useSessions(journeyId);
 
   const [phase, setPhase] = useState(() => initialPhase(session, initialConfig));
-  const [questions, setQuestions] = useState(() => {
-    if (session.sessionData?.questions?.length) return session.sessionData.questions;
-    if (initialConfig && preloaded.length) return pickQuestions(preloaded, initialConfig.questionCount);
-    return [];
-  });
+  const [questions, setQuestions] = useState(() => session.sessionData?.questions ?? []);
   const [config, setConfig] = useState(initialConfig ?? activity.content?.lastConfig ?? {});
   const [loading, setLoading] = useState(false);
   const [refresherContent, setRefresherContent] = useState(null);
@@ -46,6 +45,11 @@ export default function PracticeQuizSession({ session, activity, module, journey
   ));
   const { completeSessionInBackground } = useCompleteSession();
   const abandonSession = useAbandonSession();
+  const updateSession = useUpdateSession();
+  const updateActivity = useUpdateActivity();
+
+  const concepts = module?.knowledgeMap?.concepts ?? [];
+  const weakConceptIds = getWeakConceptIds(sessions, module?.moduleId);
 
   const handleExit = () => {
     abandonSession({ sessionId: session.sessionId, journeyId, returnPath: '/home' });
@@ -54,32 +58,86 @@ export default function PracticeQuizSession({ session, activity, module, journey
   const handleStart = async (setupConfig) => {
     setLoading(true);
     try {
-      if (preloaded.length > 0) {
-        setQuestions(pickQuestions(preloaded, setupConfig.questionCount));
-      } else {
-        toast.error('No questions available for this quiz yet.');
-        return;
+      const { avoidQuestionIds, avoidStemPreviews, seen } = buildQuizAvoidList(
+        activity,
+        sessions,
+        module?.moduleId,
+      );
+
+      let focusGuidance = focusGuidanceForPreset(setupConfig.focusPreset, { weakConceptIds });
+      if (setupConfig.focusPreset === 'newMaterial') {
+        const under = underrepresentedConceptIds(concepts, seen);
+        if (under.length) {
+          focusGuidance += ` Underrepresented concepts: ${under.join(', ')}.`;
+        }
       }
+
+      const raw = await generatePracticeQuestions({
+        journeyTitle: journey?.title,
+        subject: journey?.subject,
+        moduleName: module?.name,
+        moduleDescription: module?.description,
+        moduleStage: module?.stage ?? 'B',
+        concepts,
+        questionCount: setupConfig.questionCount,
+        focusPreset: setupConfig.focusPreset,
+        focusGuidance,
+        weakConceptIds,
+        avoidQuestionIds,
+        avoidStemPreviews,
+      });
+
+      const nextQuestions = normalizeQuizQuestions(raw, setupConfig.questionCount);
+      if (nextQuestions.length < setupConfig.questionCount) {
+        throw new Error(`Expected ${setupConfig.questionCount} questions but got ${nextQuestions.length}.`);
+      }
+
+      setQuestions(nextQuestions);
       setConfig(setupConfig);
       setPhase('active');
+
+      await updateSession.mutateAsync({
+        sessionId: session.sessionId,
+        journeyId,
+        patch: {
+          sessionData: {
+            quizConfig: setupConfig,
+            questions: nextQuestions,
+          },
+        },
+      });
     } catch (err) {
-      toast.error(err.message || 'Failed to load questions');
+      toast.error(err.message || 'Failed to generate questions');
     } finally {
       setLoading(false);
     }
   };
 
   const handleIntervention = async (conceptId) => {
-    setRefresherContent(
-      STATIC_REFRESHERS[conceptId] ?? { recap: 'Review this concept in your learning guide.', example: '' },
-    );
+    const concept = concepts.find((c) => c.id === conceptId);
+    try {
+      const data = await generateConceptRefresher({
+        conceptId,
+        term: concept?.term,
+        definition: concept?.definition,
+        moduleName: module?.name,
+      });
+      setRefresherContent(data);
+    } catch {
+      setRefresherContent({
+        recap: concept
+          ? `${concept.term}: ${concept.definition}`
+          : 'Review this concept in your learning guide.',
+        example: '',
+      });
+    }
   };
 
   const handleComplete = (answers, totalTimeSec) => {
     const graded = answers.filter((a) => !a.skipped);
     const correct = graded.filter((a) => a.correct).length;
     const accuracy = graded.length ? Math.round((correct / graded.length) * 100) : 0;
-    const sessionData = { config, questions, answers, interventions: [] };
+    const sessionData = { quizConfig: config, questions, answers, interventions: [] };
 
     setSummaryData({ answers, totalTimeSec });
     setPhase('summary');
@@ -99,6 +157,22 @@ export default function PracticeQuizSession({ session, activity, module, journey
       },
       startedAt: session.startedAt,
     });
+
+    if (questions.length) {
+      const quizRegistry = mergeQuizRegistry(activity.content?.quizRegistry, questions);
+      updateActivity.mutate({
+        activityId: activity.activityId,
+        journeyId,
+        moduleId: module?.moduleId,
+        patch: {
+          content: {
+            ...activity.content,
+            quizRegistry,
+            lastConfig: config,
+          },
+        },
+      });
+    }
   };
 
   if (phase === 'summary' && summaryData) {

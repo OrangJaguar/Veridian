@@ -1,9 +1,7 @@
-import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useLaunchStudy } from '@/hooks/study/useLaunchStudy';
-import CreateDeckModal from '@/components/study/flashcard/CreateDeckModal';
 
-export default function FlashcardDeckList({ decks = [], cardsByActivity, moduleId, journeyId, knowledgeMap }) {
-  const [modalOpen, setModalOpen] = useState(false);
+export default function FlashcardDeckList({ decks = [], cardsByActivity, moduleId, journeyId }) {
   const launchStudy = useLaunchStudy();
 
   const handleLaunch = (deck) => {
@@ -32,28 +30,28 @@ export default function FlashcardDeckList({ decks = [], cardsByActivity, moduleI
                     {cards.length} cards · {due} due
                   </span>
                 </div>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleLaunch(deck)}>
-                  Review
-                </button>
+                <div className="module-deck-card-actions">
+                  <Link
+                    to={`/journeys/${journeyId}/modules/${moduleId}/decks/${deck.activityId}/edit`}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    Edit
+                  </Link>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => handleLaunch(deck)}>
+                    Review
+                  </button>
+                </div>
               </li>
             );
           })}
         </ul>
       )}
-      <button
-        type="button"
+      <Link
+        to={`/journeys/${journeyId}/modules/${moduleId}/decks/new`}
         className="btn btn-secondary btn-sm module-add-deck"
-        onClick={() => setModalOpen(true)}
       >
         + Add Flashcard Deck
-      </button>
-      <CreateDeckModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        moduleId={moduleId}
-        journeyId={journeyId}
-        knowledgeMap={knowledgeMap}
-      />
+      </Link>
     </section>
   );
 }

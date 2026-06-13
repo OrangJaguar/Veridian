@@ -35,13 +35,18 @@ function feynmanScore(sessions) {
 
   if (!latest) return null;
 
+  if (latest.sessionData?.overallScore != null) {
+    return latest.sessionData.overallScore;
+  }
+  if (latest.score != null) return latest.score;
+  if (latest.outcomeSummary?.confidence != null) return latest.outcomeSummary.confidence;
+
   const rating = latest.sessionData?.overallConfidenceRating
     ?? latest.outcomeSummary?.confidence;
 
   if (rating === 'strong') return 100;
   if (rating === 'partial') return 60;
   if (rating === 'weak') return 20;
-  if (latest.score != null) return latest.score;
   return 0;
 }
 

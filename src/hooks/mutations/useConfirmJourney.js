@@ -22,7 +22,7 @@ export function useConfirmJourney() {
     mutationFn: confirmJourney,
     onSuccess: ({ journey }) => {
       invalidateAll(queryClient, journey.journeyId);
-      navigate(`/journeys/${journey.journeyId}`);
+      navigate(`/journeys/${journey.journeyId}/diagnostic`);
     },
   });
 }

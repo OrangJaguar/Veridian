@@ -3,12 +3,16 @@ import { toast } from 'sonner';
 import VeridianLoading from '@/components/shared/VeridianLoading';
 import LearningGuideViewer from '@/components/study/learning-guide/LearningGuideViewer';
 import SessionSummary from '@/components/study/SessionSummary';
+import { generateLearningGuide } from '@/api/ai/study';
+import { sectionCountForConcepts } from '@/api/ai/prompts/learningGuide';
+import { normalizeGuideContent } from '@/utils/study/normalizeGuideContent';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
 import { useUpdateActivity } from '@/hooks/mutations/useActivityMutations';
-import { useSyncStarterLearningGuide } from '@/hooks/useSyncStarterLearningGuide';
+import { useJourney } from '@/hooks/queries/useJourneys';
 
 export default function LearningGuideSession({ session, activity, module, journeyId }) {
+  const { data: journey } = useJourney(journeyId);
   const [content, setContent] = useState(activity.content ?? {});
   const [completedIds, setCompletedIds] = useState(content.progress?.completedSectionIds ?? []);
   const [loading, setLoading] = useState(
@@ -19,7 +23,6 @@ export default function LearningGuideSession({ session, activity, module, journe
   const { completeSessionInBackground } = useCompleteSession();
   const abandonSession = useAbandonSession();
   const updateActivity = useUpdateActivity();
-  useSyncStarterLearningGuide();
 
   const sections = content.sections ?? [];
   const returnPath = `/journeys/${journeyId}/modules/${module?.moduleId}`;
@@ -31,40 +34,82 @@ export default function LearningGuideSession({ session, activity, module, journe
   }, [activity.content]);
 
   useEffect(() => {
-    if (activity.status === 'ready' && (activity.content?.sections?.length || content.sections?.length)) {
+    if (activity.status === 'ready' && activity.content?.sections?.length) {
       setLoading(false);
-      return;
+      return undefined;
     }
-    if (activity.status !== 'notGenerated' && activity.status !== 'generating') return;
+    if (activity.status !== 'notGenerated' && activity.status !== 'generating') {
+      return undefined;
+    }
+    if (!module) return undefined;
+
+    let cancelled = false;
 
     (async () => {
       try {
         await updateActivity.mutateAsync({
           activityId: activity.activityId,
           journeyId,
-          moduleId: module?.moduleId,
+          moduleId: module.moduleId,
           patch: { status: 'generating' },
         });
-        toast.error('Learning guide not available. Open a module with a pre-loaded guide.');
+
+        const concepts = module.knowledgeMap?.concepts ?? [];
+        const payload = {
+          moduleName: module.name,
+          moduleDescription: module.description,
+          concepts,
+          subject: journey?.subject ?? 'General',
+          priorKnowledge: journey?.priorKnowledge ?? 'some',
+          sectionCount: sectionCountForConcepts(concepts),
+        };
+
+        const raw = await generateLearningGuide(payload);
+        const normalized = normalizeGuideContent(raw);
+
+        if (!normalized?.sections?.length) {
+          throw new Error('AI returned an empty learning guide.');
+        }
+
+        if (cancelled) return;
+
         await updateActivity.mutateAsync({
           activityId: activity.activityId,
           journeyId,
-          moduleId: module?.moduleId,
-          patch: { status: 'failed' },
+          moduleId: module.moduleId,
+          patch: {
+            status: 'ready',
+            content: normalized,
+            itemCount: normalized.sections.length,
+          },
         });
+
+        setContent(normalized);
       } catch (err) {
-        toast.error(err.message || 'Failed to load guide');
+        if (cancelled) return;
+        toast.error(err.message || 'Failed to generate learning guide');
         await updateActivity.mutateAsync({
           activityId: activity.activityId,
           journeyId,
-          moduleId: module?.moduleId,
+          moduleId: module.moduleId,
           patch: { status: 'failed' },
-        });
+        }).catch(() => {});
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, []);
+
+    return () => { cancelled = true; };
+  }, [
+    activity.activityId,
+    activity.status,
+    activity.content?.sections?.length,
+    journey?.subject,
+    journey?.priorKnowledge,
+    journeyId,
+    module,
+    updateActivity,
+  ]);
 
   const handleExit = () => {
     window.speechSynthesis?.cancel();
@@ -113,6 +158,7 @@ export default function LearningGuideSession({ session, activity, module, journe
     return (
       <div className="study-mode-view guide-mode-view guide-mode-view--loading">
         <VeridianLoading fullPage />
+        <p className="guide-generating-label">Generating your learning guide…</p>
       </div>
     );
   }
@@ -132,7 +178,7 @@ export default function LearningGuideSession({ session, activity, module, journe
     return (
       <div className="study-mode-view guide-mode-view">
         <div className="guide-empty">
-          <p>This learning guide has no sections yet.</p>
+          <p>This learning guide could not be loaded.</p>
           <button type="button" className="btn btn-primary" onClick={handleExit}>Go back</button>
         </div>
       </div>

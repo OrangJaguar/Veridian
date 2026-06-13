@@ -15,9 +15,9 @@ export const activityTypeSchema = z.enum([
   'flashcardSet',
   'feynman',
   'freeRecall',
-  'synthesis',
   'interleavedReview',
   'journeyChallenge',
+  'diagnostic',
 ]);
 
 export const activityStatsSchema = z.object({
