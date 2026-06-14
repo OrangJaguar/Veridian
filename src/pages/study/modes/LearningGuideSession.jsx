@@ -5,6 +5,7 @@ import SessionSummary from '@/components/study/SessionSummary';
 import { StudyAiLoading, StudyAiError } from '@/components/study/StudyAiStatus';
 import StudyAiRawPanel from '@/components/study/StudyAiRawPanel';
 import { generateLearningGuide, fetchGeminiStudyRaw } from '@/api/ai/study';
+import { generateLearningGuideProgressive } from '@/utils/study/generateLearningGuideProgressive';
 import { sectionCountForConcepts } from '@/api/ai/prompts/learningGuide';
 import { normalizeGuideContent } from '@/utils/study/normalizeGuideContent';
 import { hasLearningGuideContent } from '@/utils/study/activityContent';
@@ -30,6 +31,7 @@ export default function LearningGuideSession({ session, activity, module, journe
   const [rawText, setRawText] = useState(null);
   const [rawLoading, setRawLoading] = useState(false);
   const [rawError, setRawError] = useState(null);
+  const [sectionProgress, setSectionProgress] = useState(null);
   const { completeSessionInBackground } = useCompleteSession();
   const abandonSession = useAbandonSession();
   const updateActivity = useUpdateActivity();
@@ -103,7 +105,11 @@ export default function LearningGuideSession({ session, activity, module, journe
     enabled: Boolean(moduleId && journey && !guideReady) && !rawDumpMode,
     hasContent: guideReady,
     beforeGenerate: markSessionGenerating,
-    generate: async () => generateLearningGuide(buildPayload()),
+    generate: async () => generateLearningGuideProgressive(buildPayload(), {
+      onSection: (_section, index, total) => {
+        setSectionProgress({ current: index + 1, total });
+      },
+    }),
     normalize: normalizeGuideContent,
     validate: (normalized) => {
       if (!normalized?.sections?.length) {
@@ -226,7 +232,15 @@ export default function LearningGuideSession({ session, activity, module, journe
   }
 
   if (isLoading) {
-    return <StudyAiLoading label="Generating your learning guide…" />;
+    return (
+      <StudyAiLoading
+        label={
+          sectionProgress
+            ? `Generating section ${sectionProgress.current} of ${sectionProgress.total}…`
+            : 'Generating your learning guide…'
+        }
+      />
+    );
   }
 
   if (isError) {

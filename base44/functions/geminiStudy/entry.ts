@@ -550,8 +550,9 @@ function payloadShapeSummary(value: unknown): Record<string, unknown> {
 
 
 const MODEL = "gemma-4-31b-it";
-const DEPLOY_BUILD = "inline-gemma-v1";
+const DEPLOY_BUILD = "inline-gemma-v3-section-by-section";
 const MAX_OUTPUT_TOKENS = 4096;
+const MAX_OUTPUT_TOKENS_SECTION = 2048;
 const TEMPERATURE = 0.2;
 
 const STUDY_LIMITS = {
@@ -690,15 +691,20 @@ async function checkStudyQuota(
   userEmail: string,
   action: string,
   estInput: number,
+  opts?: { skipCooldown?: boolean; skipIncrement?: boolean },
 ) {
   const quota = await getOrCreateQuota(base44, userEmail);
   const now = Date.now();
-  if (quota.lastCallAt && now - quota.lastCallAt < STUDY_LIMITS.cooldownSeconds * 1000) {
+  if (
+    !opts?.skipCooldown
+    && quota.lastCallAt
+    && now - quota.lastCallAt < STUDY_LIMITS.cooldownSeconds * 1000
+  ) {
     return errorResponse("Please wait a moment before another AI request.", 429);
   }
   const field = quotaFieldForAction(action);
   const current = (quota[field] as number) ?? 0;
-  if (current >= limitForField(field)) {
+  if (!opts?.skipIncrement && current >= limitForField(field)) {
     return errorResponse("Daily AI limit reached for this feature. Try again tomorrow.", 429);
   }
   if ((quota.inputTokens ?? 0) + estInput > STUDY_LIMITS.maxInputTokensPerDay) {
@@ -707,7 +713,7 @@ async function checkStudyQuota(
   await base44.entities.UserAiQuota.update(quota.id, {
     lastCallAt: now,
     inputTokens: (quota.inputTokens ?? 0) + estInput,
-    [field]: current + 1,
+    ...(opts?.skipIncrement ? {} : { [field]: current + 1 }),
   });
   return null;
 }
@@ -756,6 +762,8 @@ async function callGeminiJson(
   retrySuffix?: string,
   coerceAction?: string,
   debug?: ReturnType<typeof createAiDebugTrace>,
+  maxAttempts = 2,
+  maxOutputTokens = MAX_OUTPUT_TOKENS,
 ) {
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({
@@ -763,13 +771,15 @@ async function callGeminiJson(
     systemInstruction: system,
     generationConfig: {
       temperature: TEMPERATURE,
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
+      maxOutputTokens,
       responseMimeType: "application/json",
     },
   });
 
   const fallbackRetry = "\n\nReturn ONLY valid compact JSON. Use $...$ for LaTeX.";
-  const attempts = [user, user + (retrySuffix ?? fallbackRetry)];
+  const attempts = maxAttempts <= 1
+    ? [user]
+    : [user, user + (retrySuffix ?? fallbackRetry)];
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < attempts.length; attempt += 1) {
@@ -986,6 +996,26 @@ TRANSITION: transitionText (1–2 sentences) on all sections except the last.
 
 Do NOT include narrationText.`;
 
+const LEARNING_GUIDE_SECTION_SYSTEM = `You are an expert study guide writer for Veridian. Generate ONE section only per request.
+
+${LATEX_RULE}
+
+${JSON_STRICT_RULE}
+
+Output shape: { "sections": [ { single section object } ] } — exactly one item in sections.
+
+Rules:
+- Output ONLY valid JSON. No markdown.
+- Teach from the provided concepts for this section only.
+- explanation: 140–200 words, 3–4 paragraphs separated by \\n\\n. Clear, thorough, token-efficient.
+- workedExamples: exactly one object with scenario, 3–4 steps, answer, reasoning.
+- checkInQuestion: multipleChoice with exactly 4 options.
+- externalSearchSuggestions: exactly 2 short YouTube search queries.
+- transitionText: 1–2 sentences previewing the next section (empty string if isLastSection is true).
+- sectionId: short kebab-case slug unique within the module.
+
+Do NOT include narrationText.`;
+
 const FREE_RECALL_HINT_SYSTEM = `You are a study tutor helping a student during a free-recall brain dump for ONE module.
 
 The student writes everything they remember without notes. You provide progressive hints — never full answers or complete explanations.
@@ -1144,6 +1174,73 @@ function diagnosticModuleSchema(count: number) {
   return z.object({
     questions: z.array(diagnosticQuestionAiSchema).min(1).max(count + 2),
   });
+}
+
+const guideSingleSectionOutputSchema = z.object({
+  sections: z.array(guideSectionAiSchema).min(1).max(1),
+});
+
+type GuideConcept = { id: string; term: string; definition: string };
+
+function conceptsForGuideSection(concepts: GuideConcept[], sectionIndex: number, sectionCount: number) {
+  if (!concepts.length) return [];
+  const size = Math.max(1, Math.ceil(concepts.length / sectionCount));
+  const start = sectionIndex * size;
+  return concepts.slice(start, start + size);
+}
+
+async function generateOneLearningGuideSection(
+  apiKey: string,
+  payload: Record<string, unknown>,
+  sectionIndex: number,
+  sectionCount: number,
+  previousSectionTitle: string | null,
+  debug?: ReturnType<typeof createAiDebugTrace>,
+) {
+  const concepts = (payload.concepts as GuideConcept[]) ?? [];
+  const sectionConcepts = conceptsForGuideSection(concepts, sectionIndex, sectionCount);
+  const isLastSection = sectionIndex === sectionCount - 1;
+
+  const sectionPrompt = JSON.stringify({
+    action: "generateLearningGuideSection",
+    sectionIndex,
+    sectionCount,
+    isLastSection,
+    moduleName: payload.moduleName,
+    moduleDescription: payload.moduleDescription,
+    subject: payload.subject,
+    priorKnowledge: payload.priorKnowledge,
+    concepts: sectionConcepts,
+    previousSectionTitle,
+  });
+
+  const retrySuffix =
+    `\n\nReturn EXACTLY one section in { "sections": [ {...} ] }. Section ${sectionIndex + 1} of ${sectionCount}. JSON only.`;
+
+  const { data, usage } = await callGeminiJson(
+    apiKey,
+    LEARNING_GUIDE_SECTION_SYSTEM,
+    sectionPrompt,
+    guideSingleSectionOutputSchema,
+    retrySuffix,
+    "generateLearningGuide",
+    debug,
+    1,
+    MAX_OUTPUT_TOKENS_SECTION,
+  );
+
+  const section = data.sections[0];
+  if (!section) {
+    throw new Error(`AI returned no content for section ${sectionIndex + 1}. Try again.`);
+  }
+
+  return {
+    section: {
+      ...section,
+      sectionId: section.sectionId ?? `section-${sectionIndex + 1}`,
+    },
+    usage,
+  };
 }
 
 type DiagnosticModuleInput = {
@@ -1348,6 +1445,41 @@ Deno.serve(async (req) => {
         usage: result.usage,
         ...debugExtras(debug),
       });
+    }
+
+    if (action === "generateLearningGuide" && !rawDumpOnly) {
+      const estInput = estimateTokens(JSON.stringify(payload));
+      const sectionOnly = payload.sectionOnly === true;
+      const sectionIndex = Number(payload.sectionIndex);
+      const quotaOpts = sectionOnly && sectionIndex > 0
+        ? { skipCooldown: true, skipIncrement: true }
+        : undefined;
+      const quotaErr = await checkStudyQuota(base44, userKey, action, estInput, quotaOpts);
+      if (quotaErr) return quotaErr;
+
+      if (sectionOnly && Number.isFinite(sectionIndex)) {
+        const sectionCount = Math.min(5, Math.max(1, Number(payload.sectionCount ?? 3)));
+        const { section, usage } = await generateOneLearningGuideSection(
+          apiKey,
+          payload,
+          sectionIndex,
+          sectionCount,
+          typeof payload.previousSectionTitle === "string" ? payload.previousSectionTitle : null,
+          debug,
+        );
+        debug.record("response_ready", true, { sectionIndex, title: section.title });
+        return jsonResponse({
+          data: { section, sectionIndex, sectionCount },
+          usage,
+          ...debugExtras(debug),
+        });
+      }
+
+      return errorResponse(
+        "Learning guides must be generated one section per request (sectionOnly + sectionIndex). "
+        + "Publish the latest Veridian site — older clients trigger a server timeout.",
+        400,
+      );
     }
 
     const system = buildSystem(action);

@@ -73,8 +73,10 @@ function normalizeInvokeError(err) {
     normalized.message = KEY_NOT_CONFIGURED_MSG;
   } else if (status === 429) {
     normalized.message = 'Daily AI limit reached. Try again tomorrow.';
-  } else if (status === 401) {
+  } else   if (status === 401) {
     normalized.message = 'Please sign in again to use AI features.';
+  } else if (status === 504 || /504|timeout|timed out/i.test(message)) {
+    normalized.message = 'AI generation timed out. The server has a ~60s limit per request — learning guides now generate one section at a time; publish the latest geminiStudy and try again.';
   }
 
   return normalized;
