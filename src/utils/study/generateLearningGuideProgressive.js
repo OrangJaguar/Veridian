@@ -25,7 +25,11 @@ export async function generateLearningGuideProgressive(basePayload, { onSection 
 
       const section = raw.section ?? raw.sections?.[0];
       if (!section) {
-        throw new Error(`AI returned no content for section ${i + 1}. Try again.`);
+        throw new Error(
+          raw.parsedSkipped
+            ? `Section ${i + 1} returned raw dump only (disable raw dump mode: veridianAiDebug.rawOff()).`
+            : `AI returned no content for section ${i + 1}. Try again.`,
+        );
       }
 
       sections.push(section);

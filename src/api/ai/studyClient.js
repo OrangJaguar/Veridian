@@ -182,7 +182,9 @@ export function parseGeminiStudyResponse(result) {
 
   storeDebugAndRawFromPayload(result, 'parse');
 
-  if (result.rawGeminiText || result.data?.rawGeminiText) {
+  // Debug responses attach rawGeminiText for inspection — only skip parsing for explicit raw-dump mode.
+  const explicitRawDump = result.data?.parsedSkipped === true;
+  if (explicitRawDump && (result.rawGeminiText || result.data?.rawGeminiText)) {
     return {
       rawGeminiText: result.rawGeminiText ?? result.data?.rawGeminiText,
       parsedSkipped: true,
@@ -206,7 +208,7 @@ export function parseGeminiStudyResponse(result) {
     throw normalizeInvokeError(err);
   }
 
-  if (data?.data && typeof data.data === 'object' && !data.questions && !data.cards && !data.sections) {
+  if (data?.data && typeof data.data === 'object' && !data.questions && !data.cards && !data.sections && !data.section) {
     data = data.data;
   }
 
