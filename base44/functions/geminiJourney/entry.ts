@@ -2,7 +2,7 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 import { GoogleGenerativeAI } from "npm:@google/generative-ai";
 import { z } from "npm:zod";
 
-const MODEL = "gemini-2.5-flash-lite";
+const MODEL = "gemma-4-31b-it";
 const MAX_OUTPUT_TOKENS = 4096;
 const TEMPERATURE = 0.2;
 
@@ -129,11 +129,11 @@ function estimateTokens(text: string) {
 
 const PROPOSE_SYSTEM = `You are a study curriculum architect. Extract a compact knowledge map and propose 2-8 modules.
 
-Output ONLY valid JSON with this exact shape:
+Output ONLY valid JSON with this exact top-level shape (no wrapper keys):
 {"journeySummary":"string max 200 chars","modules":[{"name":"string max 80","description":"string max 120","concepts":[{"id":"c1","term":"string max 80","definition":"string max 80"}]}]}
 
 Rules:
-- No markdown, no code fences, no commentary.
+- No markdown, no code fences, no commentary before or after the JSON.
 - Keep every string within its max length.
 - Use short concept ids like c1, c2 per module.
 - 2-8 modules, 1-10 concepts each.`;
@@ -210,6 +210,21 @@ function formatValidationError(err: unknown) {
   return err instanceof Error ? err.message : "AI response validation failed";
 }
 
+function extractModelResponseText(response: {
+  text: () => string;
+  candidates?: Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean }> } }>;
+}): string {
+  const parts = response.candidates?.[0]?.content?.parts;
+  if (Array.isArray(parts) && parts.length) {
+    const visible = parts
+      .filter((part) => !part.thought && typeof part.text === "string")
+      .map((part) => part.text as string)
+      .join("");
+    if (visible) return visible;
+  }
+  return response.text();
+}
+
 async function callGemini(
   apiKey: string,
   system: string,
@@ -233,7 +248,7 @@ async function callGemini(
   for (const prompt of attempts) {
     try {
       const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      const text = extractModelResponseText(result.response);
       const parsed = JSON.parse(extractJsonText(text));
       const data = journeyProposalSchema.parse(normalizeProposal(parsed));
       const usage = result.response.usageMetadata;

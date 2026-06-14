@@ -85,6 +85,22 @@ export function zodIssueSummary(err: unknown) {
   }));
 }
 
+/** Gemma 4 may return internal "thought" parts — exclude them from JSON extraction. */
+export function extractModelResponseText(response: {
+  text: () => string;
+  candidates?: Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean }> } }>;
+}): string {
+  const parts = response.candidates?.[0]?.content?.parts;
+  if (Array.isArray(parts) && parts.length) {
+    const visible = parts
+      .filter((part) => !part.thought && typeof part.text === "string")
+      .map((part) => part.text as string)
+      .join("");
+    if (visible) return visible;
+  }
+  return response.text();
+}
+
 export function payloadShapeSummary(value: unknown): Record<string, unknown> {
   if (Array.isArray(value)) {
     return {

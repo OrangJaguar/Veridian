@@ -15,10 +15,11 @@ import {
   stripDebugFlags,
   zodIssueSummary,
   payloadShapeSummary,
+  extractModelResponseText,
   type AiDebugSnapshot,
 } from "./aiDebug.ts";
 
-const MODEL = "gemini-2.5-flash-lite";
+const MODEL = "gemma-4-31b-it";
 const MAX_OUTPUT_TOKENS = 4096;
 const TEMPERATURE = 0.2;
 
@@ -193,7 +194,7 @@ async function callGeminiRaw(
 
   const started = Date.now();
   const result = await model.generateContent(user);
-  const text = result.response.text();
+  const text = extractModelResponseText(result.response);
   debug?.setRawGeminiText(text);
   debug?.record("raw_dump", true, {
     textLength: text.length,
@@ -239,7 +240,7 @@ async function callGeminiJson(
     const attemptStart = Date.now();
     try {
       const result = await model.generateContent(prompt);
-      const text = result.response.text();
+      const text = extractModelResponseText(result.response);
       debug?.setRawGeminiText(text);
       debug?.record("gemini_generateContent", true, {
         attempt: attempt + 1,
@@ -302,6 +303,14 @@ async function callGeminiJson(
 }
 
 const LATEX_RULE = "Use $...$ inline and $$...$$ block for math. Output JSON only.";
+
+const JSON_STRICT_RULE = `JSON OUTPUT (strict — the app parser requires this exact shape):
+- Return ONE JSON object only. No markdown fences, no prose before or after the JSON.
+- Learning guides: { "sections": [ ... ], "totalSections": number, "estimatedMinutes": number } — "sections" MUST be a non-empty array at the top level.
+- Quizzes/diagnostic: { "questions": [ ... ] } — each item uses stem, options, correctAnswer, explanation (not "question" or "answer" as the primary keys).
+- Flashcards: { "cards": [ ... ] } — each item uses front and back.
+- Diagnostic: every question MUST include moduleId exactly as provided in the prompt.
+- Generate EXACTLY the requested counts. Do not wrap the payload inside extra keys like "data", "output", or "result".`;
 
 const guideSectionSchema = z.object({
   sectionId: z.string(),
@@ -414,6 +423,8 @@ Produce JSON for a sectioned learning guide. Explanation text is the PRIMARY tea
 
 ${LATEX_RULE}
 
+${JSON_STRICT_RULE}
+
 Rules:
 - Output ONLY valid JSON matching the schema. No markdown.
 - Teach from the provided module concepts only — do not invent unsupported facts.
@@ -513,6 +524,8 @@ Generate fresh practice quiz questions for ONE module within a larger journey. Q
 
 ${LATEX_RULE}
 
+${JSON_STRICT_RULE}
+
 Rules:
 - Output ONLY valid JSON. No markdown.
 - Generate EXACTLY the requested questionCount — no more, no less.
@@ -528,6 +541,8 @@ const GENERATE_FLASHCARDS_SYSTEM = `You generate flashcard decks for Veridian.
 
 ${LATEX_RULE}
 
+${JSON_STRICT_RULE}
+
 Rules:
 - Output ONLY valid JSON: { cards: [{ front, back, conceptTag? }] }.
 - Generate EXACTLY the requested cardCount when enough source material exists.
@@ -538,6 +553,8 @@ Rules:
 const DIAGNOSTIC_SYSTEM = `You are designing a diagnostic assessment to measure true mastery — not guessability.
 
 ${LATEX_RULE}
+
+${JSON_STRICT_RULE}
 
 Rules:
 - Output ONLY valid JSON: { questions: [...] }.
@@ -553,6 +570,8 @@ const INTERLEAVED_SYSTEM = `You write mixed practice questions spanning multiple
 
 ${LATEX_RULE}
 
+${JSON_STRICT_RULE}
+
 Rules:
 - Output ONLY valid JSON: { questions: [...] }.
 - Generate EXACTLY the requested questionCount.
@@ -564,6 +583,8 @@ const CHALLENGE_SYSTEM = `You write exam-style journey challenge questions acros
 
 ${LATEX_RULE}
 
+${JSON_STRICT_RULE}
+
 Rules:
 - Output ONLY valid JSON: { questions: [...] }.
 - Generate EXACTLY the requested questionCount.
@@ -573,6 +594,8 @@ Rules:
 const CRAM_SYSTEM = `You write a short cram quiz prioritizing weak and overdue material.
 
 ${LATEX_RULE}
+
+${JSON_STRICT_RULE}
 
 Rules:
 - Output ONLY valid JSON: { questions: [...] }.

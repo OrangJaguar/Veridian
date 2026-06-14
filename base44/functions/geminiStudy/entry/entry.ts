@@ -11,7 +11,7 @@ import {
   questionCountRetrySuffix,
 } from "../aiNormalize.ts";
 
-const MODEL = "gemini-2.5-flash-lite";
+const MODEL = "gemma-4-31b-it";
 const MAX_OUTPUT_TOKENS = 4096;
 const TEMPERATURE = 0.2;
 
