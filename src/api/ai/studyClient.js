@@ -120,12 +120,20 @@ export async function invokeGeminiStudy(action, payload, options = {}) {
   }
 
   const handleResult = (result) => {
+    if (result?._meta) {
+      window.__veridianLastGeminiStudyMeta = result._meta;
+      if (typeof console !== 'undefined' && window.localStorage?.getItem('veridian:ai-debug') === '1') {
+        console.info('[Veridian AI] geminiStudy _meta:', result._meta);
+      }
+    }
+
     storeDebugAndRawFromPayload(result, 'success');
     if (debug && trace) {
       trace.stepOk('1a_invoke', 'POST geminiStudy', {
         resultKeys: Object.keys(result ?? {}),
         hasRaw: Boolean(extractRawGeminiFromPayload(result)),
         hasDebug: Boolean(result?._debug),
+        meta: result?._meta,
       });
     }
     return result;

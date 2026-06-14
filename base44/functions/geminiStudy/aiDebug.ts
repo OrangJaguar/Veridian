@@ -1,3 +1,5 @@
+/** Source copy for merge into entry.ts — not imported at runtime on Base44. */
+
 export type AiDebugStep = {
   at: string;
   step: string;

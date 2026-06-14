@@ -1,25 +1,556 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 import { GoogleGenerativeAI } from "npm:@google/generative-ai";
 import { z } from "npm:zod";
-import {
-  aiSchemaForAction,
-  diagnosticQuestionAiSchema,
-  extractJsonText,
-  finalizeDiagnosticQuestion,
-  finalizeForAction,
-  coercePayloadForAction,
-  questionCountRetrySuffix,
-} from "./aiNormalize.ts";
-import {
-  createAiDebugTrace,
-  stripDebugFlags,
-  zodIssueSummary,
-  payloadShapeSummary,
-  extractModelResponseText,
-  type AiDebugSnapshot,
-} from "./aiDebug.ts";
+// Inlined helpers — Base44 functions cannot import sibling local files.
+
+const coercedAnswerSchema = z.preprocess(
+  (val) => {
+    if (typeof val === "number" || typeof val === "boolean") return String(val);
+    if (Array.isArray(val)) return val.map((item) => String(item));
+    return val;
+  },
+  z.union([z.string(), z.array(z.string())]),
+);
+
+const questionAiSchema = z.object({
+  id: z.string().optional(),
+  type: z.string().optional(),
+  stem: z.string().optional(),
+  options: z.array(z.string()).optional(),
+  correctAnswer: coercedAnswerSchema.optional(),
+  explanation: z.string().optional(),
+  conceptId: z.string().optional(),
+  moduleId: z.string().optional(),
+});
+
+const questionsAiOutputSchema = z.object({
+  questions: z.array(questionAiSchema).min(1).max(52),
+});
+
+const guideSectionAiSchema = z.object({
+  sectionId: z.string().optional(),
+  title: z.string().optional(),
+  explanation: z.string().optional(),
+  workedExamples: z.array(z.object({
+    scenario: z.string().optional(),
+    steps: z.array(z.string()).optional(),
+    answer: z.string().optional(),
+    reasoning: z.string().optional(),
+  })).optional(),
+  checkInQuestion: z.object({
+    question: z.string().optional(),
+    type: z.string().optional(),
+    options: z.array(z.string()).optional(),
+    correctAnswer: z.string().optional(),
+    explanation: z.string().optional(),
+  }).optional(),
+  externalSearchSuggestions: z.array(z.string()).optional(),
+  transitionText: z.string().optional(),
+});
+
+const guideAiOutputSchema = z.object({
+  sections: z.array(guideSectionAiSchema).min(1).max(8),
+  totalSections: z.number().optional(),
+  estimatedMinutes: z.number().optional(),
+});
+
+const cardAiSchema = z.object({
+  front: z.string().optional(),
+  back: z.string().optional(),
+  conceptTag: z.string().optional(),
+});
+
+const cardsAiOutputSchema = z.object({
+  cards: z.array(cardAiSchema).min(1).max(100),
+});
+
+function clipString(value: unknown, max: number) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  return text.length > max ? text.slice(0, max).trim() : text;
+}
+
+function extractJsonText(raw: string) {
+  const trimmed = String(raw ?? "").trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) return fenced[1].trim();
+
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start !== -1 && end > start) return trimmed.slice(start, end + 1);
+
+  const arrStart = trimmed.indexOf("[");
+  const arrEnd = trimmed.lastIndexOf("]");
+  if (arrStart !== -1 && arrEnd > arrStart) return trimmed.slice(arrStart, arrEnd + 1);
+
+  return trimmed;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function coerceQuestionItems(items: unknown[]) {
+  return items.map((item, index) => {
+    const q = asRecord(item) ?? {};
+    const options = Array.isArray(q.options) ? q.options
+      : Array.isArray(q.choices) ? q.choices
+        : Array.isArray(q.answers) ? q.answers
+          : undefined;
+    const stem = q.stem ?? q.question ?? q.prompt ?? q.text ?? q.body ?? "";
+    let correctAnswer = q.correctAnswer ?? q.answer ?? q.correct ?? q.solution;
+    if (correctAnswer == null && Array.isArray(options) && options.length) {
+      correctAnswer = options[0];
+    }
+    return {
+      id: q.id ?? q.questionId ?? `q-${index + 1}`,
+      type: q.type,
+      stem,
+      options,
+      correctAnswer,
+      explanation: q.explanation ?? q.rationale ?? q.reason ?? "",
+      conceptId: q.conceptId ?? q.concept ?? q.concept_id,
+      moduleId: q.moduleId ?? q.module_id ?? q.module,
+    };
+  }).filter((q) => String(q.stem ?? "").trim().length > 0);
+}
+
+function coerceSectionItems(items: unknown[]) {
+  return items.map((item, index) => {
+    const s = asRecord(item) ?? {};
+    const checkIn = asRecord(s.checkInQuestion ?? s.checkIn ?? s.quiz ?? s.question) ?? {};
+    return {
+      sectionId: s.sectionId ?? s.id ?? `section-${index + 1}`,
+      title: s.title ?? s.name ?? s.heading ?? `Section ${index + 1}`,
+      explanation: s.explanation ?? s.content ?? s.body ?? s.summary ?? s.text ?? "",
+      workedExamples: s.workedExamples ?? s.examples ?? s.workedExample ?? [],
+      checkInQuestion: {
+        question: checkIn.question ?? checkIn.stem ?? checkIn.prompt ?? checkIn.text ?? "",
+        type: checkIn.type,
+        options: checkIn.options ?? checkIn.choices ?? checkIn.answers,
+        correctAnswer: checkIn.correctAnswer ?? checkIn.answer ?? checkIn.correct ?? "",
+        explanation: checkIn.explanation ?? checkIn.rationale ?? checkIn.reason ?? "",
+      },
+      externalSearchSuggestions: s.externalSearchSuggestions
+        ?? s.youtubeSuggestions
+        ?? s.searchSuggestions
+        ?? [],
+      transitionText: s.transitionText ?? s.transition ?? "",
+    };
+  });
+}
+
+function coerceCardItems(items: unknown[]) {
+  return items.map((item) => {
+    const c = asRecord(item) ?? {};
+    return {
+      front: c.front ?? c.term ?? c.question ?? c.prompt ?? "",
+      back: c.back ?? c.definition ?? c.answer ?? c.meaning ?? "",
+      conceptTag: c.conceptTag ?? c.concept ?? c.tag,
+    };
+  }).filter((c) => String(c.front ?? "").trim() && String(c.back ?? "").trim());
+}
+
+function coerceQuestionsPayload(raw: unknown): unknown {
+  if (Array.isArray(raw)) {
+    return { questions: coerceQuestionItems(raw) };
+  }
+
+  const obj = asRecord(raw);
+  if (!obj) return raw;
+
+  let questions = obj.questions ?? obj.items ?? obj.problems;
+  const inner = asRecord(obj.data);
+  if (!Array.isArray(questions) && inner) {
+    questions = inner.questions ?? inner.items;
+  }
+  if (!Array.isArray(questions)) return raw;
+
+  return {
+    ...obj,
+    questions: coerceQuestionItems(questions),
+  };
+}
+
+function coerceGuidePayload(raw: unknown): unknown {
+  if (Array.isArray(raw)) {
+    return { sections: coerceSectionItems(raw) };
+  }
+
+  const obj = asRecord(raw);
+  if (!obj) return raw;
+
+  let sections = obj.sections ?? obj.chapters ?? obj.parts;
+  for (const key of ["guide", "learningGuide", "content"]) {
+    const nested = asRecord(obj[key]);
+    if (!Array.isArray(sections) && nested?.sections) sections = nested.sections;
+  }
+  const inner = asRecord(obj.data);
+  if (!Array.isArray(sections) && inner?.sections) sections = inner.sections;
+  if (!Array.isArray(sections)) return raw;
+
+  return {
+    ...obj,
+    sections: coerceSectionItems(sections),
+  };
+}
+
+function coerceCardsPayload(raw: unknown): unknown {
+  if (Array.isArray(raw)) {
+    return { cards: coerceCardItems(raw) };
+  }
+
+  const obj = asRecord(raw);
+  if (!obj) return raw;
+
+  let cards = obj.cards ?? obj.flashcards ?? obj.deck ?? obj.items;
+  const inner = asRecord(obj.data);
+  if (!Array.isArray(cards) && inner) cards = inner.cards ?? inner.flashcards;
+  if (!Array.isArray(cards)) return raw;
+
+  return {
+    ...obj,
+    cards: coerceCardItems(cards),
+  };
+}
+
+function coercePayloadForAction(action: string, raw: unknown): unknown {
+  if (action === "generateLearningGuide") return coerceGuidePayload(raw);
+  if (action === "generateFlashcards") return coerceCardsPayload(raw);
+  if (
+    action === "generatePracticeQuestions"
+    || action === "generateDiagnosticQuestions"
+    || action === "generateInterleavedQuestions"
+    || action === "generateJourneyChallenge"
+    || action === "generateCramSession"
+  ) {
+    return coerceQuestionsPayload(raw);
+  }
+  return raw;
+}
+
+function finalizeQuestion(
+  q: z.infer<typeof questionAiSchema>,
+  index: number,
+  prefix = "q",
+) {
+  const stem = clipString(q.stem, 4000);
+  if (!stem) return null;
+
+  const type = q.type === "trueFalse" || q.type === "shortAnswer" ? q.type : "multipleChoice";
+  let options = q.options;
+  if (type === "trueFalse") {
+    options = ["True", "False"];
+  } else if (type === "multipleChoice") {
+    options = [...(options ?? [])].map((o) => String(o).trim()).filter(Boolean);
+    while (options.length < 4) options.push(`Option ${options.length + 1}`);
+    options = options.slice(0, 4);
+  }
+
+  const correctAnswer = q.correctAnswer ?? options?.[0] ?? "Unknown";
+
+  return {
+    id: String(q.id ?? `${prefix}-${index + 1}`).trim(),
+    type,
+    stem,
+    options,
+    correctAnswer,
+    explanation: String(q.explanation ?? "").trim(),
+    conceptId: q.conceptId ? String(q.conceptId) : undefined,
+    moduleId: q.moduleId ? String(q.moduleId) : undefined,
+  };
+}
+
+function finalizeQuestionsOutput(
+  raw: unknown,
+  expectedCount: number,
+  label = "questions",
+) {
+  const obj = raw as { questions?: z.infer<typeof questionAiSchema>[] };
+  const list = Array.isArray(obj?.questions) ? obj.questions : [];
+  if (!list.length) throw new Error(`AI returned no ${label}. Try again.`);
+
+  const finalized = list
+    .slice(0, expectedCount)
+    .map((q, index) => finalizeQuestion(q, index, "q"))
+    .filter((q): q is NonNullable<typeof q> => q != null);
+
+  if (finalized.length < expectedCount) {
+    throw new Error(`Generated ${finalized.length}/${expectedCount} ${label}. Try again.`);
+  }
+
+  return { questions: finalized };
+}
+
+function finalizeGuideOutput(raw: unknown) {
+  const obj = raw as z.infer<typeof guideAiOutputSchema>;
+  const sections = Array.isArray(obj?.sections) ? obj.sections : [];
+  if (!sections.length) throw new Error("AI returned an empty learning guide.");
+
+  const finalized = sections.slice(0, 6).map((section, index) => {
+    const workedExamples = (section.workedExamples ?? []).slice(0, 1).map((ex) => ({
+      scenario: clipString(ex.scenario, 500) || `Apply the ideas from section ${index + 1}.`,
+      steps: (ex.steps ?? [])
+        .map((s) => clipString(s, 300))
+        .filter(Boolean)
+        .slice(0, 6),
+      answer: clipString(ex.answer, 300) || "See the steps above.",
+      reasoning: clipString(ex.reasoning, 500) || "This example connects the section concepts to a concrete outcome.",
+    }));
+
+    while (workedExamples.length < 1) {
+      workedExamples.push({
+        scenario: `Apply the main ideas from "${clipString(section.title, 80) || `Section ${index + 1}`}".`,
+        steps: ["Identify the key concept.", "Apply it to the scenario.", "State the conclusion."],
+        answer: "A clear conclusion based on the section concepts.",
+        reasoning: "Walking through a simple example helps lock in the core idea.",
+      });
+    }
+
+    const checkIn = section.checkInQuestion ?? {};
+    let options = (checkIn.options ?? []).map((o) => clipString(o, 200)).filter(Boolean);
+    while (options.length < 4) options.push(`Option ${options.length + 1}`);
+    options = options.slice(0, 4);
+
+    const suggestions = (section.externalSearchSuggestions ?? [])
+      .map((s) => clipString(s, 120))
+      .filter(Boolean)
+      .slice(0, 3);
+
+    return {
+      sectionId: clipString(section.sectionId, 48) || `section-${index + 1}`,
+      title: clipString(section.title, 120) || `Section ${index + 1}`,
+      explanation: clipString(section.explanation, 4000) || "Review the module concepts for this section.",
+      workedExamples,
+      checkInQuestion: {
+        question: clipString(checkIn.question, 500) || "What is the main idea of this section?",
+        type: "multipleChoice" as const,
+        options,
+        correctAnswer: clipString(checkIn.correctAnswer, 200) || options[0],
+        explanation: clipString(checkIn.explanation, 500) || "Review the section explanation and worked example.",
+      },
+      externalSearchSuggestions: suggestions.length >= 2
+        ? suggestions.slice(0, 2)
+        : [
+          `${clipString(section.title, 60) || "topic"} explained for beginners`,
+          `${clipString(section.title, 60) || "topic"} worked examples`,
+        ],
+      transitionText: index < sections.length - 1
+        ? clipString(section.transitionText, 300)
+        : "",
+    };
+  });
+
+  return {
+    contentVersion: 1,
+    sections: finalized,
+    totalSections: finalized.length,
+    estimatedMinutes: obj.estimatedMinutes ?? Math.max(8, finalized.length * 5),
+  };
+}
+
+function finalizeCardsOutput(raw: unknown, expectedCount: number) {
+  const obj = raw as { cards?: z.infer<typeof cardAiSchema>[] };
+  const list = Array.isArray(obj?.cards) ? obj.cards : [];
+  if (!list.length) throw new Error("AI returned no flashcards. Try again.");
+
+  const finalized = list.slice(0, expectedCount || list.length).map((card, index) => ({
+    front: clipString(card.front, 500),
+    back: clipString(card.back, 500),
+    conceptTag: card.conceptTag ? clipString(card.conceptTag, 80) : undefined,
+  })).filter((c) => c.front && c.back);
+
+  if (expectedCount > 0 && finalized.length < Math.min(expectedCount, 1)) {
+    throw new Error(`Generated ${finalized.length}/${expectedCount} cards. Try again.`);
+  }
+
+  return { cards: finalized };
+}
+
+function aiSchemaForAction(action: string) {
+  if (action === "generateLearningGuide") return guideAiOutputSchema;
+  if (action === "generateFlashcards") return cardsAiOutputSchema;
+  if (
+    action === "generatePracticeQuestions"
+    || action === "generateInterleavedQuestions"
+    || action === "generateJourneyChallenge"
+    || action === "generateCramSession"
+  ) {
+    return questionsAiOutputSchema;
+  }
+  return null;
+}
+
+function finalizeForAction(
+  action: string,
+  raw: unknown,
+  payload: Record<string, unknown>,
+) {
+  if (action === "generateLearningGuide") return finalizeGuideOutput(raw);
+  if (action === "generateFlashcards") {
+    return finalizeCardsOutput(raw, Number(payload.cardCount ?? 0));
+  }
+  if (
+    action === "generatePracticeQuestions"
+    || action === "generateInterleavedQuestions"
+    || action === "generateJourneyChallenge"
+    || action === "generateCramSession"
+  ) {
+    const count = Number(payload.questionCount ?? 10);
+    const label = action === "generateCramSession" ? "cram questions" : "questions";
+    return finalizeQuestionsOutput(raw, count, label);
+  }
+  return raw;
+}
+
+function questionCountRetrySuffix(count: number) {
+  return `\n\nReturn EXACTLY ${count} questions in { questions: [...] }. Each needs stem, correctAnswer, and explanation. JSON only.`;
+}
+
+const diagnosticQuestionAiSchema = questionAiSchema;
+
+function finalizeDiagnosticQuestion(
+  q: z.infer<typeof questionAiSchema>,
+  moduleId: string,
+  index: number,
+) {
+  const finalized = finalizeQuestion(q, index, `diag-${moduleId}`);
+  if (!finalized) return null;
+  return { ...finalized, moduleId };
+}
+
+
+type AiDebugStep = {
+  at: string;
+  step: string;
+  ok: boolean;
+  ms?: number;
+  detail?: Record<string, unknown>;
+  error?: string;
+};
+
+type AiDebugSnapshot = {
+  enabled: boolean;
+  steps: AiDebugStep[];
+  lastRawGeminiText: string | null;
+  lastParsedShape: Record<string, unknown> | null;
+};
+
+function createAiDebugTrace(enabled: boolean) {
+  const steps: AiDebugStep[] = [];
+  let lastRawGeminiText: string | null = null;
+  let lastParsedShape: Record<string, unknown> | null = null;
+
+  return {
+    enabled,
+    steps,
+    get lastRawGeminiText() {
+      return lastRawGeminiText;
+    },
+    setRawGeminiText(text: string) {
+      if (!enabled) return;
+      lastRawGeminiText = text;
+    },
+    setParsedShape(value: unknown) {
+      if (!enabled) return;
+      lastParsedShape = payloadShapeSummary(value);
+    },
+    record(
+      step: string,
+      ok: boolean,
+      detail?: Record<string, unknown>,
+      error?: string,
+      ms?: number,
+    ) {
+      if (!enabled) return;
+      steps.push({
+        at: new Date().toISOString(),
+        step,
+        ok,
+        ...(ms != null ? { ms } : {}),
+        ...(detail ? { detail } : {}),
+        ...(error ? { error } : {}),
+      });
+    },
+    snapshot(): AiDebugSnapshot {
+      return {
+        enabled,
+        steps,
+        lastRawGeminiText,
+        lastParsedShape,
+      };
+    },
+  };
+}
+
+function stripDebugFlags(payload: Record<string, unknown>) {
+  const rawDumpOnly = Boolean(payload.__rawDump);
+  const debugEnabled = Boolean(payload.__debug) || rawDumpOnly;
+  const clean = { ...payload };
+  delete clean.__debug;
+  delete clean.__rawDump;
+  return { debugEnabled, rawDumpOnly, cleanPayload: clean };
+}
+
+/** @deprecated use stripDebugFlags */
+function stripDebugFlag(payload: Record<string, unknown>) {
+  const { debugEnabled, cleanPayload } = stripDebugFlags(payload);
+  return { debugEnabled, cleanPayload };
+}
+
+function zodIssueSummary(err: unknown) {
+  if (!err || typeof err !== "object" || !("issues" in err)) return undefined;
+  const issues = (err as { issues: Array<{ path: (string | number)[]; message: string }> }).issues;
+  return issues.slice(0, 8).map((issue) => ({
+    path: issue.path.join(".") || "(root)",
+    message: issue.message,
+  }));
+}
+
+/** Gemma 4 may return internal "thought" parts — exclude them from JSON extraction. */
+function extractModelResponseText(response: {
+  text: () => string;
+  candidates?: Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean }> } }>;
+}): string {
+  const parts = response.candidates?.[0]?.content?.parts;
+  if (Array.isArray(parts) && parts.length) {
+    const visible = parts
+      .filter((part) => !part.thought && typeof part.text === "string")
+      .map((part) => part.text as string)
+      .join("");
+    if (visible) return visible;
+  }
+  return response.text();
+}
+
+function payloadShapeSummary(value: unknown): Record<string, unknown> {
+  if (Array.isArray(value)) {
+    return {
+      type: "array",
+      length: value.length,
+      sampleKeys: value[0] && typeof value[0] === "object"
+        ? Object.keys(value[0] as object).slice(0, 12)
+        : [],
+    };
+  }
+  if (value && typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    return {
+      type: "object",
+      keys: Object.keys(obj).slice(0, 20),
+      questions: Array.isArray(obj.questions) ? obj.questions.length : undefined,
+      sections: Array.isArray(obj.sections) ? obj.sections.length : undefined,
+      cards: Array.isArray(obj.cards) ? obj.cards.length : undefined,
+    };
+  }
+  return { type: typeof value };
+}
+
 
 const MODEL = "gemma-4-31b-it";
+const DEPLOY_BUILD = "inline-gemma-v1";
 const MAX_OUTPUT_TOKENS = 4096;
 const TEMPERATURE = 0.2;
 
@@ -81,7 +612,13 @@ function utcDateKey() {
 }
 
 function jsonResponse(body: unknown, status = 200) {
-  return Response.json(body, { status });
+  const payload = body && typeof body === "object" && !Array.isArray(body)
+    ? { ...(body as Record<string, unknown>) }
+    : { data: body };
+  return Response.json({
+    ...payload,
+    _meta: { model: MODEL, build: DEPLOY_BUILD },
+  }, { status });
 }
 
 function errorResponse(message: string, status = 400, debug?: ReturnType<typeof createAiDebugTrace>) {
@@ -793,6 +1330,8 @@ Deno.serve(async (req) => {
 
     debug.record("request_received", true, {
       action,
+      model: MODEL,
+      build: DEPLOY_BUILD,
       rawDumpOnly,
       payloadKeys: Object.keys(payload),
     });

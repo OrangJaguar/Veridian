@@ -1,5 +1,7 @@
 import { z } from "npm:zod";
 
+/** Source copy for merge into ../entry.ts — not imported at runtime on Base44. */
+
 export const coercedAnswerSchema = z.preprocess(
   (val) => {
     if (typeof val === "number" || typeof val === "boolean") return String(val);
