@@ -27,4 +27,4 @@ fs.writeFileSync('entry.ts', head + '// Inlined helpers — Base44 functions can
 3. Remove duplicate `import { z }` if the merge script re-inserted one.
 4. Publish on Base44.
 
-Verify live deploy: Network → `geminiStudy` response includes `"_meta": { "model": "gemma-4-31b-it", "build": "inline-gemma-v3-section-by-section" }`.
+Verify live deploy: Network → `geminiStudy` response includes `"_meta": { "model": "gemma-4-31b-it", "build": "inline-gemma-v4-worked-examples-fix" }`.

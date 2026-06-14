@@ -30,12 +30,19 @@ export const guideSectionAiSchema = z.object({
   sectionId: z.string().optional(),
   title: z.string().optional(),
   explanation: z.string().optional(),
-  workedExamples: z.array(z.object({
-    scenario: z.string().optional(),
-    steps: z.array(z.string()).optional(),
-    answer: z.string().optional(),
-    reasoning: z.string().optional(),
-  })).optional(),
+  workedExamples: z.preprocess(
+    (val) => {
+      if (Array.isArray(val)) return val;
+      if (val && typeof val === "object") return [val];
+      return [];
+    },
+    z.array(z.object({
+      scenario: z.string().optional(),
+      steps: z.array(z.string()).optional(),
+      answer: z.string().optional(),
+      reasoning: z.string().optional(),
+    })).optional(),
+  ),
   checkInQuestion: z.object({
     question: z.string().optional(),
     type: z.string().optional(),
@@ -116,6 +123,13 @@ function coerceQuestionItems(items: unknown[]) {
   }).filter((q) => String(q.stem ?? "").trim().length > 0);
 }
 
+function coerceWorkedExamples(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  const rec = asRecord(value);
+  if (rec) return [rec];
+  return [];
+}
+
 function coerceSectionItems(items: unknown[]) {
   return items.map((item, index) => {
     const s = asRecord(item) ?? {};
@@ -124,7 +138,9 @@ function coerceSectionItems(items: unknown[]) {
       sectionId: s.sectionId ?? s.id ?? `section-${index + 1}`,
       title: s.title ?? s.name ?? s.heading ?? `Section ${index + 1}`,
       explanation: s.explanation ?? s.content ?? s.body ?? s.summary ?? s.text ?? "",
-      workedExamples: s.workedExamples ?? s.examples ?? s.workedExample ?? [],
+      workedExamples: coerceWorkedExamples(
+        s.workedExamples ?? s.examples ?? s.workedExample ?? s.example,
+      ),
       checkInQuestion: {
         question: checkIn.question ?? checkIn.stem ?? checkIn.prompt ?? checkIn.text ?? "",
         type: checkIn.type,

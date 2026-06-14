@@ -113,4 +113,4 @@ export function buildLearningGuideUserPrompt({
 }
 
 export const LEARNING_GUIDE_RETRY_SUFFIX =
-  '\n\nYour previous response failed validation. Return ONLY compact valid JSON. Each section needs 280+ word explanation, exactly 1 workedExample, checkIn with 4 options, and 2 YouTube queries.';
+  '\n\nYour previous response failed validation. Return ONLY compact valid JSON. Each section needs 280+ word explanation, workedExamples as an array with one object (not "workedExample"), checkIn with 4 options, and 2 YouTube queries.';

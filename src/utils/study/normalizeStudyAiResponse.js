@@ -59,13 +59,21 @@ function coerceQuestionItem(q, index) {
   };
 }
 
+function asWorkedExamplesArray(value) {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === 'object') return [value];
+  return [];
+}
+
 function coerceSectionItem(section, index) {
   const checkIn = section.checkInQuestion ?? section.checkIn ?? section.quiz ?? section.question ?? {};
   return {
     sectionId: section.sectionId ?? section.id ?? `section-${index + 1}`,
     title: String(section.title ?? section.name ?? section.heading ?? `Section ${index + 1}`).trim(),
     explanation: String(section.explanation ?? section.content ?? section.body ?? section.summary ?? section.text ?? '').trim(),
-    workedExamples: section.workedExamples ?? section.examples ?? section.workedExample ?? [],
+    workedExamples: asWorkedExamplesArray(
+      section.workedExamples ?? section.examples ?? section.workedExample ?? section.example,
+    ),
     checkInQuestion: {
       question: String(checkIn.question ?? checkIn.stem ?? checkIn.prompt ?? checkIn.text ?? '').trim(),
       type: checkIn.type,

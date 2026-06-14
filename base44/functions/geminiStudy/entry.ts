@@ -31,12 +31,19 @@ const guideSectionAiSchema = z.object({
   sectionId: z.string().optional(),
   title: z.string().optional(),
   explanation: z.string().optional(),
-  workedExamples: z.array(z.object({
-    scenario: z.string().optional(),
-    steps: z.array(z.string()).optional(),
-    answer: z.string().optional(),
-    reasoning: z.string().optional(),
-  })).optional(),
+  workedExamples: z.preprocess(
+    (val) => {
+      if (Array.isArray(val)) return val;
+      if (val && typeof val === "object") return [val];
+      return [];
+    },
+    z.array(z.object({
+      scenario: z.string().optional(),
+      steps: z.array(z.string()).optional(),
+      answer: z.string().optional(),
+      reasoning: z.string().optional(),
+    })).optional(),
+  ),
   checkInQuestion: z.object({
     question: z.string().optional(),
     type: z.string().optional(),
@@ -117,6 +124,13 @@ function coerceQuestionItems(items: unknown[]) {
   }).filter((q) => String(q.stem ?? "").trim().length > 0);
 }
 
+function coerceWorkedExamples(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  const rec = asRecord(value);
+  if (rec) return [rec];
+  return [];
+}
+
 function coerceSectionItems(items: unknown[]) {
   return items.map((item, index) => {
     const s = asRecord(item) ?? {};
@@ -125,7 +139,9 @@ function coerceSectionItems(items: unknown[]) {
       sectionId: s.sectionId ?? s.id ?? `section-${index + 1}`,
       title: s.title ?? s.name ?? s.heading ?? `Section ${index + 1}`,
       explanation: s.explanation ?? s.content ?? s.body ?? s.summary ?? s.text ?? "",
-      workedExamples: s.workedExamples ?? s.examples ?? s.workedExample ?? [],
+      workedExamples: coerceWorkedExamples(
+        s.workedExamples ?? s.examples ?? s.workedExample ?? s.example,
+      ),
       checkInQuestion: {
         question: checkIn.question ?? checkIn.stem ?? checkIn.prompt ?? checkIn.text ?? "",
         type: checkIn.type,
@@ -550,7 +566,7 @@ function payloadShapeSummary(value: unknown): Record<string, unknown> {
 
 
 const MODEL = "gemma-4-31b-it";
-const DEPLOY_BUILD = "inline-gemma-v3-section-by-section";
+const DEPLOY_BUILD = "inline-gemma-v4-worked-examples-fix";
 const MAX_OUTPUT_TOKENS = 4096;
 const MAX_OUTPUT_TOKENS_SECTION = 2048;
 const TEMPERATURE = 0.2;
@@ -1008,7 +1024,7 @@ Rules:
 - Output ONLY valid JSON. No markdown.
 - Teach from the provided concepts for this section only.
 - explanation: 140–200 words, 3–4 paragraphs separated by \\n\\n. Clear, thorough, token-efficient.
-- workedExamples: exactly one object with scenario, 3–4 steps, answer, reasoning.
+- workedExamples: MUST be an array with exactly one object — [ { scenario, steps, answer, reasoning } ]. Never use the key "workedExample" (singular).
 - checkInQuestion: multipleChoice with exactly 4 options.
 - externalSearchSuggestions: exactly 2 short YouTube search queries.
 - transitionText: 1–2 sentences previewing the next section (empty string if isLastSection is true).
