@@ -13,6 +13,11 @@ export const queryKeys = {
     byJourney: (journeyId) => ['activities', 'journey', journeyId],
   },
   studyPlan: (journeyId) => ['studyPlan', journeyId],
+  library: {
+    list: (params) => ['library', 'list', params],
+    preview: (journeyId) => ['library', 'preview', journeyId],
+    eligibility: (journeyId) => ['library', 'eligibility', journeyId],
+  },
   cards: {
     byJourney: (journeyId) => ['cards', journeyId],
     byActivity: (activityId) => ['cards', 'activity', activityId],
@@ -21,6 +26,9 @@ export const queryKeys = {
     byJourney: (journeyId) => ['sessions', journeyId],
   },
   preferences: ['preferences'],
+  profile: {
+    stats: ['profile', 'stats'],
+  },
   dueToday: ['dueToday'],
   catalog: {
     allModules: ['catalog', 'modules'],

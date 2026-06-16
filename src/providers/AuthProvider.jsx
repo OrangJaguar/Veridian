@@ -2,6 +2,7 @@ import { createContext, useCallback, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { queryClient } from '@/lib/query-client';
 import { clearAuthCache } from '@/api/requireAuth';
+import { touchLastActive } from '@/api/entities/preferences';
 import { useCurrentUser } from '@/hooks/queries/useCurrentUser';
 
 export const AuthContext = createContext(null);
@@ -21,6 +22,12 @@ export default function AuthProvider({ children }) {
       window.__veridianAuthCallbacks.onUserLoaded = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (user?.email) {
+      touchLastActive().catch(() => {});
+    }
+  }, [user?.email]);
 
   const setUser = useCallback((nextUser) => {
     queryClient.setQueryData(['auth', 'me'], nextUser ?? null);

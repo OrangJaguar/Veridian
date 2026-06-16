@@ -1,46 +1,18 @@
-import { useState, useEffect, useRef } from 'react';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 
-export default function VoiceInputButton({ onTranscript, disabled }) {
-  const [listening, setListening] = useState(false);
-  const recognitionRef = useRef(null);
+export default function VoiceInputButton({ onTranscript, disabled, baseText = '' }) {
+  const { listening, toggle, supported } = useSpeechRecognition({ onTranscript });
 
-  useEffect(() => () => {
-    recognitionRef.current?.stop?.();
-  }, []);
-
-  const start = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.onresult = (event) => {
-      let text = '';
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        text += event.results[i][0].transcript;
-      }
-      onTranscript(text);
-    };
-    recognition.onend = () => setListening(false);
-    recognition.start();
-    recognitionRef.current = recognition;
-    setListening(true);
-  };
-
-  const stop = () => {
-    recognitionRef.current?.stop();
-    setListening(false);
-  };
-
-  if (!window.SpeechRecognition && !window.webkitSpeechRecognition) return null;
+  if (!supported) return null;
 
   return (
     <button
       type="button"
-      className={`btn btn-secondary btn-sm${listening ? ' active' : ''}`}
+      className={`voice-input-btn${listening ? ' voice-input-btn--active' : ''}`}
       disabled={disabled}
-      onClick={listening ? stop : start}
+      onClick={() => toggle(baseText)}
+      aria-label={listening ? 'Stop microphone' : 'Start voice input'}
+      aria-pressed={listening}
     >
       {listening ? 'Stop mic' : 'Voice input'}
     </button>

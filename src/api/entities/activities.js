@@ -39,6 +39,7 @@ export async function createActivity(journeyId, payload) {
     itemCount: payload.itemCount ?? 0,
     createdAt: payload.createdAt ?? now,
     updatedAt: payload.updatedAt ?? now,
+    libraryVisible: payload.libraryVisible ?? false,
   });
 }
 

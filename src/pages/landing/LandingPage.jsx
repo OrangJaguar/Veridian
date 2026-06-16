@@ -126,9 +126,9 @@ export default function LandingPage() {
         <section className="landing-section">
           <div className="landing-section-inner">
             <p className="landing-eyebrow">Study modes</p>
-            <h2 className="landing-section-title">Four ways in — one source of truth</h2>
+            <h2 className="landing-section-title">Real study sessions — from your Journey</h2>
             <p className="landing-section-lead">
-              Quiz, flashcards, typing, summary — all from the same Journey. Click a mode below to see what it looks like.
+              Learning guides, practice quizzes, flashcards, and Feynman explanations — all generated from the same modules. Click a mode to preview the actual interface.
             </p>
             <LandingInteractiveModes />
           </div>
@@ -161,9 +161,9 @@ export default function LandingPage() {
         <section className="landing-section">
           <div className="landing-section-inner">
             <p className="landing-eyebrow">Roadmap</p>
-            <h2 className="landing-section-title">Built in the open — here is what is next</h2>
+            <h2 className="landing-section-title">What we&apos;re building next</h2>
             <p className="landing-section-lead">
-              Veridian is actively shipping toward v1. The core study loop works today — journey creation, diagnostics, and live AI study sessions. Next up: library, profile, settings, and journey-wide review.
+              Smarter suggestions, deeper insights, and quality-of-life improvements on top of the study loop that already works today.
             </p>
             <LandingRoadmapTimeline />
           </div>

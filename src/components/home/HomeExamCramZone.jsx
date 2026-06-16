@@ -1,20 +1,31 @@
 import { Link } from 'react-router-dom';
 import { useActivitiesByJourney } from '@/hooks/queries/useActivities';
+import { useModules } from '@/hooks/queries/useModules';
 import { useLaunchStudy } from '@/hooks/study/useLaunchStudy';
+import { journeyWideActivitiesUnlocked } from '@/utils/study/journeyUnlock';
 
 function CramBanner({ journey }) {
   const { data: activities = [] } = useActivitiesByJourney(journey.journeyId);
+  const { data: modules = [] } = useModules(journey.journeyId);
   const launchStudy = useLaunchStudy();
-  const challenge = activities.find((a) => a.type === 'journeyChallenge');
+  const cram = activities.find((a) => a.type === 'cramSession');
   const daysUntilExam = Math.ceil((journey.examDate - Date.now()) / 86400000);
+  const unlocked = journeyWideActivitiesUnlocked(modules);
 
   const handleCram = () => {
-    if (!challenge) return;
+    if (!cram || !unlocked) return;
     launchStudy({
       journeyId: journey.journeyId,
-      activity: challenge,
+      activity: cram,
       moduleId: null,
-      initialSessionData: { cramMode: true },
+      initialSessionData: {
+        cramConfig: {
+          durationMin: 15,
+          selectedModuleIds: modules
+            .filter((m) => m.stage === 'B' || m.stage === 'C')
+            .map((m) => m.moduleId),
+        },
+      },
     });
   };
 
@@ -27,9 +38,9 @@ function CramBanner({ journey }) {
         </span>
       </div>
       <div className="home-cram-banner-actions">
-        {challenge ? (
+        {cram && unlocked ? (
           <button type="button" className="btn btn-primary btn-sm" onClick={handleCram}>
-            Cram Mode
+            Cram Session (15 min)
           </button>
         ) : (
           <Link to={`/journeys/${journey.journeyId}`} className="btn btn-secondary btn-sm">

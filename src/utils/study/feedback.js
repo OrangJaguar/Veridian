@@ -12,6 +12,19 @@ const AudioContext = typeof window !== 'undefined'
   : null;
 let audioCtx = null;
 
+let feedbackPrefs = { haptics: true, audio: true };
+
+export function setStudyFeedbackPrefs(prefs) {
+  feedbackPrefs = {
+    haptics: prefs?.haptics !== false,
+    audio: prefs?.audio !== false,
+  };
+}
+
+export function getStudyFeedbackPrefs() {
+  return feedbackPrefs;
+}
+
 export function initStudyAudio() {
   if (!AudioContext) return;
   if (!audioCtx) audioCtx = new AudioContext();
@@ -19,6 +32,7 @@ export function initStudyAudio() {
 }
 
 export function playStudySound(type) {
+  if (!feedbackPrefs.audio) return;
   if (!audioCtx) return;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
@@ -51,6 +65,7 @@ export function playStudySound(type) {
 }
 
 export function triggerStudyHaptic(type) {
+  if (!feedbackPrefs.haptics) return;
   if (!navigator.vibrate) return;
   if (type === 'correct') navigator.vibrate([30, 50, 30]);
   else if (type === 'wrong') navigator.vibrate([150]);

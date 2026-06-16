@@ -1,6 +1,7 @@
 import { createActivity } from '@/api/entities/activities';
 import { createCards } from '@/api/entities/cards';
 import { generateActivityId, generateCardId } from '@/utils/schemas/ids';
+import { staggerNewCardDueDates } from '@/utils/fsrs/dueTodaySchedule';
 
 const MODULE_ACTIVITY_DEFS = [
   { type: 'learningGuide', status: 'notGenerated', title: 'Learning Guide' },
@@ -13,6 +14,7 @@ const JOURNEY_ACTIVITY_DEFS = [
   { type: 'diagnostic', status: 'ready', title: 'Diagnostic Assessment' },
   { type: 'interleavedReview', status: 'ready', title: 'Interleaved Review' },
   { type: 'journeyChallenge', status: 'ready', title: 'Journey Challenge' },
+  { type: 'cramSession', status: 'ready', title: 'Cram Session' },
 ];
 
 /**
@@ -75,15 +77,17 @@ export async function createFlashcardDeck(moduleId, journeyId, { title, cards })
     stats: { dueCount: cards.length },
   });
 
+  const dueDates = staggerNewCardDueDates(cards.length);
+
   const cardRecords = await createCards(
     activityId,
     journeyId,
-    cards.map((card) => ({
+    cards.map((card, i) => ({
       cardId: generateCardId(),
       front: card.front,
       back: card.back,
       fsrsState: card.fsrsState ?? {
-        due: Date.now(),
+        due: dueDates[i],
         stability: 1,
         difficulty: 5,
         reps: 0,

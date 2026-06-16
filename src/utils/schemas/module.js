@@ -13,6 +13,7 @@ export const moduleSchema = z.object({
   masteryScore: z.number().min(0).max(100).optional(),
   knowledgeMap: z.record(z.unknown()).optional(),
   lastStudiedAt: z.number().optional(),
+  libraryVisible: z.boolean().optional(),
 });
 
 export const createModuleSchema = moduleSchema.pick({

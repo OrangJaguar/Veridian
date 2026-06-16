@@ -1,6 +1,17 @@
 import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
+import { createUserPreferencesOnSignup } from '@/api/entities/preferences';
+import { useUsernameAvailability } from '@/hooks/useUsernameAvailability';
+import { isValidUsernameFormat, normalizeUsername } from '@/utils/schemas/preferences';
+import { isValidSignupPassword, passwordsMatch } from '@/utils/schemas/password';
+import {
+  AuthFieldRules,
+  allRulesPass,
+  buildConfirmPasswordRules,
+  buildPasswordRules,
+  buildUsernameRules,
+} from '@/components/auth/AuthFieldRules';
 
 function EyeIcon({ visible }) {
   return (
@@ -10,6 +21,14 @@ function EyeIcon({ visible }) {
       {!visible && <line x1="2" y1="2" x2="22" y2="22" />}
     </svg>
   );
+}
+
+function UsernameStatus({ status }) {
+  if (status === 'checking') return <span className="auth-username-status checking">Checking…</span>;
+  if (status === 'available') return <span className="auth-username-status available">✓ Available</span>;
+  if (status === 'taken') return <span className="auth-username-status taken">✗ Taken</span>;
+  if (status === 'invalid') return <span className="auth-username-status taken">Invalid format</span>;
+  return null;
 }
 
 export default function AuthForm({
@@ -24,14 +43,30 @@ export default function AuthForm({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
+  const [usernameFocused, setUsernameFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
+  const [legalAgreed, setLegalAgreed] = useState(false);
   const [digits, setDigits] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const inputRefs = useRef([]);
+  const pendingUsernameRef = useRef('');
 
   const activeTab = allowTabSwitch ? tab : defaultTab;
+  const isSignup = activeTab === 'signup';
+  const usernameStatus = useUsernameAvailability(username, {
+    enabled: isSignup && step === 'form',
+  });
+
+  const usernameRules = buildUsernameRules(username, usernameFocused);
+  const passwordRules = buildPasswordRules(password, passwordFocused);
+  const confirmRules = buildConfirmPasswordRules(password, confirmPassword, confirmPasswordFocused);
+  const showUsernameRules = isSignup && (usernameFocused || username.length > 0);
+  const showPasswordRules = isSignup && (passwordFocused || password.length > 0);
+  const showConfirmRules = isSignup && (confirmPasswordFocused || confirmPassword.length > 0);
 
   function resetMessages() { setError(''); setInfo(''); }
 
@@ -65,6 +100,16 @@ export default function AuthForm({
 
   const otpCode = digits.join('');
 
+  const signupReady = isSignup
+    && allRulesPass(usernameRules)
+    && isValidUsernameFormat(username)
+    && usernameStatus === 'available'
+    && allRulesPass(passwordRules)
+    && isValidSignupPassword(password)
+    && allRulesPass(confirmRules)
+    && passwordsMatch(password, confirmPassword)
+    && legalAgreed;
+
   async function handleSubmit(e) {
     e.preventDefault();
     resetMessages();
@@ -75,8 +120,14 @@ export default function AuthForm({
         const user = await base44.auth.me();
         onSuccess(user);
       } else {
-        if (password !== confirmPassword) { setError('Passwords do not match.'); setLoading(false); return; }
-        await base44.auth.register({ email, password, full_name: name });
+        if (!signupReady) {
+          setError('Please fix the highlighted fields and accept the terms.');
+          setLoading(false);
+          return;
+        }
+        const normalized = normalizeUsername(username);
+        pendingUsernameRef.current = normalized;
+        await base44.auth.register({ email, password, full_name: normalized });
         setInfo('Code sent! Check your email.');
         setStep('verify');
       }
@@ -104,6 +155,13 @@ export default function AuthForm({
       const token = response?.access_token || response?.token || response?.data?.access_token;
       if (token) base44.auth.setToken(token);
       const user = await base44.auth.me();
+      const chosenUsername = pendingUsernameRef.current || normalizeUsername(username);
+      if (chosenUsername) {
+        await createUserPreferencesOnSignup({
+          username: chosenUsername,
+          userEmail: user.email,
+        });
+      }
       onSuccess(user);
     } catch (err) {
       const msg = err?.response?.data?.message || err?.data?.message || err?.message || 'Invalid code. Try again.';
@@ -127,17 +185,21 @@ export default function AuthForm({
     }
   }
 
+  function resetSignupFields() {
+    setConfirmPassword('');
+    setUsernameFocused(false);
+    setPasswordFocused(false);
+    setConfirmPasswordFocused(false);
+    setLegalAgreed(false);
+  }
+
   return (
-    <div>
+    <div className="auth-form">
       {info && (
-        <div style={{ background: 'var(--correct-bg)', color: 'var(--correct-text)', border: '1px solid var(--correct-border)', borderRadius: 'var(--radius)', padding: '0.6rem 0.75rem', fontSize: '0.82rem', marginBottom: '1rem' }}>
-          {info}
-        </div>
+        <div className="auth-banner auth-banner-info">{info}</div>
       )}
       {error && (
-        <div style={{ background: 'var(--wrong-bg)', color: 'var(--wrong-text)', border: '1px solid var(--wrong-border)', borderRadius: 'var(--radius)', padding: '0.6rem 0.75rem', fontSize: '0.82rem', marginBottom: '1rem' }}>
-          {error}
-        </div>
+        <div className="auth-banner auth-banner-error">{error}</div>
       )}
 
       {step === 'verify' ? (
@@ -188,61 +250,124 @@ export default function AuthForm({
           {allowTabSwitch && (
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', background: 'var(--surface)', borderRadius: '999px', padding: '3px', border: '1px solid var(--border)' }}>
               {['login', 'signup'].map((t) => (
-                <button key={t} type="button" onClick={() => { setTab(t); resetMessages(); setConfirmPassword(''); setShowPassword(false); setShowConfirmPassword(false); }} style={{ flex: 1, border: 'none', borderRadius: '999px', padding: '0.45rem', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', background: tab === t ? 'var(--primary)' : 'transparent', color: tab === t ? 'var(--primary-fg)' : 'var(--text-muted)', transition: 'all 0.15s' }}>
+                <button key={t} type="button" onClick={() => { setTab(t); resetMessages(); setShowPassword(false); resetSignupFields(); }} style={{ flex: 1, border: 'none', borderRadius: '999px', padding: '0.45rem', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', background: tab === t ? 'var(--primary)' : 'transparent', color: tab === t ? 'var(--primary-fg)' : 'var(--text-muted)', transition: 'all 0.15s' }}>
                   {t === 'login' ? 'Sign In' : 'Sign Up'}
                 </button>
               ))}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {activeTab === 'signup' && (
-              <div className="veridian-form-field" style={{ margin: 0 }}>
-                <label>Name</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" required autoFocus={activeTab === 'signup'} />
+          <form onSubmit={handleSubmit} className="auth-form-fields">
+            {isSignup && (
+              <div className="veridian-form-field auth-field-block" style={{ margin: 0 }}>
+                <label htmlFor="auth-username">Username</label>
+                <input
+                  id="auth-username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(normalizeUsername(e.target.value))}
+                  onFocus={() => setUsernameFocused(true)}
+                  onBlur={() => setUsernameFocused(false)}
+                  placeholder="your_username"
+                  required
+                  autoFocus
+                  autoComplete="username"
+                  spellCheck={false}
+                />
+                {showUsernameRules && (
+                  <AuthFieldRules rules={usernameRules} columns={1} />
+                )}
+                <UsernameStatus status={usernameStatus} />
               </div>
             )}
-            <div className="veridian-form-field" style={{ margin: 0 }}>
-              <label>Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required autoFocus={activeTab === 'login'} />
+            <div className="veridian-form-field auth-field-block" style={{ margin: 0 }}>
+              <label htmlFor="auth-email">Email</label>
+              <input
+                id="auth-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                required
+                autoFocus={!isSignup}
+                autoComplete="email"
+              />
             </div>
-            <div className="veridian-form-field" style={{ margin: 0 }}>
-              <label>Password</label>
+            <div className="veridian-form-field auth-field-block" style={{ margin: 0 }}>
+              <label htmlFor="auth-password">Password</label>
               <div style={{ position: 'relative' }}>
                 <input
+                  id="auth-password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder={activeTab === 'signup' ? 'Min. 8 characters' : '••••••••'}
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setPasswordFocused(false)}
+                  placeholder={isSignup ? 'Create a password' : '••••••••'}
                   required
-                  minLength={activeTab === 'signup' ? 8 : 1}
+                  minLength={isSignup ? 8 : 1}
+                  autoComplete={isSignup ? 'new-password' : 'current-password'}
                   style={{ paddingRight: '2.5rem' }}
                 />
-                <button type="button" onClick={() => setShowPassword((v) => !v)} style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <button type="button" onClick={() => setShowPassword((v) => !v)} className="auth-password-toggle" aria-label={showPassword ? 'Hide password' : 'Show password'}>
                   <EyeIcon visible={showPassword} />
                 </button>
               </div>
+              {showPasswordRules && (
+                <AuthFieldRules rules={passwordRules} columns={1} />
+              )}
             </div>
-            {activeTab === 'signup' && (
-              <div className="veridian-form-field" style={{ margin: 0 }}>
-                <label>Confirm Password</label>
+            {isSignup && (
+              <div className="veridian-form-field auth-field-block" style={{ margin: 0 }}>
+                <label htmlFor="auth-confirm-password">Confirm password</label>
                 <div style={{ position: 'relative' }}>
                   <input
+                    id="auth-confirm-password"
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Re-enter password"
+                    onFocus={() => setConfirmPasswordFocused(true)}
+                    onBlur={() => setConfirmPasswordFocused(false)}
+                    placeholder="Re-enter your password"
                     required
-                    minLength={8}
+                    autoComplete="new-password"
                     style={{ paddingRight: '2.5rem' }}
                   />
-                  <button type="button" onClick={() => setShowConfirmPassword((v) => !v)} style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <button type="button" onClick={() => setShowConfirmPassword((v) => !v)} className="auth-password-toggle" aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}>
                     <EyeIcon visible={showConfirmPassword} />
                   </button>
                 </div>
+                {showConfirmRules && (
+                  <AuthFieldRules rules={confirmRules} columns={1} />
+                )}
               </div>
             )}
-            <button type="submit" className="btn btn-primary" disabled={loading} style={{ marginTop: '0.25rem', width: '100%', justifyContent: 'center' }}>
+            {isSignup && (
+              <label className="auth-legal-checkbox">
+                <input
+                  type="checkbox"
+                  checked={legalAgreed}
+                  onChange={(e) => setLegalAgreed(e.target.checked)}
+                />
+                <span>
+                  I agree to the{' '}
+                  <Link to="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</Link>
+                  {' '}and{' '}
+                  <Link to="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</Link>
+                  , and confirm I am at least 13 years old.
+                </span>
+              </label>
+            )}
+            {activeTab === 'login' && (
+              <p className="auth-forgot-password">
+                <Link to="/forgot-password">Forgot password?</Link>
+              </p>
+            )}
+            <button
+              type="submit"
+              className="btn btn-primary auth-submit-btn"
+              disabled={loading || (isSignup && !signupReady)}
+            >
               {loading ? 'Please wait…' : activeTab === 'login' ? 'Sign In' : 'Create Account'}
             </button>
           </form>
@@ -259,7 +384,7 @@ export default function AuthForm({
           {allowTabSwitch && (
             <p style={{ marginTop: '1rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
               {tab === 'login' ? "Don't have an account? " : 'Already have an account? '}
-              <button type="button" onClick={() => { setTab(tab === 'login' ? 'signup' : 'login'); resetMessages(); }} style={{ background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 600, fontSize: '0.75rem', padding: 0, textDecoration: 'underline' }}>
+              <button type="button" onClick={() => { setTab(tab === 'login' ? 'signup' : 'login'); resetMessages(); resetSignupFields(); }} style={{ background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 600, fontSize: '0.75rem', padding: 0, textDecoration: 'underline' }}>
                 {tab === 'login' ? 'Sign up' : 'Sign in'}
               </button>
             </p>

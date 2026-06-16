@@ -1,7 +1,10 @@
 import { useState } from 'react';
+import { Home, Map, Users, User, ChevronLeft, ChevronDown } from 'lucide-react';
 import VeridianLogo from '@/components/layout/VeridianLogo';
 
-/** 3D-tilted hero preview — responds to hover tilt */
+const SIDEBAR_ICONS = [Home, Map, Users, User];
+
+/** 3D-tilted hero — miniature of the real Home screen */
 export function LandingHeroScene() {
   const [tilt, setTilt] = useState({ x: 10, y: -14 });
 
@@ -28,7 +31,7 @@ export function LandingHeroScene() {
         className="landing-hero-tilt landing-hero-tilt-interactive"
         style={{ transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)` }}
       >
-        <div className="landing-hero-device">
+        <div className="landing-hero-device landing-hero-device-wide">
           <div className="landing-hero-device-bar">
             <span className="landing-hero-device-dot" />
             <span className="landing-hero-device-dot" />
@@ -36,26 +39,39 @@ export function LandingHeroScene() {
           </div>
           <div className="landing-hero-device-body">
             <div className="landing-hero-device-sidebar">
-              <VeridianLogo size={22} />
-              <div className="landing-hero-device-nav active" />
-              <div className="landing-hero-device-nav" />
-              <div className="landing-hero-device-nav" />
-              <div className="landing-hero-device-nav" />
+              <VeridianLogo size={20} />
+              {SIDEBAR_ICONS.map((Icon, i) => (
+                <span
+                  key={Icon.displayName ?? i}
+                  className={`landing-hero-nav-icon${i === 0 ? ' active' : ''}`}
+                >
+                  <Icon size={14} strokeWidth={2} />
+                </span>
+              ))}
             </div>
-            <div className="landing-hero-device-main">
-              <div className="landing-hero-due-card landing-hero-due-card-1">
-                <span>Due Today</span>
-                <strong>12</strong>
+            <div className="landing-hero-device-main landing-hero-home-mock">
+              <div className="landing-mini-welcome-row">
+                <span className="landing-mini-greeting">Good evening, Alex</span>
+                <span className="landing-mini-date">Fri, Jun 5</span>
               </div>
-              <div className="landing-hero-due-card landing-hero-due-card-2">
-                <span>Organic Chem · Module 3</span>
+              <div className="landing-mini-due-header">
+                <span className="landing-mini-due-title">Due Today</span>
+                <span className="landing-mini-due-est">Today&apos;s plan · ~45 min</span>
               </div>
-              <div className="landing-hero-due-card landing-hero-due-card-3">
-                <span>Cell Biology · Quiz</span>
+              <div className="landing-mini-progress">
+                <span>1 of 3 done today</span>
+                <div className="landing-mini-progress-track">
+                  <div className="landing-mini-progress-fill" style={{ width: '33%' }} />
+                </div>
               </div>
-              <div className="landing-hero-journey-row">
-                <div className="landing-hero-journey-pill" />
-                <div className="landing-hero-journey-pill wide" />
+              <div className="landing-mini-focus-card">
+                <span className="landing-mini-focus-eyebrow">Focus now</span>
+                <strong className="landing-mini-focus-title">Learning Guide</strong>
+                <span className="landing-mini-focus-context">AP Biology · Gene Expression</span>
+                <div className="landing-mini-focus-footer">
+                  <span>~20 min</span>
+                  <span className="landing-mini-btn">Continue</span>
+                </div>
               </div>
             </div>
           </div>
@@ -93,41 +109,67 @@ export function LandingPipeline() {
   );
 }
 
+/** Miniature of the real Due Today zone on Home */
 export function LandingDueTodayDemo() {
-  const items = [
-    { subject: 'Organic Chemistry', task: 'SN2 Reactions · 8 cards', due: 'Now' },
-    { subject: 'Cell Biology', task: 'Mitosis Quiz · 12 Qs', due: '2h' },
-    { subject: 'Calculus II', task: 'Integration · Typing', due: 'Today' },
-  ];
-  const [active, setActive] = useState(0);
+  const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="landing-due-demo">
-      <div className="landing-due-demo-header">
-        <span className="landing-due-demo-label">Due Today</span>
-        <span className="landing-due-demo-count">{items.length} sessions</span>
+    <div className="landing-due-demo landing-due-demo-real">
+      <div className="landing-mini-due-header">
+        <span className="landing-mini-due-title">Due Today</span>
+        <span className="landing-mini-due-est">Today&apos;s plan · ~52 min</span>
       </div>
-      <p className="landing-due-demo-hint">Click a session to preview</p>
-      <div className="landing-due-demo-stack">
-        {items.map((item, i) => (
-          <button
-            key={item.subject}
-            type="button"
-            className={`landing-due-demo-card${active === i ? ' selected' : ''}`}
-            style={{ '--card-i': i }}
-            onClick={() => setActive(i)}
-          >
-            <div className="landing-due-demo-card-top">
-              <strong>{item.subject}</strong>
-              <span className="landing-due-demo-badge">{item.due}</span>
-            </div>
-            <span className="landing-due-demo-task">{item.task}</span>
-            <div className="landing-due-demo-progress">
-              <div className="landing-due-demo-progress-fill" style={{ width: active === i ? `${70 - i * 20}%` : '0%' }} />
-            </div>
-          </button>
-        ))}
+
+      <div className="landing-mini-progress">
+        <span>0 of 3 done today</span>
+        <div className="landing-mini-progress-track">
+          <div className="landing-mini-progress-fill" style={{ width: '0%' }} />
+        </div>
       </div>
+
+      <div className="landing-mini-focus-card landing-mini-focus-card-lg">
+        <span className="landing-mini-focus-eyebrow">Focus now</span>
+        <strong className="landing-mini-focus-title">Practice Quiz</strong>
+        <span className="landing-mini-focus-context">AP Biology · Cell Structure</span>
+        <div className="landing-mini-focus-footer">
+          <span>~15 min</span>
+          <span className="landing-mini-btn">Start</span>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className="landing-mini-queue-toggle"
+        onClick={() => setExpanded(!expanded)}
+      >
+        2 more sessions today
+        <ChevronDown size={14} className={expanded ? 'expanded' : ''} />
+      </button>
+
+      {expanded && (
+        <div className="landing-mini-queue">
+          <div className="landing-mini-queue-row">
+            <div>
+              <strong>Flashcard Set</strong>
+              <span>AP Biology · Heredity</span>
+            </div>
+            <div className="landing-mini-queue-meta">
+              <span>~12 min</span>
+              <span className="landing-mini-btn secondary">Review</span>
+            </div>
+          </div>
+          <div className="landing-mini-queue-row">
+            <div>
+              <strong>Learning Guide</strong>
+              <span>Organic Chemistry · Reactions</span>
+            </div>
+            <div className="landing-mini-queue-meta">
+              <span>~20 min</span>
+              <span className="landing-mini-btn secondary">Continue</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -189,15 +231,10 @@ export function LandingSRDiagram() {
 }
 
 const ROADMAP = [
-  { phase: '✓', title: 'App Home', desc: 'Due Today feed & journey dashboard', status: 'done' },
-  { phase: '✓', title: 'AI Journey Builder', desc: 'Notes → structured journey with modules', status: 'done' },
-  { phase: '✓', title: 'Diagnostic Assessment', desc: 'Placement into Stage A or B per module', status: 'done' },
-  { phase: '✓', title: 'Study Sessions', desc: 'Guides, quizzes, flashcards, Feynman & Free Recall', status: 'done' },
-  { phase: '→', title: 'Community Library', desc: 'Browse & clone shared journeys', status: 'next' },
-  { phase: '→', title: 'Learner Profile', desc: 'Progress, history & knowledge trends', status: 'next' },
-  { phase: '→', title: 'Settings', desc: 'Account preferences & app customization', status: 'next' },
-  { phase: '—', title: 'Journey-wide Activities', desc: 'Interleaved review & journey challenges', status: 'planned' },
-  { phase: '—', title: 'Personalization', desc: 'Smarter scheduling tuned to how you study', status: 'planned' },
+  { phase: '→', title: 'Smarter suggestions', desc: 'Adaptive daily picks based on weak spots & exam proximity', status: 'next' },
+  { phase: '—', title: 'Learning profile', desc: 'Knowledge maps, trends, and concept-level insights', status: 'planned' },
+  { phase: '—', title: 'Study streaks & insights', desc: 'Momentum tracking and gentle nudges when you slip', status: 'planned' },
+  { phase: '—', title: 'Ease-of-life', desc: 'Quick actions, keyboard shortcuts, and smarter defaults', status: 'planned' },
 ];
 
 export function LandingRoadmapTimeline() {
@@ -208,7 +245,7 @@ export function LandingRoadmapTimeline() {
       </div>
       {ROADMAP.map((item, i) => (
         <div
-          key={item.phase}
+          key={item.title}
           className={`landing-roadmap-item landing-roadmap-${item.status}`}
           style={{ '--road-i': i }}
         >
@@ -225,37 +262,92 @@ export function LandingRoadmapTimeline() {
   );
 }
 
-const MODULES = ['Bonding', 'Reactions', 'Mechanisms', 'Synthesis'];
+const JOURNEY_MODULES = [
+  { name: 'Cell Structure', stage: 'C', mastery: 82, desc: 'Organelles and membranes' },
+  { name: 'Gene Expression', stage: 'B', mastery: 58, desc: 'Transcription and translation' },
+  { name: 'Heredity', stage: 'A', mastery: 24, desc: 'Mendelian genetics' },
+];
 
+/** Miniature of Journey detail page */
 export function LandingJourneyTree() {
-  const [active, setActive] = useState(2);
+  const [expanded, setExpanded] = useState(1);
 
   return (
-    <div className="landing-journey-tree">
-      <div className="landing-journey-root">
-        <span>Organic Chemistry</span>
-        <small>Exam in 14 days · click a module</small>
+    <div className="landing-journey-detail-demo" aria-hidden="true">
+      <div className="landing-mini-detail-header">
+        <span className="landing-mini-back">
+          <ChevronLeft size={14} />
+          Journeys
+        </span>
+        <h3 className="landing-mini-journey-title">AP Biology</h3>
       </div>
-      <div className="landing-journey-branches">
-        {MODULES.map((mod, i) => (
-          <button
-            key={mod}
-            type="button"
-            className={`landing-journey-branch${i < 2 ? ' done' : ''}${active === i ? ' active' : ''}`}
-            style={{ '--branch-i': i }}
-            onClick={() => setActive(i)}
-          >
-            <div className="landing-journey-module">
-              <span>{mod}</span>
-              {i < 2 && active !== i && <span className="landing-journey-check">✓</span>}
-              {active === i && <span className="landing-journey-pulse" />}
-            </div>
-          </button>
-        ))}
+
+      <div className="landing-mini-detail-meta">
+        <div className="landing-mini-meta-tags">
+          <span>Biology</span>
+          <span>·</span>
+          <span>May 12, 2026</span>
+          <span>·</span>
+          <span>14 days left</span>
+        </div>
+        <div className="landing-mini-mastery">
+          <div className="landing-mini-mastery-bar">
+            <div style={{ width: '54%' }} />
+          </div>
+          <span>54% mastery</span>
+        </div>
       </div>
-      <p className="landing-journey-active-label">
-        {active < 2 ? `${MODULES[active]} — completed` : `${MODULES[active]} — in progress`}
-      </p>
+
+      <div className="landing-mini-section-box">
+        <p className="landing-mini-section-label">Modules</p>
+        <ul className="landing-mini-module-list">
+          {JOURNEY_MODULES.map((mod, i) => (
+            <li key={mod.name} className={expanded === i ? 'expanded' : ''}>
+              <button
+                type="button"
+                className="landing-mini-module-row"
+                onClick={() => setExpanded(expanded === i ? -1 : i)}
+              >
+                <div className="landing-mini-module-main">
+                  <strong>{mod.name}</strong>
+                  <span>{mod.desc}</span>
+                </div>
+                <div className="landing-mini-module-right">
+                  <span className={`landing-mini-stage stage-${mod.stage}`}>
+                    Stage {mod.stage}
+                  </span>
+                  <span>{mod.mastery}%</span>
+                  <ChevronDown size={14} className={expanded === i ? 'expanded' : ''} />
+                </div>
+              </button>
+              {expanded === i && (
+                <div className="landing-mini-module-drawer">
+                  <div className="landing-mini-drawer-row">
+                    <span>Learning Guide</span>
+                    <span className="landing-mini-btn secondary">Continue</span>
+                  </div>
+                  <div className="landing-mini-drawer-row">
+                    <span>Practice Quiz</span>
+                    <span className="landing-mini-btn secondary">Start</span>
+                  </div>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="landing-mini-section-box landing-mini-plan-box">
+        <p className="landing-mini-section-label">Weekly plan</p>
+        <div className="landing-mini-plan-chips">
+          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+            <span key={`${d}-${i}`} className={`landing-mini-plan-chip${i === 2 ? ' active' : ''}`}>
+              <small>{d}</small>
+              <strong>{i === 2 ? '#2 📖' : i < 2 ? '✓' : '—'}</strong>
+            </span>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

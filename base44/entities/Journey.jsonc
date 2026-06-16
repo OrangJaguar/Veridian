@@ -71,6 +71,38 @@
     },
     "updatedAt": {
       "type": "number"
+    },
+    "weeklyPlanSnapshot": {
+      "type": "object",
+      "description": "Persisted weekly study plan (7-day assignment map)"
+    },
+    "weeklyPlanWeekKey": {
+      "type": "string",
+      "description": "ISO week key (normal) or date key (cram mode)"
+    },
+    "weeklyPlanBuiltAt": {
+      "type": "number"
+    },
+    "weeklyPlanMode": {
+      "type": "string",
+      "description": "normal | cram"
+    },
+    "publishedAt": {
+      "type": "number"
+    },
+    "creatorUsername": {
+      "type": "string"
+    },
+    "clonedFromJourneyId": {
+      "type": "string"
+    },
+    "libraryCategory": {
+      "type": "string",
+      "description": "AP | Pre-Med | College | Self-Learning"
+    },
+    "moduleFocusBoosts": {
+      "type": "object",
+      "description": "Temporary urgency weights per moduleId from challenge results"
     }
   },
   "required": [
@@ -83,7 +115,10 @@
       "data.userEmail": "{{user.email}}"
     },
     "read": {
-      "data.userEmail": "{{user.email}}"
+      "$or": [
+        { "data.userEmail": "{{user.email}}" },
+        { "data.isPublic": { "$eq": true } }
+      ]
     },
     "update": {
       "data.userEmail": "{{user.email}}"

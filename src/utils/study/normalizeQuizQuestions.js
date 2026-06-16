@@ -12,7 +12,7 @@ function normalizeOptions(options, type) {
 /**
  * Normalize AI quiz output for QuizRunner.
  */
-export function normalizeQuizQuestions(raw, questionCount) {
+export function normalizeQuizQuestions(raw, questionCount, { moduleTargets } = {}) {
   const coerced = coerceStudyAiPayload('generatePracticeQuestions', raw);
   const list = extractAiList(coerced, 'questions');
   if (!list.length) return [];
@@ -24,6 +24,17 @@ export function normalizeQuizQuestions(raw, questionCount) {
     const options = normalizeOptions(q.options, type);
     const stem = String(q.stem ?? q.question ?? q.prompt ?? '').trim();
     const correctAnswer = q.correctAnswer ?? q.answer ?? q.correct ?? options?.[0];
+    let moduleId = q.moduleId ? String(q.moduleId) : undefined;
+    if (!moduleId && moduleTargets?.length) {
+      let cursor = 0;
+      for (const t of moduleTargets) {
+        cursor += t.count;
+        if (index < cursor) {
+          moduleId = t.moduleId;
+          break;
+        }
+      }
+    }
 
     return {
       id: String(q.id ?? `pq-${index + 1}`).trim(),
@@ -33,6 +44,7 @@ export function normalizeQuizQuestions(raw, questionCount) {
       correctAnswer,
       explanation: String(q.explanation ?? q.rationale ?? '').trim(),
       conceptId: q.conceptId ? String(q.conceptId) : undefined,
+      moduleId: q.moduleId ? String(q.moduleId) : undefined,
     };
   }).filter((q) => q.stem && q.correctAnswer != null);
 

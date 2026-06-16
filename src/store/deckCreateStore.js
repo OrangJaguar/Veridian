@@ -3,16 +3,11 @@ import {
   generateFlashcards,
   parseQuizletImport,
   extractDeckSource,
-  findFlashcardDuplicates,
 } from '@/api/ai/study';
 import { runStudyAiGeneration } from '@/hooks/ai/runStudyAiGeneration';
 import { extractAiList, coerceStudyAiPayload } from '@/utils/study/normalizeStudyAiResponse';
 import { buildGenerateFlashcardsPayload } from '@/api/ai/prompts/flashcards';
 import { parseQuizletFormat } from '@/utils/study/parseQuizletFormat';
-import {
-  findDuplicateGroupsClient,
-  mergeAiDuplicateGroups,
-} from '@/utils/study/duplicateCards';
 import { createFlashcardDeck } from '@/api/entities/journeyScaffold';
 
 const initialDraft = {
@@ -33,8 +28,6 @@ export const useDeckCreateStore = create((set, get) => ({
   context: null,
   draft: { ...initialDraft },
   generatedCards: [],
-  duplicateGroups: [],
-  duplicateSelections: {},
   isProcessing: false,
   processingError: null,
 
@@ -45,8 +38,6 @@ export const useDeckCreateStore = create((set, get) => ({
     step: 1,
     draft: { ...initialDraft },
     generatedCards: [],
-    duplicateGroups: [],
-    duplicateSelections: {},
     isProcessing: false,
     processingError: null,
   }),
@@ -55,18 +46,12 @@ export const useDeckCreateStore = create((set, get) => ({
     step: 1,
     draft: { ...initialDraft },
     generatedCards: [],
-    duplicateGroups: [],
-    duplicateSelections: {},
     isProcessing: false,
     processingError: null,
   }),
 
   setStep: (step) => set({ step }),
   updateDraft: (patch) => set((s) => ({ draft: { ...s.draft, ...patch } })),
-
-  setDuplicateSelection: (groupKey, keepIndex) => set((s) => ({
-    duplicateSelections: { ...s.duplicateSelections, [groupKey]: keepIndex },
-  })),
 
   runExtractPreview: async () => {
     const { draft } = get();
@@ -143,30 +128,8 @@ export const useDeckCreateStore = create((set, get) => ({
         },
       });
 
-      let groups = [];
-      try {
-        const dup = await findFlashcardDuplicates({ cards });
-        groups = mergeAiDuplicateGroups(dup.groups);
-      } catch {
-        groups = findDuplicateGroupsClient(cards);
-      }
-
-      if (!groups.length) groups = findDuplicateGroupsClient(cards);
-
-      const duplicateGroups = groups.map((g, i) => ({
-        ...g,
-        id: `dup-${i}-${g.cardIndexes.join('-')}`,
-      }));
-
-      const duplicateSelections = {};
-      for (const g of duplicateGroups) {
-        duplicateSelections[g.id] = g.cardIndexes[0];
-      }
-
       set({
         generatedCards: cards,
-        duplicateGroups,
-        duplicateSelections,
         isProcessing: false,
       });
       return true;
@@ -176,26 +139,13 @@ export const useDeckCreateStore = create((set, get) => ({
     }
   },
 
-  getResolvedCards: () => {
-    const { generatedCards, duplicateGroups, duplicateSelections } = get();
-    const drop = new Set();
-    for (const group of duplicateGroups) {
-      const keep = duplicateSelections[group.id] ?? group.cardIndexes[0];
-      for (const idx of group.cardIndexes) {
-        if (idx !== keep) drop.add(idx);
-      }
-    }
-    return generatedCards.filter((_, i) => !drop.has(i));
-  },
-
   finalizeDeck: async () => {
-    const { journeyId, moduleId, draft, getResolvedCards } = get();
-    const cards = getResolvedCards();
-    if (!cards.length) throw new Error('No cards to save.');
+    const { journeyId, moduleId, draft, generatedCards } = get();
+    if (!generatedCards.length) throw new Error('No cards to save.');
 
     return createFlashcardDeck(moduleId, journeyId, {
       title: draft.title.trim(),
-      cards: cards.map((c) => ({
+      cards: generatedCards.map((c) => ({
         front: c.front,
         back: c.back,
         conceptTag: c.conceptTag,

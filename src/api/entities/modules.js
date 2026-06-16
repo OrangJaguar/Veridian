@@ -30,6 +30,7 @@ export async function createModule(journeyId, payload) {
     userEmail: user.email,
     stage: payload.stage ?? 'A',
     masteryScore: payload.masteryScore ?? 0,
+    libraryVisible: payload.libraryVisible ?? false,
   });
 }
 
@@ -43,6 +44,7 @@ export async function createModules(journeyId, modules) {
         userEmail: user.email,
         stage: mod.stage ?? 'A',
         masteryScore: mod.masteryScore ?? 0,
+        libraryVisible: mod.libraryVisible ?? false,
       }),
     ),
   );

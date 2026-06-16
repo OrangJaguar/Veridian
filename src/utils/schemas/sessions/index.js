@@ -8,6 +8,7 @@ export const quizQuestionSchema = z.object({
   correctAnswer: z.union([z.string(), z.array(z.string())]),
   explanation: z.string(),
   conceptId: z.string().optional(),
+  moduleId: z.string().optional(),
 });
 
 export const practiceQuizSessionDataSchema = z.object({
@@ -111,15 +112,42 @@ export const interleavedSessionDataSchema = z.object({
 });
 
 export const journeyChallengeSessionDataSchema = interleavedSessionDataSchema.extend({
+  challengeConfig: z.object({
+    questionCount: z.number(),
+    focusWeight: z.number(),
+    strictSecondsPerQuestion: z.number(),
+    strictMode: z.boolean().optional(),
+    moduleDistributionPreview: z.array(z.object({
+      moduleId: z.string(),
+      name: z.string(),
+      count: z.number(),
+    })).optional(),
+  }).optional(),
+  flaggedIndices: z.array(z.number()).optional(),
+  perModuleMissedConcept: z.record(z.string()).optional(),
+  planReweighted: z.boolean().optional(),
   overallReadinessSignal: z.enum(['examReady', 'nearlyReady', 'notReady']).optional(),
   recommendedStudyPlan: z.string().optional(),
+  totalTimeSec: z.number().optional(),
+  timeRemainingSec: z.number().optional(),
 });
 
 export const cramSessionDataSchema = z.object({
-  itemsCompleted: z.number(),
+  cramConfig: z.object({
+    durationMin: z.number(),
+    selectedModuleIds: z.array(z.string()),
+  }).optional(),
+  questions: z.array(quizQuestionSchema).optional(),
+  answers: z.array(z.object({
+    questionId: z.string(),
+    response: z.union([z.string(), z.array(z.string())]),
+    correct: z.boolean(),
+    timeSec: z.number().optional(),
+    conceptId: z.string().optional(),
+  })).optional(),
+  hardestConceptTag: z.string().optional(),
+  perModuleAccuracy: z.record(z.number()).optional(),
+  itemsCompleted: z.number().optional(),
   weakConcepts: z.array(z.string()).optional(),
-  dangerousAreas: z.array(z.string()).optional(),
-  nextAction: z.string().optional(),
-  flashcardReviews: z.number().optional(),
-  quizQuestions: z.number().optional(),
+  totalTimeSec: z.number().optional(),
 });

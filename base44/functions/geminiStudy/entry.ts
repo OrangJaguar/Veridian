@@ -1171,10 +1171,11 @@ ${JSON_STRICT_RULE}
 Rules:
 - Output ONLY valid JSON: { questions: [...] }.
 - Generate EXACTLY the requested questionCount.
-- Balance modules per weighting (balanced or weak-area bias from input).
+- Distribute questions according to moduleTargets in the payload (each question must match a target moduleId count).
+- Each question MUST include moduleId and conceptId from that module's concepts list.
 - Multi-step reasoning, plausible distractors, concise explanations. JSON only.`;
 
-const CRAM_SYSTEM = `You write a short cram quiz prioritizing weak and overdue material.
+const CRAM_SYSTEM = `You write a cram quiz prioritizing weak and overdue material from selected modules.
 
 ${LATEX_RULE}
 
@@ -1183,7 +1184,9 @@ ${JSON_STRICT_RULE}
 Rules:
 - Output ONLY valid JSON: { questions: [...] }.
 - Generate EXACTLY the requested questionCount.
-- Prioritize weakConceptIds and high-yield ideas from moduleMaps.
+- Only use modules listed in selectedModuleIds / moduleMaps.
+- Prioritize weakConceptIds and high-yield ideas from those modules.
+- Each question MUST include moduleId and conceptId when possible.
 - Fast to answer but not guessable. JSON only.`;
 
 function diagnosticModuleSchema(count: number) {

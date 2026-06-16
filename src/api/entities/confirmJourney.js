@@ -1,6 +1,7 @@
-import { createJourney } from '@/api/entities/journeys';
+import { createJourney, getJourney } from '@/api/entities/journeys';
 import { createModules } from '@/api/entities/modules';
 import { scaffoldJourneyActivities } from '@/api/entities/journeyScaffold';
+import { publishJourney } from '@/api/entities/library';
 import { generateJourneyId, generateModuleId } from '@/utils/schemas/ids';
 
 /**
@@ -10,12 +11,15 @@ import { generateJourneyId, generateModuleId } from '@/utils/schemas/ids';
  *   subject: string,
  *   examDate: number | null,
  *   priorKnowledge: string,
+ *   isPublic?: boolean,
+ *   tags?: string[],
  *   proposal: { journeySummary: string, modules: { name: string, description: string, concepts: object[] }[] }
  * }} input
  */
 export async function confirmJourney(input) {
   const journeyId = generateJourneyId();
   const now = Date.now();
+  const wantPublic = !!input.isPublic;
 
   const journey = await createJourney({
     journeyId,
@@ -23,6 +27,8 @@ export async function confirmJourney(input) {
     title: input.title,
     examDate: input.examDate ?? null,
     priorKnowledge: input.priorKnowledge ?? 'some',
+    isPublic: false,
+    tags: input.tags ?? [],
     knowledgeMap: {
       summary: input.proposal.journeySummary,
       extractedAt: now,
@@ -47,5 +53,14 @@ export async function confirmJourney(input) {
 
   const activities = await scaffoldJourneyActivities(journeyId, modules);
 
-  return { journey, modules, activities };
+  if (wantPublic && (input.tags ?? []).length > 0) {
+    try {
+      await publishJourney(journeyId, { tags: input.tags });
+    } catch {
+      // Journey stays private if publish gate fails
+    }
+  }
+
+  const finalJourney = await getJourney(journeyId);
+  return { journey: finalJourney ?? journey, modules, activities };
 }

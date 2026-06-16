@@ -90,7 +90,11 @@ export default function QuizRunner({
     if (remainingSec === 0) {
       autoSubmitted.current = true;
       const flat = answersByIndexRef.current.filter(Boolean);
-      onComplete(flat, Math.round((Date.now() - sessionStartRef.current) / 1000));
+      onComplete(
+        flat,
+        Math.round((Date.now() - sessionStartRef.current) / 1000),
+        { flaggedIndices: [...flagged] },
+      );
     }
   }, [remainingSec, strictTimedMode, paused, onComplete]);
 
@@ -172,7 +176,11 @@ export default function QuizRunner({
 
     if (index + 1 >= questions.length) {
       const flat = answersByIndexRef.current.filter(Boolean);
-      onComplete(flat, Math.round((Date.now() - sessionStartRef.current) / 1000));
+      onComplete(
+        flat,
+        Math.round((Date.now() - sessionStartRef.current) / 1000),
+        { flaggedIndices: [...flagged] },
+      );
       return;
     }
 

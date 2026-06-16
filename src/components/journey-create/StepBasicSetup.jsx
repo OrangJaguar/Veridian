@@ -1,5 +1,6 @@
 import { useJourneyCreateStore } from '@/store/journeyCreateStore';
 import { ChoiceRadio } from '@/components/shared/ChoiceControl';
+import LibraryTagPicker from '@/components/library/LibraryTagPicker';
 
 const PRIOR_OPTIONS = [
   { value: 'scratch', label: 'Starting from scratch' },
@@ -70,6 +71,42 @@ export default function StepBasicSetup({ onNext }) {
           ))}
         </div>
       </fieldset>
+
+      <fieldset className="create-field create-fieldset">
+        <legend className="create-fieldset-legend">Visibility</legend>
+        <label className="create-visibility-option">
+          <input
+            type="radio"
+            name="visibility"
+            checked={!draft.isPublic}
+            onChange={() => updateDraft({ isPublic: false })}
+          />
+          <span>
+            <strong>Private</strong> — only you can see this journey
+          </span>
+        </label>
+        <label className="create-visibility-option">
+          <input
+            type="radio"
+            name="visibility"
+            checked={draft.isPublic}
+            onChange={() => updateDraft({ isPublic: true })}
+          />
+          <span>
+            <strong>Public</strong> — share to Community Library after creation (requires tags &amp; 3+ modules)
+          </span>
+        </label>
+      </fieldset>
+
+      {draft.isPublic && (
+        <div className="create-field">
+          <span>Library tags</span>
+          <LibraryTagPicker
+            value={draft.tags}
+            onChange={(tags) => updateDraft({ tags })}
+          />
+        </div>
+      )}
 
       <div className="create-step-actions">
         <button type="button" className="btn btn-primary" disabled={!canNext} onClick={onNext}>

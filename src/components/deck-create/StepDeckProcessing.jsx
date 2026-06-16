@@ -21,8 +21,8 @@ export default function StepDeckProcessing({ onRetry, onBack }) {
   return (
     <div className="create-step create-step-processing">
       <VeridianLoading />
-      <h2 className="create-step-title">{isProcessing ? 'Generating your deck…' : 'Almost ready…'}</h2>
-      <p className="create-step-desc">AI is building cards from your content. This usually takes a few seconds.</p>
+      <h2 className="create-step-title">{isProcessing ? 'Generating your deck…' : 'Saving your deck…'}</h2>
+      <p className="create-step-desc">AI is building cards from your content. This usually takes under a minute.</p>
     </div>
   );
 }

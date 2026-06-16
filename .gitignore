@@ -30,3 +30,7 @@ dist-ssr
 
 .env
 .vite
+
+# Spec PDFs (keep out of repo)
+*.pdf
+Veridian*.pdf

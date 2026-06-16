@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { usePreferences } from '@/hooks/queries/usePreferences';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
 import StepBasicSetup from '@/components/journey-create/StepBasicSetup';
 import StepSourceMaterial from '@/components/journey-create/StepSourceMaterial';
@@ -16,8 +17,16 @@ export default function CreateJourneyPage() {
   const setStep = useJourneyCreateStore((s) => s.setStep);
   const resetWizard = useJourneyCreateStore((s) => s.resetWizard);
   const runProposal = useJourneyCreateStore((s) => s.runProposal);
+  const updateDraft = useJourneyCreateStore((s) => s.updateDraft);
+  const { data: preferences } = usePreferences();
 
   useEffect(() => () => resetWizard(), [resetWizard]);
+
+  useEffect(() => {
+    if (preferences?.defaultPrivacy === 'public') {
+      updateDraft({ isPublic: true });
+    }
+  }, [preferences?.defaultPrivacy, updateDraft]);
 
   const handleBuild = () => {
     setStep(3);

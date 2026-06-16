@@ -43,6 +43,8 @@ export default function StepReviewModules({ onBack }) {
       subject: draft.subject.trim(),
       examDate: draft.examDate,
       priorKnowledge: draft.priorKnowledge,
+      isPublic: draft.isPublic,
+      tags: draft.tags,
       proposal,
     });
   };

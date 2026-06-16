@@ -18,7 +18,10 @@ export default function OpenResponseEditor({ value, onChange, placeholder, rows 
         value={text}
         onChange={(e) => update(e.target.value)}
       />
-      <VoiceInputButton onTranscript={(t) => update(text ? `${text} ${t}` : t)} />
+      <VoiceInputButton
+        baseText={text}
+        onTranscript={(t) => update(t)}
+      />
     </div>
   );
 }

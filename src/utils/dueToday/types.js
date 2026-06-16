@@ -1,5 +1,9 @@
 /**
- * @typedef {'learningGuide' | 'practiceQuiz' | 'flashcardSet' | 'feynman' | 'freeRecall' | 'interleavedReview' | 'journeyChallenge'} ActivityType
+ * @typedef {'learningGuide' | 'practiceQuiz' | 'flashcardSet' | 'feynman' | 'freeRecall' | 'interleavedReview' | 'journeyChallenge' | 'cramSession'} ActivityType
+ */
+
+/**
+ * @typedef {'focus' | 'primary' | 'overflow' | 'fsrs'} DueTodayTier
  */
 
 /**
@@ -21,6 +25,10 @@
  * @property {string} href
  * @property {number} [cardCount]
  * @property {number} [lastStudiedAt]
+ * @property {DueTodayTier} [tier]
+ * @property {boolean} [isCombinedFsrsDeck]
+ * @property {boolean} [planAssignment]
+ * @property {string[]} [cardIds]
  */
 
 export {};

@@ -7,6 +7,7 @@ function invalidateAll(queryClient, journeyId) {
   queryClient.invalidateQueries({ queryKey: queryKeys.journeys.all });
   queryClient.invalidateQueries({ queryKey: queryKeys.journeys.archived });
   queryClient.invalidateQueries({ queryKey: queryKeys.dueToday });
+  queryClient.invalidateQueries({ queryKey: ['library'] });
   if (journeyId) {
     queryClient.invalidateQueries({ queryKey: queryKeys.journeys.detail(journeyId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.activities.byJourney(journeyId) });

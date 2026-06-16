@@ -7,6 +7,8 @@ import { listActivitiesByJourney } from '@/api/entities/activities';
 import { listModulesByJourney } from '@/api/entities/modules';
 import { listSessionsByJourney } from '@/api/entities/sessions';
 import { listCardsByJourney } from '@/api/entities/cards';
+import { rebuildWeeklyPlan } from '@/api/entities/weeklyPlan';
+import { STAGE_C_PROMOTION_THRESHOLD } from '@/utils/weeklyPlan/constants';
 
 function patchActivityStats(existing, session) {
   const stats = { ...(existing.stats ?? {}) };
@@ -60,7 +62,13 @@ export async function runPostSessionEffects(session, activity) {
     const mod = modules.find((m) => m.moduleId === moduleId);
     if (mod) {
       const masteryScore = calculateModuleMastery(mod, activities, sessions, cards);
-      await updateModule(moduleId, { masteryScore });
+      const stagePatch = mod.stage === 'B' && masteryScore >= STAGE_C_PROMOTION_THRESHOLD
+        ? { masteryScore, stage: 'C' }
+        : { masteryScore };
+      await updateModule(moduleId, stagePatch);
+      if (stagePatch.stage === 'C') {
+        await rebuildWeeklyPlan(journeyId, { force: true });
+      }
     }
   }
 }

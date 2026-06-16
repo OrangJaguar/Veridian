@@ -10,6 +10,8 @@ const initialDraft = {
   material: '',
   sourceMode: 'upload',
   uploadedFileNames: [],
+  isPublic: false,
+  tags: [],
 };
 
 export const useJourneyCreateStore = create((set, get) => ({

@@ -63,10 +63,6 @@ export default function StudyShell() {
 
   const props = { session, activity, module, journeyId, modules, cards: activityCards };
 
-  if (session.sessionData?.cramMode) {
-    return <CramSession {...props} cards={cards} />;
-  }
-
   switch (session.activityType) {
     case 'practiceQuiz':
       return <PracticeQuizSession {...props} />;
@@ -82,6 +78,8 @@ export default function StudyShell() {
       return <InterleavedSession {...props} modules={modules} />;
     case 'journeyChallenge':
       return <JourneyChallengeSession {...props} modules={modules} />;
+    case 'cramSession':
+      return <CramSession {...props} modules={modules} cards={cards} />;
     default:
       return (
         <div className="stub-page">

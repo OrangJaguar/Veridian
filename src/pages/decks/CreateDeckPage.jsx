@@ -9,10 +9,9 @@ import StepDeckSetup from '@/components/deck-create/StepDeckSetup';
 import StepDeckSource from '@/components/deck-create/StepDeckSource';
 import StepDeckPreview from '@/components/deck-create/StepDeckPreview';
 import StepDeckProcessing from '@/components/deck-create/StepDeckProcessing';
-import StepDeckDuplicates from '@/components/deck-create/StepDeckDuplicates';
 import { useDeckCreateStore } from '@/store/deckCreateStore';
 
-const STEPS = ['Setup', 'Content', 'Preview', 'Generate', 'Review'];
+const STEPS = ['Setup', 'Content', 'Preview', 'Generate'];
 
 export default function CreateDeckPage() {
   const { id: journeyId, moduleId } = useParams();
@@ -39,6 +38,7 @@ export default function CreateDeckPage() {
         context: {
           journeyTitle: journey.title,
           subject: journey.subject,
+          priorKnowledge: journey.priorKnowledge,
           moduleName: mod.name,
           moduleDescription: mod.description,
           concepts: mod.knowledgeMap?.concepts ?? [],
@@ -48,36 +48,41 @@ export default function CreateDeckPage() {
     return () => resetWizard();
   }, [journeyId, moduleId, journey, mod, init, resetWizard]);
 
+  const generateAndSave = async () => {
+    const ok = await runGenerate();
+    if (!ok) return;
+
+    useDeckCreateStore.setState({ isProcessing: true, processingError: null });
+    try {
+      const { activity } = await finalizeDeck();
+      toast.success('Deck created');
+      navigate(`/journeys/${journeyId}/modules/${moduleId}/decks/${activity.activityId}/edit`);
+    } catch (err) {
+      useDeckCreateStore.setState({
+        isProcessing: false,
+        processingError: err.message || 'Failed to save deck',
+      });
+      toast.error(err.message || 'Failed to save deck');
+    }
+  };
+
   const handleSourceNext = async () => {
     if (draft.sourceMode === 'pdf') {
       setStep(3);
       await runExtractPreview();
     } else {
       setStep(4);
-      const ok = await runGenerate();
-      if (ok) setStep(5);
+      await generateAndSave();
     }
   };
 
   const handlePreviewNext = async () => {
     setStep(4);
-    const ok = await runGenerate();
-    if (ok) setStep(5);
+    await generateAndSave();
   };
 
   const handleRetryGenerate = async () => {
-    const ok = await runGenerate();
-    if (ok) setStep(5);
-  };
-
-  const handleFinish = async () => {
-    try {
-      const { activity } = await finalizeDeck();
-      toast.success('Deck created');
-      navigate(`/journeys/${journeyId}/modules/${moduleId}/decks/${activity.activityId}/edit`);
-    } catch (err) {
-      toast.error(err.message || 'Failed to create deck');
-    }
+    await generateAndSave();
   };
 
   const visibleSteps = draft.sourceMode === 'pdf' ? STEPS : STEPS.filter((s) => s !== 'Preview');
@@ -137,13 +142,6 @@ export default function CreateDeckPage() {
         <StepDeckProcessing
           onBack={() => setStep(draft.sourceMode === 'pdf' ? 3 : 2)}
           onRetry={handleRetryGenerate}
-        />
-      )}
-
-      {step === 5 && (
-        <StepDeckDuplicates
-          onBack={() => setStep(draft.sourceMode === 'pdf' ? 3 : 2)}
-          onFinish={handleFinish}
         />
       )}
     </div>

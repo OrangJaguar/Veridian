@@ -6,6 +6,46 @@
       "type": "string",
       "description": "Email of the owning user"
     },
+    "username": {
+      "type": "string",
+      "description": "Unique public handle (lowercase a-z, 0-9, _, .)"
+    },
+    "displayName": {
+      "type": "string"
+    },
+    "createdAt": {
+      "type": "number"
+    },
+    "lastActiveAt": {
+      "type": "number"
+    },
+    "gradeLevel": {
+      "type": "string"
+    },
+    "country": {
+      "type": "string"
+    },
+    "usState": {
+      "type": "string"
+    },
+    "studyGoals": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "researchConsent": {
+      "type": "boolean"
+    },
+    "researchConsentAt": {
+      "type": "number"
+    },
+    "onboardingCompletedAt": {
+      "type": "number"
+    },
+    "onboardingStep": {
+      "type": "number"
+    },
     "themeDark": {
       "type": "boolean"
     },
@@ -17,12 +57,6 @@
     },
     "strictMode": {
       "type": "boolean"
-    },
-    "displayName": {
-      "type": "string"
-    },
-    "username": {
-      "type": "string"
     },
     "hintsShown": {
       "type": "array",
@@ -40,6 +74,25 @@
     },
     "defaultShowSources": {
       "type": "boolean"
+    },
+    "dailyTimeBudgetMin": {
+      "type": "number",
+      "description": "Daily study time budget in minutes (default 35)"
+    },
+    "usernameChangedAt": {
+      "type": "number",
+      "description": "Timestamp of last username change (6-month cooldown)"
+    },
+    "lastReminderEmailAt": {
+      "type": "number",
+      "description": "Last study reminder email sent (rate limit)"
+    },
+    "examReminderSentFor": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "journeyId:examDate keys for urgent exam reminders already sent"
     }
   },
   "required": [],

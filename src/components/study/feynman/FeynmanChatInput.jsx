@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, ArrowUp } from 'lucide-react';
+import { useSpeechRecognition, isSpeechRecognitionSupported } from '@/hooks/useSpeechRecognition';
 
 export default function FeynmanChatInput({
   value,
@@ -8,8 +8,11 @@ export default function FeynmanChatInput({
   disabled,
   sending,
 }) {
-  const micSupported = typeof window !== 'undefined'
-    && (window.SpeechRecognition || window.webkitSpeechRecognition);
+  const micSupported = isSpeechRecognitionSupported();
+
+  const { listening, toggle: toggleMic } = useSpeechRecognition({
+    onTranscript: onChange,
+  });
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -21,18 +24,23 @@ export default function FeynmanChatInput({
   return (
     <div className="feynman-chat-input-bar">
       {micSupported && (
-        <FeynmanMicButton
-          value={value}
-          onChange={onChange}
+        <button
+          type="button"
+          className={`feynman-mic-btn voice-mic-btn${listening ? ' active voice-mic-btn--active' : ''}`}
+          onClick={() => toggleMic(value)}
           disabled={disabled || sending}
-        />
+          aria-label={listening ? 'Stop microphone' : 'Voice input'}
+          aria-pressed={listening}
+        >
+          {listening ? <MicOff size={18} strokeWidth={2} /> : <Mic size={18} strokeWidth={2} />}
+        </button>
       )}
       <textarea
         className="feynman-chat-textarea"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Explain in your own words…"
+        placeholder={micSupported ? 'Explain in your own words — or tap the mic…' : 'Explain in your own words…'}
         rows={1}
         disabled={disabled || sending}
       />
@@ -47,67 +55,4 @@ export default function FeynmanChatInput({
       </button>
     </div>
   );
-}
-
-function FeynmanMicButton({ value, onChange, disabled }) {
-  const { listening, toggleMic } = useMicInput(value, onChange);
-
-  return (
-    <button
-      type="button"
-      className={`feynman-mic-btn${listening ? ' active' : ''}`}
-      onClick={toggleMic}
-      disabled={disabled}
-      aria-label={listening ? 'Stop microphone' : 'Voice input'}
-      aria-pressed={listening}
-    >
-      {listening ? <MicOff size={18} strokeWidth={2} /> : <Mic size={18} strokeWidth={2} />}
-    </button>
-  );
-}
-
-function useMicInput(value, onChange) {
-  const [listening, setListening] = useState(false);
-  const recognitionRef = useRef(null);
-  const valueRef = useRef(value);
-  const micBaseRef = useRef('');
-
-  useEffect(() => {
-    valueRef.current = value;
-  }, [value]);
-
-  useEffect(() => () => {
-    recognitionRef.current?.stop?.();
-  }, []);
-
-  const toggleMic = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
-
-    if (listening) {
-      recognitionRef.current?.stop();
-      setListening(false);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    micBaseRef.current = valueRef.current;
-    recognition.onresult = (event) => {
-      let chunk = '';
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        chunk += event.results[i][0].transcript;
-      }
-      const base = micBaseRef.current;
-      const next = base.trim() ? `${base} ${chunk}` : chunk;
-      onChange(next.trimStart());
-    };
-    recognition.onend = () => setListening(false);
-    recognition.start();
-    recognitionRef.current = recognition;
-    setListening(true);
-  };
-
-  return { listening, toggleMic };
 }

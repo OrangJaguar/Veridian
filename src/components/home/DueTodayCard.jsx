@@ -9,6 +9,7 @@ const ACTION_VERBS = {
   freeRecall: 'Start',
   interleavedReview: 'Start',
   journeyChallenge: 'Start',
+  cramSession: 'Start',
 };
 
 export default function DueTodayCard({ item }) {

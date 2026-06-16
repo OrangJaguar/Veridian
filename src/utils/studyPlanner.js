@@ -2,28 +2,11 @@ import { differenceInDays } from 'date-fns';
 import { endOfTodayMs } from '@/utils/dueToday/endOfToday';
 import { getDueCards } from '@/utils/fsrs';
 import { averageModuleMastery } from '@/utils/mastery';
+import { ACTIVITY_LABELS, ESTIMATED_MIN } from '@/utils/weeklyPlan/constants';
+
+export { ACTIVITY_LABELS, ESTIMATED_MIN };
 
 const MAX_ITEMS_PER_JOURNEY = 4;
-
-const ACTIVITY_LABELS = {
-  learningGuide: 'Learning Guide',
-  practiceQuiz: 'Practice Quiz',
-  flashcardSet: 'Flashcard Review',
-  feynman: 'Feynman Technique',
-  freeRecall: 'Free Recall',
-  interleavedReview: 'Interleaved Review',
-  journeyChallenge: 'Journey Challenge',
-};
-
-const ESTIMATED_MIN = {
-  learningGuide: 20,
-  practiceQuiz: 15,
-  flashcardSet: 10,
-  feynman: 15,
-  freeRecall: 12,
-  interleavedReview: 20,
-  journeyChallenge: 25,
-};
 
 function daysUntilExam(examDate) {
   if (!examDate) return null;
@@ -314,5 +297,3 @@ export function sortByGlobalUrgency(items) {
     return (b.lastStudiedAt ?? 0) - (a.lastStudiedAt ?? 0);
   });
 }
-
-export { ACTIVITY_LABELS, ESTIMATED_MIN };

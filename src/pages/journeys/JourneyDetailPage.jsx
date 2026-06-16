@@ -6,11 +6,13 @@ import { useModules } from '@/hooks/queries/useModules';
 import { useActivitiesByJourney } from '@/hooks/queries/useActivities';
 import { useSessions } from '@/hooks/queries/useSessions';
 import { useStudyPlan } from '@/hooks/queries/useStudyPlan';
+import { useReplanJourney } from '@/hooks/mutations/useReplanJourney';
 import { useCardsByJourney } from '@/hooks/queries/useCards';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
 import VeridianLoading from '@/components/shared/VeridianLoading';
 import JourneyDetailHeader from '@/components/journey-detail/JourneyDetailHeader';
 import DiagnosticBanner from '@/components/diagnostic/DiagnosticBanner';
+import JourneySharingPanel from '@/components/journey-detail/JourneySharingPanel';
 import RecommendedStudyPlan from '@/components/journey-detail/RecommendedStudyPlan';
 import ModuleListItem from '@/components/journey-detail/ModuleListItem';
 import JourneyLevelActions from '@/components/journey-detail/JourneyLevelActions';
@@ -27,6 +29,7 @@ export default function JourneyDetailPage() {
   const { data: sessions = [] } = useSessions(journeyId);
   const { data: cards = [] } = useCardsByJourney(journeyId);
   const { data: plan, isLoading: planLoading } = useStudyPlan(journeyId);
+  const replan = useReplanJourney();
 
   useRecoverStaleGeneratingActivities(journeyId, activities, sessions);
 
@@ -62,6 +65,8 @@ export default function JourneyDetailPage() {
       <JourneyDetailHeader journey={journey} modules={modules} />
       <DiagnosticBanner journey={journey} journeyId={journeyId} />
 
+      <JourneySharingPanel journey={journey} />
+
       <section className="journey-detail-modules detail-section-box">
         <h2 className="journey-detail-section-title">Modules</h2>
         {modulesPending && modules.length === 0 && <VeridianLoading size="sm" />}
@@ -88,8 +93,8 @@ export default function JourneyDetailPage() {
       <RecommendedStudyPlan
         plan={plan}
         loading={planLoading}
-        journey={journey}
-        modules={modules}
+        onReplan={() => replan.mutate(journeyId)}
+        replanning={replan.isPending}
       />
 
       <JourneyLevelActions

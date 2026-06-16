@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/api/query-keys';
 import { createJourney, updateJourney, deleteJourney } from '@/api/entities/journeys';
+import { rebuildWeeklyPlan } from '@/api/entities/weeklyPlan';
 import { generateJourneyId } from '@/utils/schemas/ids';
 import { createJourneySchema } from '@/utils/schemas/journey';
 
@@ -13,6 +14,7 @@ function invalidateJourneyQueries(queryClient, journeyId) {
     queryClient.invalidateQueries({ queryKey: queryKeys.cards.byJourney(journeyId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.activities.byJourney(journeyId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.studyPlan(journeyId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.weeklyPlan(journeyId) });
   }
 }
 
@@ -40,7 +42,13 @@ export function useUpdateJourney() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ journeyId, patch }) => updateJourney(journeyId, patch),
+    mutationFn: async ({ journeyId, patch }) => {
+      const result = await updateJourney(journeyId, patch);
+      if ('examDate' in patch) {
+        await rebuildWeeklyPlan(journeyId, { force: true });
+      }
+      return result;
+    },
     onSuccess: (_, { journeyId }) => invalidateJourneyQueries(queryClient, journeyId),
   });
 }

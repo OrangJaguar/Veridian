@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import QuizSetupModal from '@/components/study/quiz/QuizSetupModal';
 import { useLaunchStudy } from '@/hooks/study/useLaunchStudy';
+import { usePreferences } from '@/hooks/queries/usePreferences';
 
 export default function PracticeQuizStartButton({
   activity,
@@ -13,6 +14,7 @@ export default function PracticeQuizStartButton({
   const [modalOpen, setModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const launchStudy = useLaunchStudy();
+  const { data: preferences } = usePreferences();
 
   const handleStart = async (config) => {
     setLoading(true);
@@ -41,7 +43,10 @@ export default function PracticeQuizStartButton({
       </button>
       <QuizSetupModal
         open={modalOpen}
-        defaultConfig={activity.content?.lastConfig}
+        defaultConfig={{
+          ...activity.content?.lastConfig,
+          strictMode: activity.content?.lastConfig?.strictMode ?? preferences?.strictMode ?? false,
+        }}
         onClose={() => setModalOpen(false)}
         onStart={handleStart}
         loading={loading}

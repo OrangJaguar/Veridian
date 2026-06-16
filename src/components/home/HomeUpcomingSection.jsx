@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
-import { useActivitiesByJourney } from '@/hooks/queries/useActivities';
-import { useLaunchStudy } from '@/hooks/study/useLaunchStudy';
+import { Link } from 'react-router-dom';
 
 function daysUntilExam(examDate) {
   return Math.ceil((examDate - Date.now()) / 86400000);
@@ -13,20 +12,8 @@ function urgencyClass(days) {
 }
 
 function UpcomingRow({ journey }) {
-  const { data: activities = [] } = useActivitiesByJourney(journey.journeyId);
-  const launchStudy = useLaunchStudy();
-  const challenge = activities.find((a) => a.type === 'journeyChallenge');
   const days = daysUntilExam(journey.examDate);
   const cls = urgencyClass(days);
-
-  const handleChallenge = () => {
-    if (!challenge) return;
-    launchStudy({
-      journeyId: journey.journeyId,
-      activity: challenge,
-      moduleId: null,
-    });
-  };
 
   const dayLabel = days === 0
     ? 'Today'
@@ -40,11 +27,12 @@ function UpcomingRow({ journey }) {
         <span className="home-upcoming-name">{journey.title}</span>
         <span className={`home-upcoming-days ${cls}`}>{dayLabel}</span>
       </div>
-      {challenge && (
-        <button type="button" className="btn btn-secondary btn-sm home-upcoming-btn" onClick={handleChallenge}>
-          Challenge
-        </button>
-      )}
+      <Link
+        to={`/journeys/${journey.journeyId}`}
+        className="btn btn-secondary btn-sm home-upcoming-btn"
+      >
+        Journey
+      </Link>
     </li>
   );
 }

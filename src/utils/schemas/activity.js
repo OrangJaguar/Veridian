@@ -17,6 +17,7 @@ export const activityTypeSchema = z.enum([
   'freeRecall',
   'interleavedReview',
   'journeyChallenge',
+  'cramSession',
   'diagnostic',
 ]);
 

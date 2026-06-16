@@ -12,9 +12,6 @@ export default function FocusNowCard({ item }) {
         {item.journeyTitle}
         {item.moduleName && <> · {item.moduleName}</>}
       </p>
-      {item.actionLabel && (
-        <p className="home-focus-reason">{item.actionLabel}</p>
-      )}
       <div className="home-focus-footer">
         <span className="home-focus-time">~{item.estimatedMin} min</span>
         <button type="button" className="btn btn-primary home-focus-btn" onClick={() => launch(item)}>

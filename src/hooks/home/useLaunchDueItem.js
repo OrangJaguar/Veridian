@@ -10,6 +10,7 @@ const ACTION_VERBS = {
   freeRecall: 'Start',
   interleavedReview: 'Start',
   journeyChallenge: 'Start',
+  cramSession: 'Start',
 };
 
 export function actionVerbForType(activityType) {

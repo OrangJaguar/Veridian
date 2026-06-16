@@ -32,6 +32,15 @@ export const journeySchema = z.object({
   lastStudiedAt: z.number().optional(),
   createdAt: z.number().optional(),
   updatedAt: z.number().optional(),
+  weeklyPlanSnapshot: z.record(z.unknown()).optional(),
+  weeklyPlanWeekKey: z.string().optional(),
+  weeklyPlanBuiltAt: z.number().optional(),
+  weeklyPlanMode: z.enum(['normal', 'cram']).optional(),
+  publishedAt: z.number().nullable().optional(),
+  creatorUsername: z.string().optional(),
+  clonedFromJourneyId: z.string().optional(),
+  libraryCategory: z.string().optional(),
+  moduleFocusBoosts: z.record(z.number()).optional(),
 });
 
 export const createJourneySchema = journeySchema.pick({
@@ -40,6 +49,8 @@ export const createJourneySchema = journeySchema.pick({
 }).extend({
   examDate: z.number().nullable().optional(),
   priorKnowledge: priorKnowledgeSchema.optional(),
+  isPublic: z.boolean().optional(),
+  tags: z.array(z.string()).max(8).optional(),
 });
 
 export const updateJourneySchema = journeySchema.partial().omit({ journeyId: true });

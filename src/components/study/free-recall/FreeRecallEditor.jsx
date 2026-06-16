@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Pause, Mic, MicOff, Lightbulb } from 'lucide-react';
 import StudyBackButton from '@/components/study/shared/StudyBackButton';
 import FreeRecallHintModal from '@/components/study/free-recall/FreeRecallHintModal';
 import { formatStudyTime } from '@/utils/study/feedback';
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 
 export default function FreeRecallEditor({
   moduleName,
@@ -21,58 +22,20 @@ export default function FreeRecallEditor({
   const [paused, setPaused] = useState(false);
   const [timerHidden, setTimerHidden] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
-  const [listening, setListening] = useState(false);
   const [wasVoice, setWasVoice] = useState(false);
-  const recognitionRef = useRef(null);
-  const responseRef = useRef(response);
-  const micBaseRef = useRef('');
 
-  useEffect(() => {
-    responseRef.current = response;
-  }, [response]);
-
-  useEffect(() => () => {
-    recognitionRef.current?.stop?.();
-  }, []);
+  const { listening, toggle: toggleMic, supported: micSupported } = useSpeechRecognition({
+    onTranscript: (text) => {
+      onResponseChange(text);
+      setWasVoice(true);
+    },
+  });
 
   useEffect(() => {
     if (paused) return undefined;
     const id = setInterval(() => setElapsedSec((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, [paused]);
-
-  const toggleMic = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
-
-    if (listening) {
-      recognitionRef.current?.stop();
-      setListening(false);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    micBaseRef.current = responseRef.current;
-    recognition.onresult = (event) => {
-      let chunk = '';
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        chunk += event.results[i][0].transcript;
-      }
-      const base = micBaseRef.current;
-      const next = base.trim() ? `${base} ${chunk}` : chunk;
-      onResponseChange(next.trimStart());
-      setWasVoice(true);
-    };
-    recognition.onend = () => setListening(false);
-    recognition.start();
-    recognitionRef.current = recognition;
-    setListening(true);
-  };
-
-  const micSupported = typeof window !== 'undefined'
-    && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
   const handleSubmit = () => {
     onSubmit({ elapsedSec, wasVoice });
@@ -102,13 +65,13 @@ export default function FreeRecallEditor({
           {micSupported && (
             <button
               type="button"
-              className={`free-recall-tool-btn${listening ? ' active' : ''}`}
-              onClick={toggleMic}
+              className={`free-recall-tool-btn voice-mic-btn${listening ? ' active voice-mic-btn--active' : ''}`}
+              onClick={() => toggleMic(response)}
               aria-label={listening ? 'Stop microphone' : 'Voice input'}
               aria-pressed={listening}
             >
               {listening ? <MicOff size={16} strokeWidth={2} /> : <Mic size={16} strokeWidth={2} />}
-              {listening ? 'Stop' : 'Mic'}
+              {listening ? 'Listening…' : 'Mic'}
             </button>
           )}
         </div>
@@ -150,7 +113,9 @@ export default function FreeRecallEditor({
               className="free-recall-textarea"
               value={response}
               onChange={(e) => onResponseChange(e.target.value)}
-              placeholder="Start typing everything you remember…"
+              placeholder={micSupported
+                ? 'Start typing or tap Mic to speak…'
+                : 'Start typing everything you remember…'}
               spellCheck
             />
             <span className="free-recall-char-count">{response.length.toLocaleString()} characters</span>

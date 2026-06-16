@@ -42,6 +42,27 @@
     "durationSec": {
       "type": "number"
     },
+    "sessionDurationMs": {
+      "type": "number"
+    },
+    "hintsUsed": {
+      "type": "number"
+    },
+    "questionsAnswered": {
+      "type": "number"
+    },
+    "accuracyPercent": {
+      "type": "number"
+    },
+    "timePerQuestion": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    },
+    "abandonedAt": {
+      "type": "number"
+    },
     "outcomeSummary": {
       "type": "object"
     }

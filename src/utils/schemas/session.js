@@ -23,6 +23,12 @@ export const sessionSchema = z.object({
   startedAt: z.number(),
   endedAt: z.number().optional(),
   durationSec: z.number().optional(),
+  sessionDurationMs: z.number().optional(),
+  hintsUsed: z.number().optional(),
+  questionsAnswered: z.number().optional(),
+  accuracyPercent: z.number().optional(),
+  timePerQuestion: z.array(z.number()).optional(),
+  abandonedAt: z.number().optional(),
   outcomeSummary: outcomeSummarySchema.optional(),
 });
 
