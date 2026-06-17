@@ -9,6 +9,7 @@ import {
   averageMastery,
 } from '@/components/journeys/journeyUtils';
 import { getJourneyStatusNote } from '@/utils/journeyStatus';
+import { cloneLineageLabel } from '@/lib/veridianCertified';
 
 export default function JourneyCard({ journey, variant = 'default' }) {
   const { data: modules = [] } = useModules(journey.journeyId);
@@ -16,6 +17,7 @@ export default function JourneyCard({ journey, variant = 'default' }) {
   const mastery = averageMastery(modules);
   const lastStudiedWarn = isLastStudiedWarning(journey.lastStudiedAt, journey.examDate);
   const statusNote = getJourneyStatusNote(journey, modules, cards);
+  const lineage = cloneLineageLabel(journey);
 
   if (variant === 'compact' || variant === 'list') {
     return (
@@ -25,6 +27,7 @@ export default function JourneyCard({ journey, variant = 'default' }) {
           <span className="journey-card-deadline">{examLabel(journey.examDate)}</span>
         </div>
         <h2 className="journey-card-title">{journey.title}</h2>
+        {lineage && <p className="journey-card-lineage">{lineage}</p>}
         <p className="journey-card-meta">
           {modules.length} module{modules.length === 1 ? '' : 's'}
           {journey.examDate && (

@@ -7,6 +7,7 @@ import {
   getActivityActionLabel,
   getActivityStatusNote,
 } from '@/utils/study/activityUi';
+import ActivityLabelWithTooltip from '@/components/study/ActivityLabelWithTooltip';
 import { isLegacyGeneratingActivity } from '@/utils/study/activityContent';
 import { stageActivityTypes } from '@/components/module-detail/ActivityRow';
 
@@ -41,7 +42,12 @@ function DrawerActivityRow({ activity, journeyId, moduleId, cardsByActivity }) {
   return (
     <div className="journey-module-drawer-row">
       <div className="journey-module-drawer-row-main">
-        <span className="journey-module-drawer-name">{getActivityDisplayName(activity)}</span>
+        <span className="journey-module-drawer-name">
+          <ActivityLabelWithTooltip
+            activityType={activity.type}
+            label={getActivityDisplayName(activity)}
+          />
+        </span>
         <span className="journey-module-drawer-status">{getActivityStatusNote(activity, cardCount)}</span>
       </div>
       {activity.type === 'practiceQuiz' ? (

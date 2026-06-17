@@ -2,7 +2,10 @@ import LegalPageLayout from '@/pages/legal/LegalPageLayout';
 
 export default function TermsPage() {
   return (
-    <LegalPageLayout title="Terms of Service">
+    <LegalPageLayout
+      title="Terms of Service"
+      description="Terms governing your use of Veridian, including user content and AI-generated study materials."
+    >
       <section className="legal-section">
         <h2>Agreement</h2>
         <p>

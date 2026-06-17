@@ -3,7 +3,10 @@ import { LEGAL_CONTACT_EMAIL } from '@/lib/legal';
 
 export default function PrivacyPage() {
   return (
-    <LegalPageLayout title="Privacy Policy">
+    <LegalPageLayout
+      title="Privacy Policy"
+      description="What data Veridian collects, how we use Google OAuth and AI features, and your privacy choices."
+    >
       <section className="legal-section">
         <h2>Overview</h2>
         <p>
@@ -16,8 +19,9 @@ export default function PrivacyPage() {
         <h2>What we collect</h2>
         <ul className="legal-list">
           <li><strong>Account info:</strong> email address, username, and password (stored securely by our auth provider).</li>
+          <li><strong>Google sign-in (optional):</strong> if you sign in with Google OAuth, we receive your name, email address, and profile photo from Google to create and maintain your account. Google&apos;s use of your data is governed by <a href="https://policies.google.com/privacy" rel="noopener noreferrer" target="_blank">Google&apos;s Privacy Policy</a>.</li>
           <li><strong>Onboarding info (optional):</strong> study goals, grade level, country, and US state if you choose to share them.</li>
-          <li><strong>Study content you create:</strong> journeys, modules, notes, flashcards, and uploaded materials.</li>
+          <li><strong>Study content you create:</strong> journeys, modules, notes, flashcards, uploaded materials, and AI-generated learning guides and quizzes built from your content.</li>
           <li><strong>Study activity:</strong> session duration, quiz accuracy, hints used, and learning progress — used to power your study plan.</li>
           <li><strong>Research consent (optional):</strong> if you opt in, anonymized study patterns may be included in academic research.</li>
         </ul>
@@ -38,9 +42,11 @@ export default function PrivacyPage() {
         <p>
           Veridian uses <strong>Base44</strong> for data storage and app infrastructure, and{' '}
           <strong>Google Gemini</strong> to power AI features like learning guide generation,
-          quiz creation, and study feedback. Only the content and instructions necessary to
-          generate study materials are sent to Gemini. Both services have their own privacy
-          policies that apply to their processing.
+          quiz creation, and study feedback. Text you provide (notes, flashcard content, quiz answers,
+          and conversation messages) may be sent to Gemini to generate study materials. Generated
+          output is stored in your Veridian account. Only the content necessary to provide these
+          features is transmitted. Both services have their own privacy policies that apply to
+          their processing.
         </p>
       </section>
 

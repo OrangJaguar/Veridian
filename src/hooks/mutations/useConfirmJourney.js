@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { queryKeys } from '@/api/query-keys';
 import { confirmJourney } from '@/api/entities/confirmJourney';
+import { dismissHomeWelcomeHint } from '@/utils/preferences/dismissHomeWelcomeHint';
 
 function invalidateAll(queryClient, journeyId) {
   queryClient.invalidateQueries({ queryKey: queryKeys.journeys.all });
@@ -21,7 +22,8 @@ export function useConfirmJourney() {
 
   return useMutation({
     mutationFn: confirmJourney,
-    onSuccess: ({ journey }) => {
+    onSuccess: async ({ journey }) => {
+      await dismissHomeWelcomeHint(queryClient);
       invalidateAll(queryClient, journey.journeyId);
       navigate(`/journeys/${journey.journeyId}/diagnostic`);
     },

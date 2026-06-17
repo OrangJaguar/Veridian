@@ -5,6 +5,7 @@ import { useActivitiesByJourney } from '@/hooks/queries/useActivities';
 import { ensureJourneyWideActivities } from '@/api/entities/ensureJourneyActivities';
 import JourneyChallengeSetupModal from '@/components/study/quiz/JourneyChallengeSetupModal';
 import CramSessionSetupModal from '@/components/study/cram/CramSessionSetupModal';
+import ActivityLabelWithTooltip from '@/components/study/ActivityLabelWithTooltip';
 import {
   journeyWideActivitiesUnlocked,
   journeyUnlockProgress,
@@ -21,7 +22,7 @@ const ACTIVITY_COPY = {
   },
 };
 
-function JourneyWideCard({ title, description, locked, lockMessage, progress, onLaunch, launchLabel }) {
+function JourneyWideCard({ title, description, activityType, locked, lockMessage, progress, onLaunch, launchLabel }) {
   return (
     <div className={`journey-wide-card${locked ? ' locked' : ''}`}>
       <div className="journey-wide-card-main">
@@ -29,7 +30,11 @@ function JourneyWideCard({ title, description, locked, lockMessage, progress, on
           {locked && (
             <Lock className="journey-wide-lock-icon" size={15} strokeWidth={2} aria-hidden />
           )}
-          {title}
+          {activityType ? (
+            <ActivityLabelWithTooltip activityType={activityType} label={title} />
+          ) : (
+            title
+          )}
         </h3>
         <p className="journey-wide-card-desc">
           {locked ? lockMessage : description}
@@ -96,6 +101,7 @@ export default function JourneyLevelActions({ activities: activitiesProp, module
       <div className="journey-wide-cards">
         <JourneyWideCard
           title={ACTIVITY_COPY.journeyChallenge.title}
+          activityType="journeyChallenge"
           description={ACTIVITY_COPY.journeyChallenge.description}
           locked={locked || !challenge}
           lockMessage={lockMessage}
@@ -105,6 +111,7 @@ export default function JourneyLevelActions({ activities: activitiesProp, module
         />
         <JourneyWideCard
           title={ACTIVITY_COPY.cramSession.title}
+          activityType="cramSession"
           description={ACTIVITY_COPY.cramSession.description}
           locked={locked || !cram}
           lockMessage={lockMessage}

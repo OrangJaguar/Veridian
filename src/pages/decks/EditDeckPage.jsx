@@ -16,6 +16,7 @@ import { updateCard, createCard, deleteCard } from '@/api/entities/cards';
 import { updateActivity } from '@/api/entities/activities';
 import { generateCardId } from '@/utils/schemas/ids';
 import { queryKeys } from '@/api/query-keys';
+import { toast } from 'sonner';
 
 export default function EditDeckPage() {
   const { id: journeyId, moduleId, activityId } = useParams();
@@ -40,12 +41,18 @@ export default function EditDeckPage() {
   };
 
   const saveField = async (cardId, field, value) => {
+    const snapshot = localCards ?? cards;
     setLocalCards((prev) => {
       const list = prev ?? cards;
       return list.map((c) => (c.cardId === cardId ? { ...c, [field]: value } : c));
     });
-    await updateCard(cardId, { [field]: value });
-    invalidate();
+    try {
+      await updateCard(cardId, { [field]: value });
+      invalidate();
+    } catch {
+      setLocalCards(snapshot);
+      toast.error("Changes couldn't be saved");
+    }
   };
 
   const handleApplyAiCards = async (aiCards) => {

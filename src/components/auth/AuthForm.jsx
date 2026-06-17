@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { createUserPreferencesOnSignup } from '@/api/entities/preferences';
+import { syncAuthUserFullName, refreshAuthUser } from '@/api/auth/userProfile';
 import { useUsernameAvailability } from '@/hooks/useUsernameAvailability';
 import { isValidUsernameFormat, normalizeUsername } from '@/utils/schemas/preferences';
 import { isValidSignupPassword, passwordsMatch } from '@/utils/schemas/password';
@@ -161,8 +162,14 @@ export default function AuthForm({
           username: chosenUsername,
           userEmail: user.email,
         });
+        try {
+          await syncAuthUserFullName(chosenUsername);
+        } catch {
+          // UserPreferences.username still saved; SyncUserDisplayName repairs on next load
+        }
       }
-      onSuccess(user);
+      const refreshedUser = await refreshAuthUser();
+      onSuccess(refreshedUser ?? user);
     } catch (err) {
       const msg = err?.response?.data?.message || err?.data?.message || err?.message || 'Invalid code. Try again.';
       setError(typeof msg === 'string' ? msg : 'Invalid code. Try again.');

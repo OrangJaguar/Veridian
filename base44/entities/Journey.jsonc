@@ -96,6 +96,16 @@
     "clonedFromJourneyId": {
       "type": "string"
     },
+    "clonedFromTitle": {
+      "type": "string"
+    },
+    "clonedFromVeridianCertified": {
+      "type": "boolean"
+    },
+    "isVeridianCertified": {
+      "type": "boolean",
+      "description": "True when published by the Veridian team account"
+    },
     "libraryCategory": {
       "type": "string",
       "description": "AP | Pre-Med | College | Self-Learning"

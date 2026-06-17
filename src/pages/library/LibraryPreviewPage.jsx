@@ -5,6 +5,8 @@ import { useLibraryPreview } from '@/hooks/queries/useLibraryPreview';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
 import VeridianLoading from '@/components/shared/VeridianLoading';
 import CloneJourneyModal from '@/components/library/CloneJourneyModal';
+import VeridianCertifiedBanner from '@/components/journeys/VeridianCertifiedBanner';
+import { certifiedAuthorLabel } from '@/lib/veridianCertified';
 
 const ACTIVITY_LABELS = {
   learningGuide: 'Learning guide',
@@ -44,11 +46,12 @@ export default function LibraryPreviewPage() {
       <Link to="/library" className="journey-detail-back">← Community Library</Link>
 
       <header className="library-preview-header">
+        <VeridianCertifiedBanner journey={journey} className="library-preview-certified" />
         <p className="library-preview-subject">{journey.subject}</p>
         <h1 className="library-preview-title">{journey.title}</h1>
         <div className="library-preview-meta">
-          {journey.creatorUsername && (
-            <span>by @{journey.creatorUsername}</span>
+          {certifiedAuthorLabel(journey) && (
+            <span>{certifiedAuthorLabel(journey)}</span>
           )}
           <span>{journey.cloneCount ?? 0} clones</span>
         </div>

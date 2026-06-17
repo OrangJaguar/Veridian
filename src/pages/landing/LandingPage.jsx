@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { usePageMeta } from '@/hooks/usePageMeta';
 import LandingScrollProgress from '@/components/landing/LandingScrollProgress';
 import LandingCursorGlow from '@/components/landing/LandingCursorGlow';
 import LandingGapCompare from '@/components/landing/LandingGapCompare';
@@ -22,6 +23,11 @@ const STATS = [
 export default function LandingPage() {
   const { user, isLoading, signOut } = useAuth();
   const navigate = useNavigate();
+
+  usePageMeta({
+    title: 'Study smarter with spaced repetition',
+    description: 'Veridian turns your study material into structured journeys with AI guides, quizzes, and a Due Today plan.',
+  });
 
   const handleLogout = async () => {
     await signOut();

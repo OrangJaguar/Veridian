@@ -7,8 +7,10 @@ const SIDEBAR_ICONS = [Home, Map, Users, User];
 /** 3D-tilted hero — miniature of the real Home screen */
 export function LandingHeroScene() {
   const [tilt, setTilt] = useState({ x: 10, y: -14 });
+  const reduceTilt = typeof window !== 'undefined' && window.innerWidth <= 640;
 
   function onMove(e) {
+    if (reduceTilt) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const px = (e.clientX - rect.left) / rect.width - 0.5;
     const py = (e.clientY - rect.top) / rect.height - 0.5;

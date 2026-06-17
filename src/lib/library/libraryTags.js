@@ -75,13 +75,20 @@ export function matchesLibrarySearch(journey, query) {
 }
 
 export function sortPublicJourneys(journeys, sortKey = 'cloned') {
-  const list = [...journeys];
-  if (sortKey === 'newest') {
-    return list.sort((a, b) => (b.publishedAt ?? b.createdAt ?? 0) - (a.publishedAt ?? a.createdAt ?? 0));
+  const certified = journeys.filter((j) => j.isVeridianCertified);
+  const community = journeys.filter((j) => !j.isVeridianCertified);
+
+  function sortList(list) {
+    const copy = [...list];
+    if (sortKey === 'newest') {
+      return copy.sort((a, b) => (b.publishedAt ?? b.createdAt ?? 0) - (a.publishedAt ?? a.createdAt ?? 0));
+    }
+    return copy.sort((a, b) => {
+      const cc = (b.cloneCount ?? 0) - (a.cloneCount ?? 0);
+      if (cc !== 0) return cc;
+      return (b.publishedAt ?? 0) - (a.publishedAt ?? 0);
+    });
   }
-  return list.sort((a, b) => {
-    const cc = (b.cloneCount ?? 0) - (a.cloneCount ?? 0);
-    if (cc !== 0) return cc;
-    return (b.publishedAt ?? 0) - (a.publishedAt ?? 0);
-  });
+
+  return [...sortList(certified), ...sortList(community)];
 }

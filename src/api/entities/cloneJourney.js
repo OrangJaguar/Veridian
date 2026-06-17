@@ -1,10 +1,10 @@
 import { requireAuth } from '@/api/requireAuth';
-import { getJourney, createJourney, updateJourney } from '@/api/entities/journeys';
+import { createJourney, updateJourney } from '@/api/entities/journeys';
 import { createModules } from '@/api/entities/modules';
 import { scaffoldJourneyActivities } from '@/api/entities/journeyScaffold';
-import { listModulesByJourney } from '@/api/entities/modules';
 import { generateJourneyId, generateModuleId } from '@/utils/schemas/ids';
 import { base44 } from '@/api/base44Client';
+import { isVeridianCertifiedJourney } from '@/lib/veridianCertified';
 
 /**
  * Clone a public journey into the current user's account.
@@ -34,17 +34,23 @@ export async function cloneJourney(sourceJourneyId, {
   const sorted = selectedModules.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   const newJourneyId = generateJourneyId();
   const now = Date.now();
+  const certified = isVeridianCertifiedJourney(source);
+  const defaultTitle = certified
+    ? `Based on Veridian's ${source.title}`
+    : `${source.title} (copy)`;
 
   const journey = await createJourney({
     journeyId: newJourneyId,
     subject: source.subject,
-    title: title?.trim() || `${source.title} (copy)`,
+    title: title?.trim() || defaultTitle,
     examDate: examDate ?? null,
     priorKnowledge: source.priorKnowledge ?? 'some',
     knowledgeMap: source.knowledgeMap ?? {},
     tags: [...(source.tags ?? [])],
     isPublic: false,
     clonedFromJourneyId: sourceJourneyId,
+    clonedFromTitle: source.title,
+    clonedFromVeridianCertified: certified,
     diagnosticSkipped: false,
     createdAt: now,
     updatedAt: now,

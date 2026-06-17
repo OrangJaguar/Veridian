@@ -39,6 +39,9 @@ export const journeySchema = z.object({
   publishedAt: z.number().nullable().optional(),
   creatorUsername: z.string().optional(),
   clonedFromJourneyId: z.string().optional(),
+  clonedFromTitle: z.string().optional(),
+  clonedFromVeridianCertified: z.boolean().optional(),
+  isVeridianCertified: z.boolean().optional(),
   libraryCategory: z.string().optional(),
   moduleFocusBoosts: z.record(z.number()).optional(),
 });

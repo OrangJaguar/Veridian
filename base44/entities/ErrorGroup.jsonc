@@ -1,0 +1,62 @@
+{
+  "name": "ErrorGroup",
+  "type": "object",
+  "properties": {
+    "groupId": {
+      "type": "string",
+      "description": "Stable fingerprint hash for this error type"
+    },
+    "message": {
+      "type": "string"
+    },
+    "stackSample": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string",
+      "description": "client | server"
+    },
+    "route": {
+      "type": "string"
+    },
+    "environment": {
+      "type": "string",
+      "description": "production | staging | development"
+    },
+    "occurrenceCount": {
+      "type": "number"
+    },
+    "distinctUserCount": {
+      "type": "number"
+    },
+    "distinctUserEmails": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Emails seen for this group (capped in function)"
+    },
+    "firstSeenAt": {
+      "type": "number"
+    },
+    "lastSeenAt": {
+      "type": "number"
+    },
+    "lastAlertedAt": {
+      "type": "number"
+    },
+    "alertThresholdsSent": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "status": {
+      "type": "string",
+      "description": "open | resolved | ignored"
+    }
+  },
+  "required": ["groupId", "message"],
+  "rls": {
+    "create": {},
+    "read": { "user.role": "admin" },
+    "update": { "user.role": "admin" },
+    "delete": { "user.role": "admin" }
+  }
+}

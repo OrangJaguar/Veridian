@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { usePublicJourneys } from '@/hooks/queries/usePublicJourneys';
@@ -6,6 +6,7 @@ import LibrarySearchBar from '@/components/library/LibrarySearchBar';
 import LibraryJourneyCard from '@/components/library/LibraryJourneyCard';
 import VeridianLoading from '@/components/shared/VeridianLoading';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
+import { isVeridianCertifiedJourney } from '@/lib/veridianCertified';
 
 export default function LibraryPage() {
   const { isAuthenticated } = useAuth();
@@ -20,6 +21,15 @@ export default function LibraryPage() {
   });
 
   const debouncedSearch = search;
+
+  const certifiedJourneys = useMemo(
+    () => journeys.filter((j) => isVeridianCertifiedJourney(j)),
+    [journeys],
+  );
+  const communityJourneys = useMemo(
+    () => journeys.filter((j) => !isVeridianCertifiedJourney(j)),
+    [journeys],
+  );
 
   return (
     <div className="library-page">
@@ -58,11 +68,31 @@ export default function LibraryPage() {
       )}
 
       {!isLoading && journeys.length > 0 && (
-        <div className="library-grid">
-          {journeys.map((j) => (
-            <LibraryJourneyCard key={j.journeyId} journey={j} />
-          ))}
-        </div>
+        <>
+          {certifiedJourneys.length > 0 && (
+            <section className="library-certified-section">
+              <h2 className="library-section-title">Veridian Certified</h2>
+              <p className="library-section-lead">Curated study paths built by the Veridian team.</p>
+              <div className="library-grid">
+                {certifiedJourneys.map((j) => (
+                  <LibraryJourneyCard key={j.journeyId} journey={j} />
+                ))}
+              </div>
+            </section>
+          )}
+          {communityJourneys.length > 0 && (
+            <section className="library-community-section">
+              {certifiedJourneys.length > 0 ? (
+                <h2 className="library-section-title">Community journeys</h2>
+              ) : null}
+              <div className="library-grid">
+                {communityJourneys.map((j) => (
+                  <LibraryJourneyCard key={j.journeyId} journey={j} />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       )}
     </div>
   );

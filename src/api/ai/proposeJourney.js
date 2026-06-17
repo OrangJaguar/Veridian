@@ -2,19 +2,20 @@ import { journeyProposalSchema } from '@/utils/schemas/ai';
 import { normalizeJourneyProposal } from '@/utils/schemas/ai/normalize';
 import { trimMaterial } from '@/api/ai/tokenEstimate';
 import { invokeGemini, parseGeminiResponse } from '@/api/ai/client';
+import { sanitizeMaterialInput, sanitizeShortLabel } from '@/utils/ai/sanitizeUserInput';
 
 /**
  * @param {{ title: string, subject: string, priorKnowledge: string, material: string }} input
  */
 export async function proposeJourney(input, options = {}) {
-  const material = trimMaterial(input.material);
+  const material = trimMaterial(sanitizeMaterialInput(input.material));
   if (!material || material.length < 50) {
     throw new Error('Please provide at least 50 characters of study material.');
   }
 
   const raw = await invokeGemini('proposeJourney', {
-    title: input.title,
-    subject: input.subject,
+    title: sanitizeShortLabel(input.title, 120),
+    subject: sanitizeShortLabel(input.subject, 120),
     priorKnowledge: input.priorKnowledge ?? 'some',
     material,
   }, options);

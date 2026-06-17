@@ -2,9 +2,9 @@ import { useState } from 'react';
 import FocusNowCard from '@/components/home/FocusNowCard';
 import DueTodayQueueRow from '@/components/home/DueTodayQueueRow';
 import DueTodayCaughtUp from '@/components/home/DueTodayCaughtUp';
+import DueTodaySkeleton from '@/components/home/DueTodaySkeleton';
 import HomeDailyProgress from '@/components/home/HomeDailyProgress';
 import ExpandToggle from '@/components/shared/ExpandToggle';
-import VeridianLoading from '@/components/shared/VeridianLoading';
 
 export default function DueTodayZone({
   items = [],
@@ -32,7 +32,7 @@ export default function DueTodayZone({
         )}
       </div>
 
-      {loading && <VeridianLoading size="sm" className="home-due-loading" />}
+      {loading && <DueTodaySkeleton />}
 
       {!loading && items.length === 0 && (
         <DueTodayCaughtUp firstJourneyId={firstJourneyId} />

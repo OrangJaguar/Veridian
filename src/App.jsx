@@ -21,9 +21,15 @@ import EditDeckPage from '@/pages/decks/EditDeckPage';
 import StudyShell from '@/pages/study/StudyShell';
 import PrivacyPage from '@/pages/legal/PrivacyPage';
 import TermsPage from '@/pages/legal/TermsPage';
+import AboutPage from '@/pages/about/AboutPage';
+import BlogIndexPage from '@/pages/blog/BlogIndexPage';
+import BlogPostPage from '@/pages/blog/BlogPostPage';
 import OnboardingPage from '@/pages/onboarding/OnboardingPage';
 import OnboardingGate from '@/components/onboarding/OnboardingGate';
 import NotFoundPage from '@/pages/NotFoundPage';
+import RequireAdmin from '@/components/routing/RequireAdmin';
+import ErrorsDashboardPage from '@/pages/admin/ErrorsDashboardPage';
+import FeedbackPage from '@/pages/feedback/FeedbackPage';
 
 export default function App() {
   return (
@@ -36,12 +42,24 @@ export default function App() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/blog" element={<BlogIndexPage />} />
+        <Route path="/blog/:slug" element={<BlogPostPage />} />
       </Route>
 
       <Route element={<AppShell />}>
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/library" element={<LibraryPage />} />
         <Route path="/library/:journeyId" element={<LibraryPreviewPage />} />
+        <Route path="/feedback" element={<FeedbackPage />} />
+        <Route
+          path="/errors"
+          element={(
+            <RequireAdmin>
+              <ErrorsDashboardPage />
+            </RequireAdmin>
+          )}
+        />
         <Route element={<OnboardingGate><Outlet /></OnboardingGate>}>
         <Route path="/home" element={<HomePage />} />
         <Route path="/journeys" element={<JourneysPage />} />

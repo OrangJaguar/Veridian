@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
 import { LEGAL_CONTACT_EMAIL, LEGAL_LAST_UPDATED } from '@/lib/legal';
+import { usePageMeta } from '@/hooks/usePageMeta';
 
-export default function LegalPageLayout({ title, children }) {
+export default function LegalPageLayout({ title, description, children }) {
+  usePageMeta({ title, description });
   return (
     <article className="legal-page">
       <div className="legal-page-inner">

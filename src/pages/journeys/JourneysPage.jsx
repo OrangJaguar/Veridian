@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useJourneys } from '@/hooks/queries/useJourneys';
 import { useRemoveStarterJourney } from '@/hooks/useRemoveStarterJourney';
 import JourneyCard, { journeyUrgencySort } from '@/components/journeys/JourneyCard';
+import JourneysEmptyState from '@/components/journeys/JourneysEmptyState';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
 import VeridianLoading from '@/components/shared/VeridianLoading';
 
@@ -72,14 +73,7 @@ export default function JourneysPage() {
       )}
 
       {!isPending && !error && sorted.length === 0 && (
-        <div className="journeys-empty">
-          <h2>No Journeys yet</h2>
-          <p>
-            {archived
-              ? 'No archived Journeys.'
-              : 'Create your first Journey to get started.'}
-          </p>
-        </div>
+        <JourneysEmptyState archived={archived} />
       )}
 
       {!isPending && !error && sorted.length > 0 && (

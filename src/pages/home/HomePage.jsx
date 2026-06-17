@@ -9,6 +9,7 @@ import { countCompletedToday } from '@/utils/dueToday/completedToday';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
 import VeridianLoading from '@/components/shared/VeridianLoading';
 import HomeWelcomeHeader from '@/components/home/HomeWelcomeHeader';
+import HomeWelcomeBanner from '@/components/home/HomeWelcomeBanner';
 import HomeContextNotice from '@/components/home/HomeContextNotice';
 import DueTodayZone from '@/components/home/DueTodayZone';
 import HomeUpcomingSection from '@/components/home/HomeUpcomingSection';
@@ -55,6 +56,7 @@ export default function HomePage() {
   return (
     <div className="home-page">
       <HomeContextNotice dueItems={dueItems} journeys={journeys} />
+      <HomeWelcomeBanner journeyCount={journeys.length} />
       <HomeWelcomeHeader />
       {cramJourneys.length > 0 && <HomeExamCramZone journeys={cramJourneys} />}
       <DueTodayZone

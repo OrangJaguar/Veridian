@@ -9,8 +9,10 @@ import { useStudyPlan } from '@/hooks/queries/useStudyPlan';
 import { useReplanJourney } from '@/hooks/mutations/useReplanJourney';
 import { useCardsByJourney } from '@/hooks/queries/useCards';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
-import VeridianLoading from '@/components/shared/VeridianLoading';
+import JourneyDetailSkeleton from '@/components/journeys/JourneyDetailSkeleton';
 import JourneyDetailHeader from '@/components/journey-detail/JourneyDetailHeader';
+import JourneyDetailGuideBanner from '@/components/journey-detail/JourneyDetailGuideBanner';
+import VeridianCertifiedBanner from '@/components/journeys/VeridianCertifiedBanner';
 import DiagnosticBanner from '@/components/diagnostic/DiagnosticBanner';
 import JourneySharingPanel from '@/components/journey-detail/JourneySharingPanel';
 import RecommendedStudyPlan from '@/components/journey-detail/RecommendedStudyPlan';
@@ -49,7 +51,7 @@ export default function JourneyDetailPage() {
   }
 
   if (isPending && !journey) {
-    return <VeridianLoading fullPage />;
+    return <JourneyDetailSkeleton />;
   }
 
   if (error || !journey) {
@@ -63,6 +65,8 @@ export default function JourneyDetailPage() {
   return (
     <div className="journey-detail-page">
       <JourneyDetailHeader journey={journey} modules={modules} />
+      <VeridianCertifiedBanner journey={journey} />
+      <JourneyDetailGuideBanner />
       <DiagnosticBanner journey={journey} journeyId={journeyId} />
 
       <JourneySharingPanel journey={journey} />

@@ -1,6 +1,8 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 import { GoogleGenerativeAI } from "npm:@google/generative-ai";
 import { z } from "npm:zod";
+import { logServerError } from "../_shared/logServerError.ts";
+import { INJECTION_GUARD, wrapUserContent } from "../_shared/promptSafety.ts";
 
 const MODEL = "gemma-4-31b-it";
 const MAX_OUTPUT_TOKENS = 4096;
@@ -136,9 +138,9 @@ Rules:
 - No markdown, no code fences, no commentary before or after the JSON.
 - Keep every string within its max length.
 - Use short concept ids like c1, c2 per module.
-- 2-8 modules, 1-10 concepts each.`;
+- 2-8 modules, 1-10 concepts each.${INJECTION_GUARD}`;
 
-const REGENERATE_SYSTEM = `Reorganize modules from existing concepts only. Do not add concepts. Output ONLY valid JSON. Max 8 modules. Same schema as proposeJourney.`;
+const REGENERATE_SYSTEM = `Reorganize modules from existing concepts only. Do not add concepts. Output ONLY valid JSON. Max 8 modules. Same schema as proposeJourney.${INJECTION_GUARD}`;
 
 function clipString(value: unknown, max: number) {
   const text = String(value ?? "").trim();
@@ -299,20 +301,20 @@ Deno.serve(async (req) => {
       const p = proposePayloadSchema.parse(payload);
       userPrompt = JSON.stringify({
         task: "proposeJourney",
-        title: p.title,
-        subject: p.subject,
-        priorKnowledge: p.priorKnowledge,
-        material: p.material,
+        title: wrapUserContent(p.title),
+        subject: wrapUserContent(p.subject),
+        priorKnowledge: wrapUserContent(p.priorKnowledge),
+        material: wrapUserContent(p.material),
       });
     } else {
       const p = regeneratePayloadSchema.parse(payload);
       system = REGENERATE_SYSTEM;
       userPrompt = JSON.stringify({
         task: "regenerateModules",
-        title: p.title,
-        subject: p.subject,
-        priorKnowledge: p.priorKnowledge,
-        journeySummary: p.cachedKnowledgeMap.journeySummary,
+        title: wrapUserContent(p.title),
+        subject: wrapUserContent(p.subject),
+        priorKnowledge: wrapUserContent(p.priorKnowledge),
+        journeySummary: wrapUserContent(p.cachedKnowledgeMap.journeySummary),
         allConcepts: p.cachedKnowledgeMap.allConcepts,
       });
     }
@@ -336,6 +338,12 @@ Deno.serve(async (req) => {
         .map((issue) => `${issue.path.join(".") || "request"}: ${issue.message}`)
         .join("; ");
       return errorResponse(`Invalid request: ${details}`, 400);
+    }
+    try {
+      const base44 = createClientFromRequest(req);
+      await logServerError(base44, "geminiJourney/handler", err);
+    } catch {
+      // ignore logging failures
     }
     const message = err instanceof Error ? err.message : "AI request failed";
     const status = message.includes("Authentication") ? 401 : 400;

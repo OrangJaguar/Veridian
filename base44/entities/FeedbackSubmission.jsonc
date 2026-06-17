@@ -1,0 +1,38 @@
+{
+  "name": "FeedbackSubmission",
+  "type": "object",
+  "properties": {
+    "submissionId": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "description": "bug | feature | general"
+    },
+    "message": {
+      "type": "string"
+    },
+    "replyEmail": {
+      "type": "string"
+    },
+    "userEmail": {
+      "type": "string"
+    },
+    "route": {
+      "type": "string"
+    },
+    "clientInfo": {
+      "type": "object"
+    },
+    "createdAt": {
+      "type": "number"
+    }
+  },
+  "required": ["submissionId", "type", "message", "createdAt"],
+  "rls": {
+    "create": {},
+    "read": { "user.role": "admin" },
+    "update": { "user.role": "admin" },
+    "delete": { "user.role": "admin" }
+  }
+}

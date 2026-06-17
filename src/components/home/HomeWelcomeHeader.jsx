@@ -1,9 +1,12 @@
 import { useAuth } from '@/hooks/useAuth';
+import { usePreferences } from '@/hooks/queries/usePreferences';
 import { greetingForHour, formatTodayDate } from '@/components/journeys/journeyUtils';
+import { getGreetingName } from '@/utils/userDisplayName';
 
 export default function HomeWelcomeHeader() {
   const { user } = useAuth();
-  const name = user?.full_name?.split(' ')[0] || user?.email?.split('@')[0];
+  const { data: preferences } = usePreferences();
+  const name = getGreetingName({ user, preferences });
   const greeting = greetingForHour();
 
   return (

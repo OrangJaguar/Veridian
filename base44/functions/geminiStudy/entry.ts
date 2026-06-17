@@ -1,6 +1,8 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 import { GoogleGenerativeAI } from "npm:@google/generative-ai";
 import { z } from "npm:zod";
+import { logServerError } from "../_shared/logServerError.ts";
+import { INJECTION_GUARD, wrapUserContent, wrapConversationHistory } from "../_shared/promptSafety.ts";
 // Inlined helpers — Base44 functions cannot import sibling local files.
 
 const coercedAnswerSchema = z.preprocess(
@@ -1386,7 +1388,39 @@ function buildSystem(action: string) {
     generateConceptRefresher: `${base} Short inline concept recap under 150 words.`,
     generateCramSession: CRAM_SYSTEM,
   };
-  return map[action] ?? base;
+  return (map[action] ?? base) + INJECTION_GUARD;
+}
+
+function sanitizeStudyPayload(action: string, payload: Record<string, unknown>) {
+  const out = { ...payload };
+  const wrapKeys = [
+    "userProvidedContent",
+    "rawContent",
+    "raw",
+    "clarifyingAnswer",
+    "studentResponse",
+    "studentResponseSoFar",
+    "moduleName",
+    "conceptName",
+    "cleanedText",
+    "summary",
+  ];
+  for (const key of wrapKeys) {
+    if (typeof out[key] === "string") out[key] = wrapUserContent(out[key]);
+  }
+  if (action === "feynmanConversationTurn" && Array.isArray(out.conversationHistory)) {
+    out.conversationHistory = wrapConversationHistory(
+      out.conversationHistory as Array<{ role?: string; text?: string }>,
+    );
+  }
+  if (Array.isArray(out.cards)) {
+    out.cards = (out.cards as Array<{ front?: unknown; back?: unknown }>).map((card) => ({
+      ...card,
+      front: typeof card.front === "string" ? wrapUserContent(card.front) : card.front,
+      back: typeof card.back === "string" ? wrapUserContent(card.back) : card.back,
+    }));
+  }
+  return out;
 }
 
 function schemaForAction(action: string) {
@@ -1502,7 +1536,8 @@ Deno.serve(async (req) => {
     }
 
     const system = buildSystem(action);
-    const userPrompt = JSON.stringify({ action, ...payload }).slice(0, 32_000);
+    const safePayload = sanitizeStudyPayload(action, payload as Record<string, unknown>);
+    const userPrompt = JSON.stringify({ action, ...safePayload }).slice(0, 32_000);
     const estInput = estimateTokens(system + userPrompt);
 
     const quotaErr = await checkStudyQuota(base44, userKey, action, estInput);
@@ -1560,6 +1595,14 @@ Deno.serve(async (req) => {
       message = err.message;
     }
     debug.record("handler_error", false, { message }, message);
+    if (!(err instanceof z.ZodError)) {
+      try {
+        const base44 = createClientFromRequest(req);
+        await logServerError(base44, "geminiStudy/handler", err, { message });
+      } catch {
+        // ignore logging failures
+      }
+    }
     return errorResponse(message, 400, debug.enabled ? debug : undefined);
   }
 });

@@ -12,6 +12,7 @@ import {
   matchesLibrarySearch,
   sortPublicJourneys,
 } from '@/lib/library/libraryTags';
+import { VERIDIAN_CERTIFIED_EMAIL } from '@/lib/veridianCertified';
 
 function stripJourneyForPublic(journey) {
   if (!journey) return null;
@@ -134,6 +135,11 @@ export async function publishJourney(journeyId, { tags } = {}) {
     creatorUsername = prefs?.username ?? user.email?.split('@')[0] ?? 'student';
   }
 
+  const isVeridianCertified = user.email === VERIDIAN_CERTIFIED_EMAIL;
+  if (isVeridianCertified) {
+    creatorUsername = 'Veridian';
+  }
+
   const now = Date.now();
   const category = getJourneyCategory({ tags: nextTags, libraryCategory: journey.libraryCategory });
 
@@ -141,6 +147,7 @@ export async function publishJourney(journeyId, { tags } = {}) {
     isPublic: true,
     publishedAt: journey.publishedAt ?? now,
     creatorUsername,
+    isVeridianCertified,
     tags: nextTags,
     libraryCategory: category,
   });

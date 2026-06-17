@@ -3,6 +3,8 @@ import { queryKeys } from '@/api/query-keys';
 import { createModule, updateModule, deleteModule } from '@/api/entities/modules';
 import { generateModuleId } from '@/utils/schemas/ids';
 import { createModuleSchema } from '@/utils/schemas/module';
+import { patchListItem } from '@/lib/optimisticMutation';
+import { toast } from 'sonner';
 
 export function useCreateModule() {
   const queryClient = useQueryClient();
@@ -27,7 +29,20 @@ export function useUpdateModule() {
 
   return useMutation({
     mutationFn: ({ moduleId, journeyId, patch }) => updateModule(moduleId, patch),
-    onSuccess: (_, { moduleId, journeyId }) => {
+    onMutate: async ({ moduleId, journeyId, patch }) => {
+      const listKey = queryKeys.modules.byJourney(journeyId);
+      await queryClient.cancelQueries({ queryKey: listKey });
+      const prevList = queryClient.getQueryData(listKey);
+      queryClient.setQueryData(listKey, (old) => patchListItem(old, 'moduleId', moduleId, patch));
+      return { prevList, listKey };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prevList !== undefined) {
+        queryClient.setQueryData(ctx.listKey, ctx.prevList);
+      }
+      toast.error("Changes couldn't be saved");
+    },
+    onSettled: (_, __, { moduleId, journeyId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.modules.byJourney(journeyId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.modules.detail(moduleId) });
     },

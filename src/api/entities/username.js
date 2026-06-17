@@ -4,6 +4,7 @@ import {
   updatePreferences,
 } from '@/api/entities/preferences';
 import { syncCreatorUsernameOnJourneys } from '@/api/entities/library';
+import { syncAuthUserFullName } from '@/api/auth/userProfile';
 import { requireAuth } from '@/api/requireAuth';
 import {
   isValidUsernameFormat,
@@ -57,6 +58,7 @@ export async function changeUsername(username) {
     usernameChangedAt: now,
   });
 
+  await syncAuthUserFullName(normalized);
   await syncCreatorUsernameOnJourneys(normalized);
 
   return updated;

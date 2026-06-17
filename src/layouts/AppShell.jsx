@@ -6,6 +6,7 @@ import AppSidebarMobile from '@/components/app-shell/AppSidebarMobile';
 import AppFooter from '@/components/layout/AppFooter';
 import VeridianLogo from '@/components/layout/VeridianLogo';
 import ThemeSync from '@/components/ThemeSync';
+import SyncUserDisplayName from '@/components/auth/SyncUserDisplayName';
 import { applyThemeFromStorage } from '@/lib/theme';
 
 export default function AppShell() {
@@ -18,6 +19,7 @@ export default function AppShell() {
   return (
     <div className="app-shell">
       <ThemeSync />
+      <SyncUserDisplayName />
       {!isMobile && <AppSidebar />}
       <div className="app-shell-main">
         {isMobile && (

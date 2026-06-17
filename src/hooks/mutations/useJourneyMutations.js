@@ -4,6 +4,9 @@ import { createJourney, updateJourney, deleteJourney } from '@/api/entities/jour
 import { rebuildWeeklyPlan } from '@/api/entities/weeklyPlan';
 import { generateJourneyId } from '@/utils/schemas/ids';
 import { createJourneySchema } from '@/utils/schemas/journey';
+import { dismissHomeWelcomeHint } from '@/utils/preferences/dismissHomeWelcomeHint';
+import { patchListItem } from '@/lib/optimisticMutation';
+import { toast } from 'sonner';
 
 function invalidateJourneyQueries(queryClient, journeyId) {
   queryClient.invalidateQueries({ queryKey: queryKeys.journeys.all });
@@ -34,7 +37,10 @@ export function useCreateJourney() {
         ...parsed,
       });
     },
-    onSuccess: () => invalidateAllHomeData(queryClient),
+    onSuccess: async () => {
+      await dismissHomeWelcomeHint(queryClient);
+      invalidateAllHomeData(queryClient);
+    },
   });
 }
 
@@ -49,7 +55,36 @@ export function useUpdateJourney() {
       }
       return result;
     },
-    onSuccess: (_, { journeyId }) => invalidateJourneyQueries(queryClient, journeyId),
+    onMutate: async ({ journeyId, patch }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.journeys.detail(journeyId) });
+      const prevDetail = queryClient.getQueryData(queryKeys.journeys.detail(journeyId));
+      const prevAll = queryClient.getQueryData(queryKeys.journeys.all);
+      const prevArchived = queryClient.getQueryData(queryKeys.journeys.archived);
+
+      queryClient.setQueryData(queryKeys.journeys.detail(journeyId), (old) => (
+        old ? { ...old, ...patch } : old
+      ));
+      queryClient.setQueryData(queryKeys.journeys.all, (old) => (
+        patchListItem(old, 'journeyId', journeyId, patch)
+      ));
+      queryClient.setQueryData(queryKeys.journeys.archived, (old) => (
+        patchListItem(old, 'journeyId', journeyId, patch)
+      ));
+
+      return { prevDetail, prevAll, prevArchived, journeyId };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (!ctx) return;
+      if (ctx.prevDetail !== undefined) {
+        queryClient.setQueryData(queryKeys.journeys.detail(ctx.journeyId), ctx.prevDetail);
+      }
+      if (ctx.prevAll !== undefined) queryClient.setQueryData(queryKeys.journeys.all, ctx.prevAll);
+      if (ctx.prevArchived !== undefined) {
+        queryClient.setQueryData(queryKeys.journeys.archived, ctx.prevArchived);
+      }
+      toast.error("Changes couldn't be saved");
+    },
+    onSettled: (_, __, { journeyId }) => invalidateJourneyQueries(queryClient, journeyId),
   });
 }
 

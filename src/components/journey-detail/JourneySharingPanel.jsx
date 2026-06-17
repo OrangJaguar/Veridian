@@ -10,8 +10,10 @@ import {
   useUpdateJourneyLibrary,
 } from '@/hooks/mutations/usePublishJourney';
 import { MIN_TAGS_TO_PUBLISH } from '@/lib/library/libraryTags';
+import { useIsJourneyOwner } from '@/hooks/useIsJourneyOwner';
 
 export default function JourneySharingPanel({ journey }) {
+  const isOwner = useIsJourneyOwner(journey);
   const journeyId = journey.journeyId;
   const { data: eligibility } = usePublishEligibility(journeyId);
   const publish = usePublishJourney();
@@ -40,6 +42,8 @@ export default function JourneySharingPanel({ journey }) {
         && tags.length >= MIN_TAGS_TO_PUBLISH,
     }
     : null;
+
+  if (!isOwner) return null;
 
   const handleToggle = (nextPublic) => {
     if (nextPublic) {

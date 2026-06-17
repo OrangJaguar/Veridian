@@ -6,6 +6,7 @@ import {
   getActivityActionLabel,
   getActivityStatusNote,
 } from '@/utils/study/activityUi';
+import ActivityLabelWithTooltip from '@/components/study/ActivityLabelWithTooltip';
 import { isLegacyGeneratingActivity } from '@/utils/study/activityContent';
 
 const STAGE_ACTIVITIES = {
@@ -30,7 +31,12 @@ export default function ActivityRow({ activity, cardCount = 0, journeyId, module
   return (
     <div className={`module-activity-row${compact ? ' compact' : ''}`}>
       <div className="module-activity-main">
-        <strong>{getActivityDisplayName(activity)}</strong>
+        <strong>
+          <ActivityLabelWithTooltip
+            activityType={activity.type}
+            label={getActivityDisplayName(activity)}
+          />
+        </strong>
         <span>{statLine}</span>
       </div>
       {activity.type === 'practiceQuiz' ? (

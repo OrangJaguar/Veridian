@@ -1,0 +1,49 @@
+{
+  "name": "ErrorOccurrence",
+  "type": "object",
+  "properties": {
+    "occurrenceId": {
+      "type": "string"
+    },
+    "groupId": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    },
+    "stack": {
+      "type": "string"
+    },
+    "route": {
+      "type": "string"
+    },
+    "environment": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "userEmail": {
+      "type": "string"
+    },
+    "userId": {
+      "type": "string"
+    },
+    "clientInfo": {
+      "type": "object"
+    },
+    "context": {
+      "type": "object"
+    },
+    "createdAt": {
+      "type": "number"
+    }
+  },
+  "required": ["occurrenceId", "groupId", "message", "createdAt"],
+  "rls": {
+    "create": {},
+    "read": { "user.role": "admin" },
+    "update": { "user.role": "admin" },
+    "delete": { "user.role": "admin" }
+  }
+}

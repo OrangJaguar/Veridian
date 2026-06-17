@@ -1,4 +1,5 @@
 import { base44 } from '@/api/base44Client';
+import { logClientError } from '@/api/errors/logClientError';
 
 const FUNCTION_NOT_DEPLOYED_MSG =
   'The AI backend (geminiJourney) is not deployed yet. Push functions/geminiJourney/ to GitHub and Publish on Base44 (CLI deploy only works on Backend Platform apps). Also confirm GEMINI_API_KEY is set in Base44 secrets.';
@@ -44,6 +45,13 @@ function normalizeInvokeError(err) {
   }
   if (status === 400 && message.includes('status code 400')) {
     return new Error('AI could not build a valid journey from your material. Try again or paste shorter text.');
+  }
+
+  if (status >= 500 || (!status && !serverMessage?.includes('Daily AI limit'))) {
+    logClientError({
+      message: `geminiJourney invoke failed: ${message}`,
+      context: { status, source: 'ai-client', function: 'geminiJourney' },
+    });
   }
 
   return err instanceof Error ? err : new Error(message);
