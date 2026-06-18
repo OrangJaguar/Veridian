@@ -46,9 +46,6 @@ export default function ProfilePage() {
             <span>{memberSince}</span>
           </p>
         )}
-        <p className="profile-identity-hint">
-          <Link to="/settings">Change username in Settings</Link>
-        </p>
       </section>
 
       <section className="profile-section detail-section-box">

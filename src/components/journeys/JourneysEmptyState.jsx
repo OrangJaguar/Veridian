@@ -21,10 +21,10 @@ export default function JourneysEmptyState({ archived = false }) {
         schedule, and AI-generated activities that adapt as you learn.
       </p>
       <div className="journeys-empty-state-actions">
-        <Link to="/journeys/new" className="veridian-btn veridian-btn-primary">
+        <Link to="/journeys/new" className="btn btn-primary">
           Create Journey
         </Link>
-        <Link to="/library" className="veridian-btn veridian-btn-ghost">
+        <Link to="/library" className="btn btn-secondary">
           Browse Community Library
         </Link>
       </div>

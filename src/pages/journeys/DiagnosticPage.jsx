@@ -16,6 +16,7 @@ import DiagnosticSummary from '@/components/diagnostic/DiagnosticSummary';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
 import { StudyAiError } from '@/components/study/StudyAiStatus';
 import { generateDiagnosticQuestions } from '@/api/ai/study';
+import { generateDiagnosticQuestionsProgressive } from '@/utils/study/generateDiagnosticQuestionsProgressive';
 import { runStudyAiGeneration } from '@/hooks/ai/runStudyAiGeneration';
 import { applyDiagnosticResults } from '@/api/entities/applyDiagnosticResults';
 import { ensureDiagnosticActivity } from '@/api/entities/ensureDiagnosticActivity';
@@ -83,6 +84,7 @@ export default function DiagnosticPage() {
   const [summaryData, setSummaryData] = useState(null);
   const [activityReady, setActivityReady] = useState(false);
   const [genError, setGenError] = useState(null);
+  const [moduleProgress, setModuleProgress] = useState(null);
   const generatingRef = useRef(false);
 
   const resolvedPhase = phase ?? (journey ? initialPhase(journey, resumableSession) : null);
@@ -142,6 +144,7 @@ export default function DiagnosticPage() {
     generatingRef.current = true;
     setGenerating(true);
     setGenError(null);
+    setModuleProgress(null);
 
     try {
       if (resumableSession) {
@@ -163,20 +166,26 @@ export default function DiagnosticPage() {
       const activity = diagnosticActivity ?? await ensureDiagnosticActivity(journeyId, activities);
       const priorKnowledge = journey?.priorKnowledge ?? 'some';
 
+      const modulePayload = modules.map((mod) => ({
+        moduleId: mod.moduleId,
+        name: mod.name,
+        description: mod.description,
+        concepts: mod.knowledgeMap?.concepts ?? [],
+      }));
+
       const interleaved = await runStudyAiGeneration({
         action: 'generateDiagnosticQuestions',
-        generate: () => generateDiagnosticQuestions({
+        generate: () => generateDiagnosticQuestionsProgressive({
           title: journey.title,
           subject: journey.subject,
           priorKnowledge,
           difficultyGuidance: difficultyGuidanceForPriorKnowledge(priorKnowledge),
           questionsPerModule: DIAGNOSTIC_QUESTIONS_PER_MODULE,
-          modules: modules.map((mod) => ({
-            moduleId: mod.moduleId,
-            name: mod.name,
-            description: mod.description,
-            concepts: mod.knowledgeMap?.concepts ?? [],
-          })),
+          modules: modulePayload,
+        }, {
+          onModule: (_mod, index, total) => {
+            setModuleProgress({ index: index + 1, total });
+          },
         }),
         normalize: (data) => {
           const rawQuestions = normalizeDiagnosticQuestions(
@@ -366,6 +375,7 @@ export default function DiagnosticPage() {
         onSkip={handleSkip}
         loading={generating || !activityReady}
         skipping={skipping}
+        moduleProgress={moduleProgress}
       />
     </div>
   );

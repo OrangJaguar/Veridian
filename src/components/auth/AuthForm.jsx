@@ -2,6 +2,8 @@ import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { createUserPreferencesOnSignup } from '@/api/entities/preferences';
+import { queryClient } from '@/lib/query-client';
+import { clearOnboardingDoneLocally } from '@/lib/onboardingStorage';
 import { syncAuthUserFullName, refreshAuthUser } from '@/api/auth/userProfile';
 import { useUsernameAvailability } from '@/hooks/useUsernameAvailability';
 import { isValidUsernameFormat, normalizeUsername } from '@/utils/schemas/preferences';
@@ -168,6 +170,8 @@ export default function AuthForm({
           // UserPreferences.username still saved; SyncUserDisplayName repairs on next load
         }
       }
+      clearOnboardingDoneLocally(user.email);
+      queryClient.removeQueries({ queryKey: ['preferences'] });
       const refreshedUser = await refreshAuthUser();
       onSuccess(refreshedUser ?? user);
     } catch (err) {

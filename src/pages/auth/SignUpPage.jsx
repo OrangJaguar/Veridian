@@ -9,7 +9,7 @@ export default function SignUpPage() {
 
   function handleSuccess(user) {
     setUser(user);
-    navigate('/home', { replace: true });
+    navigate('/onboarding', { replace: true });
   }
 
   return (

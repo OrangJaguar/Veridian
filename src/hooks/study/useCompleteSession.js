@@ -7,9 +7,11 @@ import { runPostSessionEffects } from '@/utils/study/postSession';
 import { buildSessionResearchFields } from '@/utils/study/sessionResearchFields';
 import { queryKeys } from '@/api/query-keys';
 import { useStudySessionStore } from '@/store/studySessionStore';
+import { useAuth } from '@/hooks/useAuth';
+import { readCachedPreferences } from '@/lib/preferencesCache';
 
-function getResearchFieldsIfConsented(queryClient, params) {
-  const prefs = queryClient.getQueryData(queryKeys.preferences);
+function getResearchFieldsIfConsented(queryClient, email, params) {
+  const prefs = readCachedPreferences(queryClient, email);
   if (!prefs?.researchConsent) return {};
   return buildSessionResearchFields(params);
 }
@@ -17,6 +19,7 @@ function getResearchFieldsIfConsented(queryClient, params) {
 export function useCompleteSession() {
   const updateSession = useUpdateSession();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const reset = useStudySessionStore((s) => s.reset);
 
   const completeSession = useCallback(
@@ -32,7 +35,7 @@ export function useCompleteSession() {
     }) => {
       const endedAt = Date.now();
       const durationSec = startedAt ? Math.round((endedAt - startedAt) / 1000) : 0;
-      const researchFields = getResearchFieldsIfConsented(queryClient, {
+      const researchFields = getResearchFieldsIfConsented(queryClient, user?.email, {
         sessionData,
         outcomeSummary,
         startedAt,
@@ -80,7 +83,7 @@ export function useCompleteSession() {
 
       reset();
     },
-    [updateSession, queryClient, reset],
+    [updateSession, queryClient, reset, user?.email],
   );
 
   const completeSessionInBackground = useCallback(

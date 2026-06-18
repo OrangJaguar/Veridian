@@ -48,9 +48,10 @@ const guideSectionAiSchema = z.object({
   ),
   checkInQuestion: z.object({
     question: z.string().optional(),
+    stem: z.string().optional(),
     type: z.string().optional(),
     options: z.array(z.string()).optional(),
-    correctAnswer: z.string().optional(),
+    correctAnswer: coercedAnswerSchema.optional(),
     explanation: z.string().optional(),
   }).optional(),
   externalSearchSuggestions: z.array(z.string()).optional(),
@@ -85,14 +86,89 @@ function extractJsonText(raw: string) {
   if (fenced) return fenced[1].trim();
 
   const start = trimmed.indexOf("{");
-  const end = trimmed.lastIndexOf("}");
-  if (start !== -1 && end > start) return trimmed.slice(start, end + 1);
+  if (start !== -1) {
+    const end = trimmed.lastIndexOf("}");
+    if (end > start) return trimmed.slice(start, end + 1);
+    return trimmed.slice(start);
+  }
 
   const arrStart = trimmed.indexOf("[");
-  const arrEnd = trimmed.lastIndexOf("]");
-  if (arrStart !== -1 && arrEnd > arrStart) return trimmed.slice(arrStart, arrEnd + 1);
+  if (arrStart !== -1) {
+    const arrEnd = trimmed.lastIndexOf("]");
+    if (arrEnd > arrStart) return trimmed.slice(arrStart, arrEnd + 1);
+    return trimmed.slice(arrStart);
+  }
 
   return trimmed;
+}
+
+/** Close unclosed strings/brackets when Gemma truncates mid-JSON. */
+function repairTruncatedJson(text: string) {
+  let s = String(text ?? "").trim();
+  if (!s) return s;
+
+  let inString = false;
+  let escape = false;
+  const stack: string[] = [];
+
+  for (let i = 0; i < s.length; i += 1) {
+    const c = s[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (inString) {
+      if (c === "\\") escape = true;
+      else if (c === "\"") inString = false;
+      continue;
+    }
+    if (c === "\"") {
+      inString = true;
+      continue;
+    }
+    if (c === "{") stack.push("}");
+    else if (c === "[") stack.push("]");
+    else if (c === "}" || c === "]") {
+      if (stack.length && stack[stack.length - 1] === c) stack.pop();
+    }
+  }
+
+  if (inString) s += "\"";
+  s = s.replace(/,\s*$/, "");
+
+  while (stack.length) s += stack.pop();
+  return s;
+}
+
+function parseJsonWithRepair(extracted: string, debug?: ReturnType<typeof createAiDebugTrace>) {
+  try {
+    const parsed = JSON.parse(extracted);
+    debug?.record("json_parse", true, {
+      ...payloadShapeSummary(parsed),
+      extractedLength: extracted.length,
+    });
+    return parsed;
+  } catch (parseErr) {
+    const repaired = repairTruncatedJson(extracted);
+    if (repaired !== extracted) {
+      try {
+        const parsed = JSON.parse(repaired);
+        debug?.record("json_repair", true, {
+          extractedLength: extracted.length,
+          repairedLength: repaired.length,
+          ...payloadShapeSummary(parsed),
+        });
+        return parsed;
+      } catch {
+        // fall through to original error
+      }
+    }
+    debug?.record("json_parse", false, {
+      fullRawText: extracted,
+      textLength: extracted.length,
+    }, parseErr instanceof Error ? parseErr.message : String(parseErr));
+    throw parseErr;
+  }
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -332,6 +408,8 @@ function finalizeGuideOutput(raw: unknown) {
     while (options.length < 4) options.push(`Option ${options.length + 1}`);
     options = options.slice(0, 4);
 
+    const checkInStem = checkIn.question ?? (checkIn as { stem?: string }).stem ?? "";
+
     const suggestions = (section.externalSearchSuggestions ?? [])
       .map((s) => clipString(s, 120))
       .filter(Boolean)
@@ -343,7 +421,7 @@ function finalizeGuideOutput(raw: unknown) {
       explanation: clipString(section.explanation, 4000) || "Review the module concepts for this section.",
       workedExamples,
       checkInQuestion: {
-        question: clipString(checkIn.question, 500) || "What is the main idea of this section?",
+        question: clipString(checkInStem, 500) || "What is the main idea of this section?",
         type: "multipleChoice" as const,
         options,
         correctAnswer: clipString(checkIn.correctAnswer, 200) || options[0],
@@ -568,9 +646,10 @@ function payloadShapeSummary(value: unknown): Record<string, unknown> {
 
 
 const MODEL = "gemma-4-31b-it";
-const DEPLOY_BUILD = "inline-gemma-v4-worked-examples-fix";
+const DEPLOY_BUILD = "inline-gemma-v5-json-repair-diag-split";
 const MAX_OUTPUT_TOKENS = 4096;
-const MAX_OUTPUT_TOKENS_SECTION = 2048;
+const MAX_OUTPUT_TOKENS_SECTION = 3072;
+const MAX_OUTPUT_TOKENS_DIAGNOSTIC = 2048;
 const TEMPERATURE = 0.2;
 
 const STUDY_LIMITS = {
@@ -816,12 +895,8 @@ async function callGeminiJson(
       let parsed: unknown;
       try {
         const extracted = extractJsonText(text);
-        parsed = JSON.parse(extracted);
+        parsed = parseJsonWithRepair(extracted, debug);
         debug?.setParsedShape(parsed);
-        debug?.record("json_parse", true, {
-          ...payloadShapeSummary(parsed),
-          extractedLength: extracted.length,
-        });
       } catch (parseErr) {
         debug?.record("json_parse", false, {
           fullRawText: text,
@@ -1025,12 +1100,14 @@ Output shape: { "sections": [ { single section object } ] } — exactly one item
 Rules:
 - Output ONLY valid JSON. No markdown.
 - Teach from the provided concepts for this section only.
-- explanation: 140–200 words, 3–4 paragraphs separated by \\n\\n. Clear, thorough, token-efficient.
-- workedExamples: MUST be an array with exactly one object — [ { scenario, steps, answer, reasoning } ]. Never use the key "workedExample" (singular).
-- checkInQuestion: multipleChoice with exactly 4 options.
-- externalSearchSuggestions: exactly 2 short YouTube search queries.
-- transitionText: 1–2 sentences previewing the next section (empty string if isLastSection is true).
+- explanation: 100–160 words, 2–3 short paragraphs separated by \\n\\n. Stay concise — finish the JSON.
+- workedExamples: MUST be an array with exactly one object — [ { scenario, steps, answer, reasoning } ]. Keep each field brief (reasoning: 1–2 sentences).
+- checkInQuestion: use key "stem" for the question text; multipleChoice with exactly 4 short options; explanation max 2 sentences.
+- externalSearchSuggestions: exactly 1 short YouTube search query.
+- transitionText: one short sentence previewing the next section (empty string if isLastSection is true).
 - sectionId: short kebab-case slug unique within the module.
+
+CRITICAL: Always close every string and brace. If running low on space, shorten explanation before truncating JSON.
 
 Do NOT include narrationText.`;
 
@@ -1246,20 +1323,24 @@ async function generateOneLearningGuideSection(
     retrySuffix,
     "generateLearningGuide",
     debug,
-    1,
+    2,
     MAX_OUTPUT_TOKENS_SECTION,
   );
 
-  const section = data.sections[0];
-  if (!section) {
+  const rawSection = data.sections[0];
+  if (!rawSection) {
     throw new Error(`AI returned no content for section ${sectionIndex + 1}. Try again.`);
   }
 
+  const finalized = finalizeGuideOutput({
+    sections: [{
+      ...rawSection,
+      sectionId: rawSection.sectionId ?? `section-${sectionIndex + 1}`,
+    }],
+  });
+
   return {
-    section: {
-      ...section,
-      sectionId: section.sectionId ?? `section-${sectionIndex + 1}`,
-    },
+    section: finalized.sections[0],
     usage,
   };
 }
@@ -1333,6 +1414,8 @@ async function generateDiagnosticQuestionsBatch(
       retrySuffix,
       "generateDiagnosticQuestions",
       debug,
+      2,
+      MAX_OUTPUT_TOKENS_DIAGNOSTIC,
     );
     const finalized = data.questions
       .slice(0, questionsPerModule)
@@ -1488,7 +1571,11 @@ Deno.serve(async (req) => {
 
     if (action === "generateDiagnosticQuestions") {
       const estInput = estimateTokens(JSON.stringify(payload));
-      const quotaErr = await checkStudyQuota(base44, userKey, action, estInput);
+      const moduleIndex = Number(payload.moduleIndex ?? 0);
+      const quotaOpts = Number.isFinite(moduleIndex) && moduleIndex > 0
+        ? { skipCooldown: true, skipIncrement: true }
+        : undefined;
+      const quotaErr = await checkStudyQuota(base44, userKey, action, estInput, quotaOpts);
       if (quotaErr) return quotaErr;
 
       const result = await generateDiagnosticQuestionsBatch(apiKey, payload, debug);

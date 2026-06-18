@@ -50,13 +50,13 @@ export default function OnboardingPage() {
       });
       const completedAt = updated?.onboardingCompletedAt ?? Date.now();
       if (user?.email) markOnboardingDoneLocally(user.email);
-      queryClient.setQueryData(queryKeys.preferences, (prev) => ({
+      queryClient.setQueryData(queryKeys.preferences(user?.email), (prev) => ({
         ...(prev ?? {}),
         ...(updated ?? {}),
         onboardingCompletedAt: completedAt,
       }));
-      await queryClient.refetchQueries({ queryKey: queryKeys.preferences });
-      queryClient.setQueryData(queryKeys.preferences, (prev) => (
+      await queryClient.refetchQueries({ queryKey: queryKeys.preferences(user?.email) });
+      queryClient.setQueryData(queryKeys.preferences(user?.email), (prev) => (
         prev ? { ...prev, onboardingCompletedAt: prev.onboardingCompletedAt ?? completedAt } : prev
       ));
       navigate('/home', { replace: true });

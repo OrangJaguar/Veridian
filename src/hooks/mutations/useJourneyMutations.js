@@ -6,6 +6,7 @@ import { generateJourneyId } from '@/utils/schemas/ids';
 import { createJourneySchema } from '@/utils/schemas/journey';
 import { dismissHomeWelcomeHint } from '@/utils/preferences/dismissHomeWelcomeHint';
 import { patchListItem } from '@/lib/optimisticMutation';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 function invalidateJourneyQueries(queryClient, journeyId) {
@@ -28,6 +29,7 @@ function invalidateAllHomeData(queryClient) {
 
 export function useCreateJourney() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: (input) => {
@@ -38,7 +40,7 @@ export function useCreateJourney() {
       });
     },
     onSuccess: async () => {
-      await dismissHomeWelcomeHint(queryClient);
+      await dismissHomeWelcomeHint(queryClient, user?.email);
       invalidateAllHomeData(queryClient);
     },
   });

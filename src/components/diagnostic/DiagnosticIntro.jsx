@@ -6,6 +6,7 @@ export default function DiagnosticIntro({
   onSkip,
   loading,
   skipping,
+  moduleProgress,
 }) {
   return (
     <div className="diagnostic-intro create-step">
@@ -46,7 +47,11 @@ export default function DiagnosticIntro({
           onClick={onStart}
           disabled={loading || skipping}
         >
-          {loading ? 'Generating questions…' : 'Start diagnostic'}
+          {loading
+            ? (moduleProgress
+              ? `Generating module ${moduleProgress.index} of ${moduleProgress.total}…`
+              : 'Generating questions…')
+            : 'Start diagnostic'}
         </button>
       </div>
     </div>

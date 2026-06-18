@@ -76,7 +76,7 @@ function normalizeInvokeError(err) {
   } else   if (status === 401) {
     normalized.message = 'Please sign in again to use AI features.';
   } else if (status === 504 || /504|timeout|timed out/i.test(message)) {
-    normalized.message = 'AI generation timed out. The server has a ~60s limit per request — learning guides now generate one section at a time; publish the latest geminiStudy and try again.';
+    normalized.message = 'AI generation timed out. The server has a ~60s limit per request — try again, or publish the latest geminiStudy build if this keeps happening.';
   }
 
   return normalized;

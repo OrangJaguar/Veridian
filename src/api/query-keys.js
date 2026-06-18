@@ -25,7 +25,7 @@ export const queryKeys = {
   sessions: {
     byJourney: (journeyId) => ['sessions', journeyId],
   },
-  preferences: ['preferences'],
+  preferences: (email) => (email ? ['preferences', email] : ['preferences']),
   profile: {
     stats: ['profile', 'stats'],
   },

@@ -3811,47 +3811,34 @@
       padding: 0.4rem 1rem;
     }
 
-    .home-caught-up {
-      padding: 1.5rem 0;
-      display: flex;
-      flex-direction: column;
+    .home-caught-up-card {
       align-items: flex-start;
-      gap: 0.65rem;
+      gap: 0.5rem;
+      min-height: auto;
     }
 
     .home-caught-up-title {
-      font-size: 1.1rem;
-      font-weight: 600;
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+      margin: 0;
     }
 
     .home-caught-up-sub {
       font-size: 0.9rem;
       color: var(--text-muted);
-      max-width: 420px;
+      max-width: 36rem;
+      margin: 0;
+      line-height: 1.55;
     }
 
-    .home-caught-up-chips {
+    .home-caught-up-actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-top: 0.35rem;
-    }
-
-    .home-caught-up-chip {
-      font-size: 0.78rem;
-      font-weight: 600;
-      padding: 0.45rem 0.85rem;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      background: var(--bg);
-      color: inherit;
-      text-decoration: none;
-      cursor: pointer;
-      font-family: inherit;
-    }
-
-    .home-caught-up-chip:hover {
-      border-color: var(--text-muted);
+      gap: 0.65rem;
+      margin-top: 1.25rem;
+      width: 100%;
     }
 
     .home-journey-zone {

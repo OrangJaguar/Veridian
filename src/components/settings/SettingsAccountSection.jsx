@@ -1,11 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { usePreferences } from '@/hooks/queries/usePreferences';
 import { useChangePassword } from '@/hooks/mutations/useChangePassword';
-import { useChangeUsername } from '@/hooks/mutations/useChangeUsername';
-import { useUsernameAvailability } from '@/hooks/useUsernameAvailability';
-import { getUsernameChangeEligibility } from '@/api/entities/username';
 import { isValidSignupPassword, passwordsMatch } from '@/utils/schemas/password';
 import {
   AuthFieldRules,
@@ -13,17 +10,13 @@ import {
   buildConfirmPasswordRules,
   buildPasswordRules,
 } from '@/components/auth/AuthFieldRules';
-import { normalizeUsername } from '@/utils/schemas/preferences';
 
 export default function SettingsAccountSection() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { data: preferences } = usePreferences();
   const changePassword = useChangePassword();
-  const changeUsername = useChangeUsername();
 
-  const [username, setUsername] = useState(preferences?.username ?? '');
-  const [usernameFocused, setUsernameFocused] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -31,16 +24,6 @@ export default function SettingsAccountSection() {
   const [confirmFocused, setConfirmFocused] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
 
-  useEffect(() => {
-    if (preferences?.username) setUsername(preferences.username);
-  }, [preferences?.username]);
-
-  const usernameStatus = useUsernameAvailability(username, {
-    enabled: usernameFocused && username !== preferences?.username,
-    excludeEmail: user?.email,
-  });
-
-  const eligibility = getUsernameChangeEligibility(preferences);
   const passwordRules = buildPasswordRules(newPassword, passwordFocused);
   const confirmRules = buildConfirmPasswordRules(newPassword, confirmPassword, confirmFocused);
   const passwordReady = allRulesPass(passwordRules)
@@ -48,10 +31,6 @@ export default function SettingsAccountSection() {
     && allRulesPass(confirmRules)
     && passwordsMatch(newPassword, confirmPassword)
     && currentPassword.length > 0;
-
-  const handleUsernameSave = () => {
-    changeUsername.mutate(normalizeUsername(username));
-  };
 
   const handlePasswordSave = (e) => {
     e.preventDefault();
@@ -96,31 +75,13 @@ export default function SettingsAccountSection() {
           <input
             id="settings-username"
             type="text"
-            className="settings-input"
-            value={username}
-            onChange={(e) => setUsername(normalizeUsername(e.target.value))}
-            onFocus={() => setUsernameFocused(true)}
-            onBlur={() => setUsernameFocused(false)}
-            disabled={!eligibility.canChange || changeUsername.isPending}
+            className="settings-input settings-input-readonly"
+            value={preferences?.username ?? ''}
+            readOnly
             spellCheck={false}
           />
         </div>
-        {!eligibility.canChange && eligibility.nextEligibleAt && (
-          <p className="settings-hint">
-            You can change your username again on{' '}
-            {new Date(eligibility.nextEligibleAt).toLocaleDateString()}.
-          </p>
-        )}
-        {username !== preferences?.username && eligibility.canChange && (
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm settings-save-btn"
-            onClick={handleUsernameSave}
-            disabled={changeUsername.isPending || usernameStatus !== 'available'}
-          >
-            Save username
-          </button>
-        )}
+        <p className="settings-hint">Usernames are permanent after signup.</p>
       </div>
 
       <div className="settings-field">

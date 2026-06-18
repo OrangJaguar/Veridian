@@ -4,12 +4,12 @@ import { getPreferences } from '@/api/entities/preferences';
 import { useAuth } from '@/hooks/useAuth';
 
 export function usePreferences() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   return useQuery({
-    queryKey: queryKeys.preferences,
+    queryKey: queryKeys.preferences(user?.email),
     queryFn: getPreferences,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && !!user?.email,
     staleTime: 60_000,
   });
 }

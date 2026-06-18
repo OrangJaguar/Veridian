@@ -39,6 +39,7 @@ export default function AuthProvider({ children }) {
     await base44.auth.logout();
     clearAuthCache();
     queryClient.setQueryData(['auth', 'me'], null);
+    queryClient.removeQueries({ queryKey: ['preferences'] });
     queryClient.invalidateQueries({ queryKey: ['auth'] });
     queryClient.invalidateQueries({ queryKey: ['decks'] });
   }, []);

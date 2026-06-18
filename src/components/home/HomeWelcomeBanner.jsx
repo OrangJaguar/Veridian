@@ -26,7 +26,7 @@ export default function HomeWelcomeBanner({ journeyCount = 0 }) {
         </p>
         <Link
           to="/journeys/new"
-          className="veridian-btn veridian-btn-primary home-welcome-banner-cta"
+          className="btn btn-primary home-welcome-banner-cta"
           onClick={handleCta}
         >
           Create Your First Journey

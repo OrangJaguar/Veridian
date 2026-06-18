@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUpdateSession } from '@/hooks/mutations/useSessionMutations';
 import { buildSessionResearchFields } from '@/utils/study/sessionResearchFields';
-import { queryKeys } from '@/api/query-keys';
 import { useStudySessionStore } from '@/store/studySessionStore';
+import { useAuth } from '@/hooks/useAuth';
+import { readCachedPreferences } from '@/lib/preferencesCache';
 
-function getResearchFieldsIfConsented(queryClient, params) {
-  const prefs = queryClient.getQueryData(queryKeys.preferences);
+function getResearchFieldsIfConsented(queryClient, email, params) {
+  const prefs = readCachedPreferences(queryClient, email);
   if (!prefs?.researchConsent) return {};
   return buildSessionResearchFields(params);
 }
@@ -16,6 +17,7 @@ export function useAbandonSession() {
   const updateSession = useUpdateSession();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const reset = useStudySessionStore((s) => s.reset);
 
   return useCallback(
@@ -26,7 +28,7 @@ export function useAbandonSession() {
         ...sessionData,
         ...(answers.length > 0 ? { answers } : {}),
       };
-      const researchFields = getResearchFieldsIfConsented(queryClient, {
+      const researchFields = getResearchFieldsIfConsented(queryClient, user?.email, {
         sessionData: mergedSessionData,
         startedAt,
         endedAt,
@@ -49,6 +51,6 @@ export function useAbandonSession() {
       reset();
       navigate(returnPath ?? '/home');
     },
-    [updateSession, navigate, reset, queryClient],
+    [updateSession, navigate, reset, queryClient, user?.email],
   );
 }
