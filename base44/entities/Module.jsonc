@@ -38,6 +38,13 @@
     "libraryVisible": {
       "type": "boolean",
       "description": "True when parent journey is public (library read access)"
+    },
+    "moduleStatus": {
+      "type": "string",
+      "description": "draft | ready"
+    },
+    "estimatedStudyMinutes": {
+      "type": "number"
     }
   },
   "required": [

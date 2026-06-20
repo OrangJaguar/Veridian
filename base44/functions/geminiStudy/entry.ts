@@ -674,6 +674,7 @@ const ACTIONS = [
   "feynmanSummarizeConcept",
   "gradeFreeRecall",
   "generateFreeRecallHint",
+  "generateFreeRecallHints",
   "generateInterleavedQuestions",
   "generateJourneyChallenge",
   "generateConceptRefresher",
@@ -1052,6 +1053,10 @@ const freeRecallHintOutputSchema = z.object({
   tier: z.number().min(1).max(3),
 });
 
+const freeRecallHintsOutputSchema = z.object({
+  hints: z.array(freeRecallHintOutputSchema).length(3),
+});
+
 const refresherOutputSchema = z.object({
   recap: z.string(),
   example: z.string(),
@@ -1135,6 +1140,29 @@ Tier 3 — Framework scaffold:
 
 Never list every concept. Never grade. Never mention tier numbers in the hint text.`;
 
+const FREE_RECALL_HINTS_SYSTEM = `You are a study tutor helping a student during a free-recall brain dump for ONE module.
+
+Generate ALL THREE progressive hints at once before the student has written anything. The student writes everything they remember without notes. You provide progressive hints — never full answers or complete explanations.
+
+Rules:
+- Output ONLY valid JSON: { hints: [{ hint: string, tier: number }, ...] } with exactly 3 items.
+- tier MUST be 1, 2, and 3 respectively.
+- Use $...$ for inline math when needed.
+- Stay under 80 words per hint. Be token-efficient.
+
+Tier 1 — Concept nudge:
+- Name 2–4 concept areas or themes from the knowledge map that belong in a complete recall.
+
+Tier 2 — Key terms:
+- Provide 3–5 key terms from the module they could weave into their response.
+- Build on tier 1; do not repeat tier 1 wording.
+
+Tier 3 — Framework scaffold:
+- Give 2–3 sentences outlining how a strong recall could be structured (e.g. "Start with X, then connect Y to Z…").
+- Still do not write the answer for them — only a skeleton they can fill in.
+
+Never list every concept. Never grade. Never mention tier numbers in the hint text.`;
+
 const FREE_RECALL_GRADE_SYSTEM = `You are a supportive study coach grading a free-recall brain dump against a module knowledge map.
 
 Rules:
@@ -1163,7 +1191,9 @@ Rules:
 - readyToComplete: true when they show decent understanding (be lenient — core idea + key relationships is enough; perfection not required).
 - On turn 5 (turnNumber === 5), wrap up warmly and set readyToComplete true unless they said almost nothing.
 - Never reveal you are grading. Never dump the knowledge map definition verbatim.
-- If they have a misconception, gently probe with a question rather than correcting harshly.
+- If they have a misconception, gently probe with an open-ended question — never give away the answer.
+- NEVER ask binary or multiple-choice style questions ("Is it X or Y?", "Would you say A or B?", "Which of these…"). The student must explain in their own words — do not offer 50/50 guesses.
+- When they miss a key point, ask them to define, connect, or give an example — do not present the correct option alongside a wrong one.
 
 Stay concise and token-efficient.`;
 
@@ -1198,6 +1228,8 @@ Rules:
 - Include concise explanation (1–2 sentences) per question.
 - Follow focusGuidance for concept distribution (fullReview / weakSpots / newMaterial).
 - Match difficulty to moduleStage. Be concise in stems — high quality, token-efficient.`;
+
+const AP_STYLE_INSTRUCTION = `Generate all questions in authentic AP exam style. AP questions are precise, analytical, and often scenario-based or stimulus-based — they present a specific situation, data set, experiment description, experimental result, passage excerpt, or diagram description before asking the student to analyze, evaluate, or apply a concept. Questions do not test simple recall of definitions. Instead they require the student to apply understanding to novel situations, justify claims with evidence, reason through cause and effect, evaluate the validity of an argument or claim, interpret data or graphs described in text form, or connect concepts across the subject. Answer choices in AP questions are all plausible and substantively similar in length and structure — wrong answers represent common misconceptions or partially correct reasoning, not obviously wrong distractors. The correct answer requires precise understanding, not elimination by process of obvious incorrectness. Question stems use formal academic language and precise subject-specific vocabulary. Multi-part reasoning is common: a stem may ask which of the following best explains, best justifies, best supports, or is most consistent with a given claim or observation. Avoid question stems that begin with 'What is' or 'Define' — instead use 'Which of the following best explains', 'A student observes X, which of the following conclusions is best supported', 'Based on the information given, which of the following', or 'Which of the following best justifies the claim that.' All questions should feel like they belong on an official AP Progress Check or exam regardless of which subject or topic is being tested.`;
 
 const GENERATE_FLASHCARDS_SYSTEM = `You generate flashcard decks for Veridian.
 
@@ -1451,7 +1483,7 @@ async function generateDiagnosticQuestionsBatch(
   };
 }
 
-function buildSystem(action: string) {
+function buildSystem(action: string, payload?: Record<string, unknown>) {
   const base = `You are a study tutor. ${LATEX_RULE}`;
   const map: Record<string, string> = {
     generateLearningGuide: LEARNING_GUIDE_SYSTEM,
@@ -1460,18 +1492,23 @@ function buildSystem(action: string) {
     parseQuizletImport: `${base} Parse Quizlet-style imports into { pairs: [{ front, back }] }. Output JSON only. Do not invent content.`,
     extractDeckSource: `${base} Extract testable source from raw text into { cleanedText, summary }. Do not generate flashcards yet.`,
     findFlashcardDuplicates: `${base} Find groups of cards testing the same knowledge. Output { groups: [{ cardIndexes, reason }] }. Indexes are 0-based.`,
-    applyDeckAiEdit: `${base} Apply a deck edit action. Output { message, cards?, needsClarification?, clarifyingQuestion? }. Keep message under 40 words, friendly.`,
+    applyDeckAiEdit: `${base} Apply a deck edit action (simplify_long, split_multi_concept, add_missing, or other with customInstruction). For "other", interpret customInstruction, ask clarifyingQuestion if ambiguous, then apply. Output { message, cards?, needsClarification?, clarifyingQuestion? }. Keep message under 40 words, friendly.`,
     generateDiagnosticQuestions: DIAGNOSTIC_SYSTEM,
     feynmanConversationTurn: FEYNMAN_TURN_SYSTEM,
     feynmanSummarizeConcept: FEYNMAN_SUMMARIZE_SYSTEM,
     gradeFreeRecall: FREE_RECALL_GRADE_SYSTEM,
     generateFreeRecallHint: FREE_RECALL_HINT_SYSTEM,
+    generateFreeRecallHints: FREE_RECALL_HINTS_SYSTEM,
     generateInterleavedQuestions: INTERLEAVED_SYSTEM,
     generateJourneyChallenge: CHALLENGE_SYSTEM,
     generateConceptRefresher: `${base} Short inline concept recap under 150 words.`,
     generateCramSession: CRAM_SYSTEM,
   };
-  return (map[action] ?? base) + INJECTION_GUARD;
+  let system = (map[action] ?? base) + INJECTION_GUARD;
+  if (action === "generatePracticeQuestions" && payload?.questionStyle === "apStyle") {
+    system = PRACTICE_QUIZ_SYSTEM + "\n\n" + AP_STYLE_INSTRUCTION + INJECTION_GUARD;
+  }
+  return system;
 }
 
 function sanitizeStudyPayload(action: string, payload: Record<string, unknown>) {
@@ -1481,6 +1518,7 @@ function sanitizeStudyPayload(action: string, payload: Record<string, unknown>) 
     "rawContent",
     "raw",
     "clarifyingAnswer",
+    "customInstruction",
     "studentResponse",
     "studentResponseSoFar",
     "moduleName",
@@ -1517,6 +1555,7 @@ function schemaForAction(action: string) {
   if (action === "feynmanSummarizeConcept") return feynmanConceptSummarySchema;
   if (action === "gradeFreeRecall") return freeRecallOutputSchema;
   if (action === "generateFreeRecallHint") return freeRecallHintOutputSchema;
+  if (action === "generateFreeRecallHints") return freeRecallHintsOutputSchema;
   if (action === "generateConceptRefresher") return refresherOutputSchema;
   if (action === "generateDiagnosticQuestions") return diagnosticOutputSchema;
   return questionsOutputSchema;
@@ -1622,7 +1661,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const system = buildSystem(action);
+    const system = buildSystem(action, payload as Record<string, unknown>);
     const safePayload = sanitizeStudyPayload(action, payload as Record<string, unknown>);
     const userPrompt = JSON.stringify({ action, ...safePayload }).slice(0, 32_000);
     const estInput = estimateTokens(system + userPrompt);

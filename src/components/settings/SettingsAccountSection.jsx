@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { usePreferences } from '@/hooks/queries/usePreferences';
 import { useChangePassword } from '@/hooks/mutations/useChangePassword';
@@ -12,8 +11,7 @@ import {
 } from '@/components/auth/AuthFieldRules';
 
 export default function SettingsAccountSection() {
-  const navigate = useNavigate();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const { data: preferences } = usePreferences();
   const changePassword = useChangePassword();
 
@@ -46,11 +44,6 @@ export default function SettingsAccountSection() {
         },
       },
     );
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/', { replace: true });
   };
 
   return (
@@ -148,12 +141,6 @@ export default function SettingsAccountSection() {
             </div>
           </form>
         )}
-      </div>
-
-      <div className="settings-field">
-        <button type="button" className="btn btn-secondary btn-sm" onClick={handleSignOut}>
-          Sign out
-        </button>
       </div>
     </section>
   );

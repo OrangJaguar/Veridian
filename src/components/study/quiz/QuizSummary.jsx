@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import LatexRenderer from '@/components/shared/LatexRenderer';
 import { formatStudyTime } from '@/utils/study/feedback';
 
 function formatCorrectAnswer(q) {
@@ -88,15 +89,21 @@ export default function QuizSummary({
               className={`review-item ${isCorrect ? 'review-correct' : 'review-wrong'}`}
             >
               <div className="review-meta-bar">
-                <div className="review-q">{idx + 1}. {q.stem}</div>
+                <div className="review-q">{idx + 1}. <LatexRenderer text={q.stem} /></div>
                 <div className="review-tta">{timeLabel}</div>
               </div>
               <div className="review-a">
-                Selected: {selected}
+                Selected: <LatexRenderer text={selected} />
                 {!isCorrect && (
                   <>
                     <br />
-                    Correct: {correct}
+                    Correct: <LatexRenderer text={correct} />
+                  </>
+                )}
+                {q.explanation && (
+                  <>
+                    <br />
+                    <LatexRenderer text={q.explanation} />
                   </>
                 )}
               </div>

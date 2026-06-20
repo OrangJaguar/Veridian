@@ -11,6 +11,7 @@ import { useCreateSession } from '@/hooks/mutations/useSessionMutations';
 import { useUpdateSession } from '@/hooks/mutations/useSessionMutations';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
 import VeridianLoading from '@/components/shared/VeridianLoading';
+import AiGenerationLoading from '@/components/shared/AiGenerationLoading';
 import DiagnosticIntro from '@/components/diagnostic/DiagnosticIntro';
 import DiagnosticSummary from '@/components/diagnostic/DiagnosticSummary';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
@@ -350,6 +351,25 @@ export default function DiagnosticPage() {
     );
   }
 
+  if (generating) {
+    const diagnosticStepIndex = moduleProgress
+      ? Math.min(2, Math.floor(((moduleProgress.index - 1) / moduleProgress.total) * 3))
+      : 0;
+    const diagnosticProgressDetail = moduleProgress
+      ? `Module ${moduleProgress.index} of ${moduleProgress.total}`
+      : null;
+
+    return (
+      <div className="diagnostic-page">
+        <AiGenerationLoading
+          action="generateDiagnosticQuestions"
+          activeStepIndex={diagnosticStepIndex}
+          progressDetail={diagnosticProgressDetail}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="diagnostic-page">
       <Link to={`/journeys/${journeyId}`} className="journey-detail-back">← Journey</Link>
@@ -373,7 +393,7 @@ export default function DiagnosticPage() {
         questionCount={questionCount}
         onStart={handleStart}
         onSkip={handleSkip}
-        loading={generating || !activityReady}
+        loading={!activityReady}
         skipping={skipping}
         moduleProgress={moduleProgress}
       />

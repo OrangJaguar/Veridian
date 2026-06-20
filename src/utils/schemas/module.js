@@ -14,6 +14,8 @@ export const moduleSchema = z.object({
   knowledgeMap: z.record(z.unknown()).optional(),
   lastStudiedAt: z.number().optional(),
   libraryVisible: z.boolean().optional(),
+  moduleStatus: z.enum(['draft', 'ready']).optional(),
+  estimatedStudyMinutes: z.number().optional(),
 });
 
 export const createModuleSchema = moduleSchema.pick({

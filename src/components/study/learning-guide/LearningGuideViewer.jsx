@@ -1,24 +1,33 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Volume2, VolumeX, ExternalLink } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { ExternalLink } from 'lucide-react';
 import VeridianLoading from '@/components/shared/VeridianLoading';
 import LatexRenderer from '@/components/shared/LatexRenderer';
 import GuideSectionPicker from '@/components/study/learning-guide/GuideSectionPicker';
 import GuideReadableContent from '@/components/study/learning-guide/GuideReadableContent';
 import GuideWorkedExample from '@/components/study/learning-guide/GuideWorkedExample';
 import LearningGuideCheckIn from '@/components/study/learning-guide/LearningGuideCheckIn';
+import GuideNarrationControls, { useGuideSpeechPrefs } from '@/components/study/learning-guide/GuideNarrationControls';
 import { buildSectionSpeechPlan } from '@/utils/study/guideSpeech';
 import { useGuideNarration } from '@/hooks/study/useGuideNarration';
 
 export default function LearningGuideViewer({
   sections = [],
   completedIds = [],
+  initialSectionIndex = 0,
+  initialCheckInBySection = {},
   onSectionComplete,
   onFinish,
   onExit,
+  onProgressChange,
 }) {
-  const [sectionIndex, setSectionIndex] = useState(0);
+  const [sectionIndex, setSectionIndex] = useState(initialSectionIndex);
   const [navOpen, setNavOpen] = useState(false);
-  const [checkInBySection, setCheckInBySection] = useState({});
+  const [checkInBySection, setCheckInBySection] = useState(initialCheckInBySection);
+  const completedRef = useRef(completedIds);
+
+  useEffect(() => {
+    completedRef.current = completedIds;
+  }, [completedIds]);
 
   const section = sections[sectionIndex];
   const total = sections.length;
@@ -30,11 +39,26 @@ export default function LearningGuideViewer({
     () => buildSectionSpeechPlan(section),
     [section],
   );
-  const { speaking, activeKey, toggle: toggleSpeech, stop: stopSpeech } = useGuideNarration(speechPlan);
+  const [speechPrefs, setSpeechPrefs] = useGuideSpeechPrefs();
+  const {
+    status,
+    activeKey,
+    speakSegmentByKey,
+    togglePlayPause,
+    stop: stopSpeech,
+  } = useGuideNarration(speechPlan, speechPrefs);
 
   useEffect(() => {
     stopSpeech();
   }, [sectionIndex, stopSpeech]);
+
+  useEffect(() => {
+    onProgressChange?.({
+      sectionIndex,
+      checkInBySection,
+      completedSectionIds: completedRef.current,
+    });
+  }, [sectionIndex, checkInBySection, onProgressChange]);
 
   const handleCheckIn = (result) => {
     if (!section) return;
@@ -50,8 +74,13 @@ export default function LearningGuideViewer({
 
   const handleContinue = () => {
     if (!section || !checkInDone) return;
-    const nextCompleted = [...new Set([...completedIds, section.sectionId])];
-    onSectionComplete?.(section.sectionId);
+    const nextCompleted = [...new Set([...completedRef.current, section.sectionId])];
+    completedRef.current = nextCompleted;
+    onSectionComplete?.(section.sectionId, {
+      sectionIndex: isLast ? sectionIndex : sectionIndex + 1,
+      checkInBySection,
+      completedSectionIds: nextCompleted,
+    });
     if (isLast) {
       onFinish?.({
         checkInResults: checkInBySection,
@@ -71,6 +100,8 @@ export default function LearningGuideViewer({
       </div>
     );
   }
+
+  const savedCheckIn = checkInBySection[section.sectionId];
 
   return (
     <div className="study-mode-view guide-mode-view">
@@ -94,15 +125,14 @@ export default function LearningGuideViewer({
           />
         </div>
 
-        <button
-          type="button"
-          className={`guide-listen-btn${speaking ? ' active' : ''}`}
-          onClick={toggleSpeech}
+        <GuideNarrationControls
+          status={status}
           disabled={speechPlan.length === 0}
-          aria-label={speaking ? 'Stop narration' : 'Read this section aloud'}
-        >
-          {speaking ? <VolumeX size={16} /> : <Volume2 size={16} />}
-        </button>
+          onPlayPause={togglePlayPause}
+          onStop={stopSpeech}
+          prefs={speechPrefs}
+          onPrefsChange={setSpeechPrefs}
+        />
       </header>
 
       <main className="guide-scroll">
@@ -110,6 +140,7 @@ export default function LearningGuideViewer({
           section={section}
           sectionIndex={sectionIndex}
           activeKey={activeKey}
+          onSegmentClick={speakSegmentByKey}
         />
 
         {section.workedExamples?.[0] && (
@@ -117,6 +148,7 @@ export default function LearningGuideViewer({
             example={section.workedExamples[0]}
             exampleIndex={0}
             activeKey={activeKey}
+            onSegmentClick={speakSegmentByKey}
           />
         )}
 
@@ -125,6 +157,7 @@ export default function LearningGuideViewer({
             key={section.sectionId}
             checkIn={section.checkInQuestion}
             onAnswered={handleCheckIn}
+            initialAnswer={savedCheckIn ? { ...savedCheckIn, revealed: true } : undefined}
           />
         )}
 

@@ -1,0 +1,34 @@
+{
+  "name": "AdminAuditLog",
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "description": "queryConversation | export | publish"
+    },
+    "adminEmail": {
+      "type": "string"
+    },
+    "detail": {
+      "type": "string"
+    },
+    "createdAt": {
+      "type": "number"
+    }
+  },
+  "required": ["action", "adminEmail", "createdAt"],
+  "rls": {
+    "create": {
+      "user.role": "admin"
+    },
+    "read": {
+      "user.role": "admin"
+    },
+    "update": {
+      "user.role": "admin"
+    },
+    "delete": {
+      "user.role": "admin"
+    }
+  }
+}

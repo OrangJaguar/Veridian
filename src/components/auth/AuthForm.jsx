@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { createUserPreferencesOnSignup } from '@/api/entities/preferences';
 import { queryClient } from '@/lib/query-client';
+import { clearInMemoryUserQueries, clearLegacyPersistedCache } from '@/lib/query-persist';
 import { clearOnboardingDoneLocally } from '@/lib/onboardingStorage';
 import { syncAuthUserFullName, refreshAuthUser } from '@/api/auth/userProfile';
 import { useUsernameAvailability } from '@/hooks/useUsernameAvailability';
@@ -171,7 +172,8 @@ export default function AuthForm({
         }
       }
       clearOnboardingDoneLocally(user.email);
-      queryClient.removeQueries({ queryKey: ['preferences'] });
+      clearInMemoryUserQueries(queryClient);
+      clearLegacyPersistedCache();
       const refreshedUser = await refreshAuthUser();
       onSuccess(refreshedUser ?? user);
     } catch (err) {

@@ -3,7 +3,8 @@ import StudyChrome from '@/components/study/StudyChrome';
 import CramRunner from '@/components/study/cram/CramRunner';
 import CramSessionSetupModal from '@/components/study/cram/CramSessionSetupModal';
 import CramSessionSummary from '@/components/study/cram/CramSessionSummary';
-import { StudyAiLoading, StudyAiError } from '@/components/study/StudyAiStatus';
+import { StudyAiError } from '@/components/study/StudyAiStatus';
+import AiGenerationLoading from '@/components/shared/AiGenerationLoading';
 import { generateCramSession } from '@/api/ai/study';
 import { normalizeQuizQuestions } from '@/utils/study/normalizeQuizQuestions';
 import { requireGeneratedQuestions } from '@/utils/study/requireGeneratedQuestions';
@@ -210,7 +211,10 @@ export default function CramSession({
   if (loading || (phase === 'loading' && !questions.length)) {
     return (
       <StudyChrome title="Cram Session" onExit={handleExit}>
-        <StudyAiLoading label="Generating cram questions…" className="study-mode-view" />
+        <AiGenerationLoading
+          action="generateCramSession"
+          className="study-mode-view"
+        />
       </StudyChrome>
     );
   }

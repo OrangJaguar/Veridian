@@ -12,7 +12,6 @@ import {
   matchesLibrarySearch,
   sortPublicJourneys,
 } from '@/lib/library/libraryTags';
-import { VERIDIAN_CERTIFIED_EMAIL } from '@/lib/veridianCertified';
 
 function stripJourneyForPublic(journey) {
   if (!journey) return null;
@@ -60,6 +59,16 @@ export async function getPublicJourneyPreview(journeyId) {
     throw new Error('Journey not found or not public');
   }
 
+  let isOwner = false;
+  try {
+    const user = await requireAuth();
+    if (user?.email && journey.userEmail === user.email) {
+      isOwner = true;
+    }
+  } catch {
+    // logged out — not owner
+  }
+
   const [modules, activities] = await Promise.all([
     base44.entities.Module.filter({ journeyId }),
     base44.entities.Activity.filter({ journeyId }),
@@ -81,6 +90,7 @@ export async function getPublicJourneyPreview(journeyId) {
     journey: stripJourneyForPublic(journey),
     modules: sortedModules,
     moduleCount: sortedModules.length,
+    isOwner,
   };
 }
 
@@ -135,10 +145,7 @@ export async function publishJourney(journeyId, { tags } = {}) {
     creatorUsername = prefs?.username ?? user.email?.split('@')[0] ?? 'student';
   }
 
-  const isVeridianCertified = user.email === VERIDIAN_CERTIFIED_EMAIL;
-  if (isVeridianCertified) {
-    creatorUsername = 'Veridian';
-  }
+  const isVeridianCertified = false;
 
   const now = Date.now();
   const category = getJourneyCategory({ tags: nextTags, libraryCategory: journey.libraryCategory });

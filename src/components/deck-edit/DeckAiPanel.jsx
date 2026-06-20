@@ -1,8 +1,15 @@
 import { useState, useEffect } from 'react';
 import { X, Sparkles } from 'lucide-react';
 import { applyDeckAiEdit } from '@/api/ai/study';
+import AiGenerationLoading from '@/components/shared/AiGenerationLoading';
 
 const AI_ACTIONS = [
+  {
+    id: 'other',
+    label: 'Something else',
+    description: 'Describe any edit — I\'ll confirm before applying.',
+    custom: true,
+  },
   {
     id: 'simplify_long',
     label: 'Simplify long cards',
@@ -30,11 +37,15 @@ export default function DeckAiPanel({
   const [messages, setMessages] = useState([]);
   const [pendingAction, setPendingAction] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [customInstruction, setCustomInstruction] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
 
   useEffect(() => {
     if (!open) {
       setMessages([]);
       setPendingAction(null);
+      setCustomInstruction('');
+      setShowCustomInput(false);
       return;
     }
     setMessages([{ role: 'assistant', text: 'Hi! Pick something below and I\'ll update your deck.' }]);
@@ -46,7 +57,7 @@ export default function DeckAiPanel({
     setMessages((prev) => [...prev, { role, text }]);
   };
 
-  const runAction = async (actionId, clarifyingAnswer = null) => {
+  const runAction = async (actionId, clarifyingAnswer = null, instruction = null) => {
     setLoading(true);
     try {
       const result = await applyDeckAiEdit({
@@ -60,6 +71,7 @@ export default function DeckAiPanel({
         moduleName: moduleContext?.moduleName,
         concepts: moduleContext?.concepts ?? [],
         clarifyingAnswer,
+        customInstruction: instruction ?? undefined,
       });
 
       if (result.needsClarification && result.clarifyingQuestion) {
@@ -73,6 +85,8 @@ export default function DeckAiPanel({
         onApplyCards(result.cards);
       }
       setPendingAction(null);
+      setShowCustomInput(false);
+      setCustomInstruction('');
     } catch (err) {
       pushMessage('assistant', err.message || 'Something went wrong. Try again.');
     } finally {
@@ -96,7 +110,9 @@ export default function DeckAiPanel({
         {messages.map((msg, i) => (
           <p key={i} className={`deck-ai-msg deck-ai-msg--${msg.role}`}>{msg.text}</p>
         ))}
-        {loading && <p className="deck-ai-msg deck-ai-msg--assistant">Working on it…</p>}
+        {loading && (
+          <AiGenerationLoading action="applyDeckAiEdit" variant="inline" fullPage={false} />
+        )}
       </div>
 
       {pendingAction ? (
@@ -108,6 +124,43 @@ export default function DeckAiPanel({
             Keep all, simplify only
           </button>
         </div>
+      ) : showCustomInput ? (
+        <div className="deck-ai-custom">
+          <label className="deck-ai-custom-label">
+            What should I change?
+            <textarea
+              className="deck-ai-custom-input"
+              rows={3}
+              value={customInstruction}
+              placeholder="e.g. Make all backs use bullet points, add mnemonics for enzyme names…"
+              onChange={(e) => setCustomInstruction(e.target.value)}
+            />
+          </label>
+          <div className="deck-ai-custom-actions">
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={loading || !customInstruction.trim()}
+              onClick={() => {
+                pushMessage('user', customInstruction.trim());
+                runAction('other', null, customInstruction.trim());
+              }}
+            >
+              Send request
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={loading}
+              onClick={() => {
+                setShowCustomInput(false);
+                setCustomInstruction('');
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       ) : (
         <div className="deck-ai-actions">
           {AI_ACTIONS.map((action) => (
@@ -117,6 +170,11 @@ export default function DeckAiPanel({
               className="deck-ai-action-btn"
               disabled={loading}
               onClick={() => {
+                if (action.custom) {
+                  setShowCustomInput(true);
+                  pushMessage('assistant', 'Tell me what you\'d like changed — I\'ll confirm if anything is unclear.');
+                  return;
+                }
                 pushMessage('user', action.label);
                 runAction(action.id);
               }}

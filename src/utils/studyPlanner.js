@@ -3,6 +3,7 @@ import { endOfTodayMs } from '@/utils/dueToday/endOfToday';
 import { getDueCards } from '@/utils/fsrs';
 import { averageModuleMastery } from '@/utils/mastery';
 import { ACTIVITY_LABELS, ESTIMATED_MIN } from '@/utils/weeklyPlan/constants';
+import { learningGuideIncomplete } from '@/utils/study/activityContent';
 
 export { ACTIVITY_LABELS, ESTIMATED_MIN };
 
@@ -41,16 +42,6 @@ function moduleLastStudied(moduleId, sessions) {
     .filter((s) => s.moduleId === moduleId && s.status === 'completed')
     .sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0));
   return moduleSessions[0]?.startedAt ?? null;
-}
-
-function learningGuideIncomplete(activity) {
-  if (!activity) return true;
-  if (activity.status === 'notGenerated') return true;
-  const sections = activity.content?.sections;
-  if (Array.isArray(sections)) {
-    return sections.some((s) => !s.completed);
-  }
-  return activity.stats?.totalSessions === 0 || activity.stats?.totalSessions == null;
 }
 
 function buildItem({

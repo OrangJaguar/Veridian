@@ -1,20 +1,13 @@
 import { differenceInDays } from 'date-fns';
 import { getWeakConceptIds } from '@/utils/study/conceptWeakness';
+import { learningGuideIncomplete } from '@/utils/study/activityContent';
+
+export { learningGuideIncomplete };
 
 function findActivity(activities, moduleId, type) {
   return activities.find(
     (a) => a.moduleId === moduleId && a.type === type && a.status !== 'failed',
   ) ?? null;
-}
-
-export function learningGuideIncomplete(activity) {
-  if (!activity) return true;
-  if (activity.status === 'notGenerated') return true;
-  const sections = activity.content?.sections;
-  if (Array.isArray(sections)) {
-    return sections.some((s) => !s.completed);
-  }
-  return activity.stats?.totalSessions === 0 || activity.stats?.totalSessions == null;
 }
 
 export function getModuleQuizAccuracy(moduleId, activities) {

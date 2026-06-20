@@ -29,6 +29,8 @@ export default function QuizSetupModal({ open, defaultConfig = {}, onClose, onSt
   const [strictSecondsPerQuestion, setStrictSecondsPerQuestion] = useState(
     defaultConfig.strictSecondsPerQuestion ?? 60,
   );
+  const [uiPreset, setUiPreset] = useState(defaultConfig.uiPreset ?? 'classic');
+  const [questionStyle, setQuestionStyle] = useState(defaultConfig.questionStyle ?? 'standard');
 
   if (!open) return null;
 
@@ -45,6 +47,8 @@ export default function QuizSetupModal({ open, defaultConfig = {}, onClose, onSt
       strictTimedMode: strictMode,
       strictSecondsPerQuestion: strictMode ? strictSecondsPerQuestion : null,
       instantFeedback: !strictMode,
+      uiPreset,
+      questionStyle,
     });
   };
 
@@ -139,6 +143,32 @@ export default function QuizSetupModal({ open, defaultConfig = {}, onClose, onSt
                 })}
               </div>
             )}
+          </div>
+
+          <div className="study-setup-section">
+            <label className="study-setup-label" htmlFor="quiz-ui-preset">Quiz interface</label>
+            <select
+              id="quiz-ui-preset"
+              className="study-setup-select"
+              value={uiPreset}
+              onChange={(e) => setUiPreset(e.target.value)}
+            >
+              <option value="classic">Classic</option>
+              <option value="apClassroom">AP Classroom</option>
+            </select>
+          </div>
+
+          <div className="study-setup-section">
+            <label className="study-setup-label" htmlFor="quiz-question-style">Question style</label>
+            <select
+              id="quiz-question-style"
+              className="study-setup-select"
+              value={questionStyle}
+              onChange={(e) => setQuestionStyle(e.target.value)}
+            >
+              <option value="standard">Standard</option>
+              <option value="apStyle">AP Style</option>
+            </select>
           </div>
 
           <div className="study-modal-footer">

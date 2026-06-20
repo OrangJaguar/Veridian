@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidJourneyTitle, normalizeJourneyTitle } from '@/utils/schemas/journeyTitle';
 
 export const priorKnowledgeSchema = z.enum(['scratch', 'some', 'most']);
 
@@ -44,12 +45,26 @@ export const journeySchema = z.object({
   isVeridianCertified: z.boolean().optional(),
   libraryCategory: z.string().optional(),
   moduleFocusBoosts: z.record(z.number()).optional(),
+  publishStatus: z.enum(['draft', 'published']).optional(),
+  examType: z.enum(['AP', 'SAT', 'IB', 'general', 'custom']).optional(),
+  difficultyLevel: z.string().optional(),
+  shortDescription: z.string().optional(),
+  longDescription: z.string().optional(),
+  targetAudience: z.string().optional(),
+  estimatedStudyHours: z.number().optional(),
+  coverColor: z.string().optional(),
+  coverImageUrl: z.string().optional(),
+  isAdminAuthored: z.boolean().optional(),
 });
 
 export const createJourneySchema = journeySchema.pick({
   subject: true,
   title: true,
 }).extend({
+  title: z.string().transform(normalizeJourneyTitle).refine(
+    isValidJourneyTitle,
+    'Journey title must be 3–50 characters and use URL-friendly characters.',
+  ),
   examDate: z.number().nullable().optional(),
   priorKnowledge: priorKnowledgeSchema.optional(),
   isPublic: z.boolean().optional(),

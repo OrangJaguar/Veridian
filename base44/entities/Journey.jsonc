@@ -104,11 +104,43 @@
     },
     "isVeridianCertified": {
       "type": "boolean",
-      "description": "True when published by the Veridian team account"
+      "description": "True when published via admin CMS as Veridian Certified"
     },
     "libraryCategory": {
       "type": "string",
       "description": "AP | Pre-Med | College | Self-Learning"
+    },
+    "publishStatus": {
+      "type": "string",
+      "description": "draft | published"
+    },
+    "examType": {
+      "type": "string",
+      "description": "AP | SAT | IB | general | custom"
+    },
+    "difficultyLevel": {
+      "type": "string"
+    },
+    "shortDescription": {
+      "type": "string"
+    },
+    "longDescription": {
+      "type": "string"
+    },
+    "targetAudience": {
+      "type": "string"
+    },
+    "estimatedStudyHours": {
+      "type": "number"
+    },
+    "coverColor": {
+      "type": "string"
+    },
+    "coverImageUrl": {
+      "type": "string"
+    },
+    "isAdminAuthored": {
+      "type": "boolean"
     },
     "moduleFocusBoosts": {
       "type": "object",

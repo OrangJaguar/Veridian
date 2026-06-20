@@ -1,6 +1,12 @@
+import { useState } from 'react';
 import { useJourneyCreateStore } from '@/store/journeyCreateStore';
 import { ChoiceRadio } from '@/components/shared/ChoiceControl';
 import LibraryTagPicker from '@/components/library/LibraryTagPicker';
+import {
+  AuthFieldRules,
+  buildJourneyTitleRules,
+} from '@/components/auth/AuthFieldRules';
+import { isValidJourneyTitle, normalizeJourneyTitle } from '@/utils/schemas/journeyTitle';
 
 const PRIOR_OPTIONS = [
   { value: 'scratch', label: 'Starting from scratch' },
@@ -11,8 +17,13 @@ const PRIOR_OPTIONS = [
 export default function StepBasicSetup({ onNext }) {
   const draft = useJourneyCreateStore((s) => s.draft);
   const updateDraft = useJourneyCreateStore((s) => s.updateDraft);
+  const [titleFocused, setTitleFocused] = useState(false);
 
-  const canNext = draft.title.trim().length >= 2
+  const titleRules = buildJourneyTitleRules(draft.title, titleFocused);
+  const titleValid = isValidJourneyTitle(draft.title);
+  const showTitleRules = titleFocused || draft.title.length > 0;
+
+  const canNext = titleValid
     && draft.subject.trim().length >= 2
     && draft.examDate != null;
 
@@ -28,7 +39,15 @@ export default function StepBasicSetup({ onNext }) {
           value={draft.title}
           placeholder="e.g. AP Chemistry, MCAT Biochemistry"
           onChange={(e) => updateDraft({ title: e.target.value })}
+          onFocus={() => setTitleFocused(true)}
+          onBlur={() => {
+            setTitleFocused(false);
+            updateDraft({ title: normalizeJourneyTitle(draft.title) });
+          }}
         />
+        {showTitleRules && (
+          <AuthFieldRules rules={titleRules} columns={1} />
+        )}
       </label>
 
       <label className="create-field">

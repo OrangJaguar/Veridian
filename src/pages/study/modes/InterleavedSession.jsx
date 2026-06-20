@@ -4,6 +4,7 @@ import QuizSetupForm from '@/components/study/quiz/QuizSetupForm';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
 import SessionSummary from '@/components/study/SessionSummary';
 import { StudyAiError } from '@/components/study/StudyAiStatus';
+import AiGenerationLoading from '@/components/shared/AiGenerationLoading';
 import { generateInterleavedQuestions } from '@/api/ai/study';
 import { normalizeQuizQuestions } from '@/utils/study/normalizeQuizQuestions';
 import { requireGeneratedQuestions } from '@/utils/study/requireGeneratedQuestions';
@@ -96,6 +97,17 @@ export default function InterleavedSession({ session, activity, journeyId, modul
 
   if (phase === 'summary') {
     return <SessionSummary title="Interleaved Review complete" returnHref={returnPath} />;
+  }
+
+  if (loading && phase === 'setup') {
+    return (
+      <StudyChrome title="Interleaved Review" onExit={handleExit}>
+        <AiGenerationLoading
+          action="generateInterleavedQuestions"
+          className="study-mode-view"
+        />
+      </StudyChrome>
+    );
   }
 
   if (genError && phase === 'setup') {

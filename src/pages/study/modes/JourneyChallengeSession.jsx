@@ -3,7 +3,8 @@ import StudyChrome from '@/components/study/StudyChrome';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
 import JourneyChallengeSetupModal from '@/components/study/quiz/JourneyChallengeSetupModal';
 import JourneyChallengeSummary from '@/components/study/quiz/JourneyChallengeSummary';
-import { StudyAiLoading, StudyAiError } from '@/components/study/StudyAiStatus';
+import { StudyAiError } from '@/components/study/StudyAiStatus';
+import AiGenerationLoading from '@/components/shared/AiGenerationLoading';
 import { generateJourneyChallenge } from '@/api/ai/study';
 import { normalizeQuizQuestions } from '@/utils/study/normalizeQuizQuestions';
 import { requireGeneratedQuestions } from '@/utils/study/requireGeneratedQuestions';
@@ -200,7 +201,10 @@ export default function JourneyChallengeSession({ session, activity, journeyId, 
   if (loading || (phase === 'loading' && !questions.length)) {
     return (
       <StudyChrome title="Journey Challenge" onExit={handleExit}>
-        <StudyAiLoading label="Generating challenge questions…" className="study-mode-view" />
+        <AiGenerationLoading
+          action="generateJourneyChallenge"
+          className="study-mode-view"
+        />
       </StudyChrome>
     );
   }

@@ -1,21 +1,21 @@
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import VeridianLoading from '@/components/shared/VeridianLoading';
 
 const MAX_HINTS = 3;
 
 export default function FreeRecallHintModal({
   open,
   hints,
-  loading,
+  preloading,
   onClose,
   onGenerateNext,
 }) {
   if (!open) return null;
 
   const tier = hints.length;
-  const title = `Hint ${tier}/${MAX_HINTS}`;
-  const canGenerate = tier < MAX_HINTS && !loading;
+  const title = `Hint ${Math.min(tier + 1, MAX_HINTS)}/${MAX_HINTS}`;
+  const canGenerate = tier < MAX_HINTS;
+  const waitingForPreload = canGenerate && preloading && tier >= hints.length;
 
   return createPortal(
     <div className="study-modal-overlay" onClick={onClose} role="presentation">
@@ -33,13 +33,9 @@ export default function FreeRecallHintModal({
         </div>
 
         <div className="study-modal-body free-recall-hint-body">
-          {loading ? (
-            <div className="free-recall-hint-loading">
-              <VeridianLoading size="sm" label="Generating hint…" />
-            </div>
-          ) : tier === 0 ? (
+          {tier === 0 ? (
             <p className="free-recall-hint-intro">
-              Stuck? You can request up to three progressive hints. Each hint builds on what you&apos;ve written so far — starting broad, then key terms, then a light framework.
+              Stuck? You can request up to three progressive hints. Each hint builds on the last — starting broad, then key terms, then a light framework.
             </p>
           ) : (
             <div className="free-recall-hint-list">
@@ -54,11 +50,20 @@ export default function FreeRecallHintModal({
 
           <div className="free-recall-hint-actions">
             {canGenerate && (
-              <button type="button" className="btn btn-primary" onClick={onGenerateNext}>
-                {tier === 0 ? 'Get first hint' : 'Generate next hint'}
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={onGenerateNext}
+                disabled={waitingForPreload}
+              >
+                {waitingForPreload
+                  ? 'Preparing hints…'
+                  : tier === 0
+                    ? 'Get first hint'
+                    : 'Show next hint'}
               </button>
             )}
-            {tier >= MAX_HINTS && !loading && (
+            {tier >= MAX_HINTS && (
               <p className="free-recall-hint-max">All hints used — finish your recall when ready.</p>
             )}
           </div>

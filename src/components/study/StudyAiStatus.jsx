@@ -1,19 +1,9 @@
-import VeridianLoading from '@/components/shared/VeridianLoading';
 import StudyAiRawPanel from '@/components/study/StudyAiRawPanel';
 import {
   formatStudyAiDebugSummary,
   isStudyAiDebugEnabled,
   getLastRawGemini,
 } from '@/utils/study/studyAiTrace';
-
-export function StudyAiLoading({ label = 'Generating…', className = 'study-mode-view guide-mode-view guide-mode-view--loading' }) {
-  return (
-    <div className={className}>
-      <VeridianLoading fullPage />
-      <p className="guide-generating-label">{label}</p>
-    </div>
-  );
-}
 
 export function StudyAiError({
   message = 'Something went wrong.',

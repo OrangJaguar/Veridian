@@ -1,5 +1,9 @@
+import { useRef } from 'react';
 import { Mic, MicOff, ArrowUp } from 'lucide-react';
+import { toast } from 'sonner';
 import { useSpeechRecognition, isSpeechRecognitionSupported } from '@/hooks/useSpeechRecognition';
+import MathSymbolsButton from '@/components/shared/MathSymbolsButton';
+import { insertAtCursor } from '@/utils/latex/insertAtCursor';
 
 export default function FeynmanChatInput({
   value,
@@ -9,10 +13,38 @@ export default function FeynmanChatInput({
   sending,
 }) {
   const micSupported = isSpeechRecognitionSupported();
+  const textareaRef = useRef(null);
 
-  const { listening, toggle: toggleMic } = useSpeechRecognition({
+  const { listening, requesting, toggle: toggleMic } = useSpeechRecognition({
     onTranscript: onChange,
   });
+
+  const handleMicClick = () => {
+    if (!micSupported) {
+      toast.error('Voice input requires Chrome or Edge on desktop.');
+      return;
+    }
+    toggleMic(value);
+  };
+
+  const handleMathInsert = (latex) => {
+    const el = textareaRef.current;
+    if (!el) {
+      onChange(`${value}${latex}`);
+      return;
+    }
+    const { text, selectionStart, selectionEnd } = insertAtCursor(
+      value,
+      latex,
+      el.selectionStart,
+      el.selectionEnd,
+    );
+    onChange(text);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(selectionStart, selectionEnd);
+    });
+  };
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -23,19 +55,19 @@ export default function FeynmanChatInput({
 
   return (
     <div className="feynman-chat-input-bar">
-      {micSupported && (
-        <button
-          type="button"
-          className={`feynman-mic-btn voice-mic-btn${listening ? ' active voice-mic-btn--active' : ''}`}
-          onClick={() => toggleMic(value)}
-          disabled={disabled || sending}
-          aria-label={listening ? 'Stop microphone' : 'Voice input'}
-          aria-pressed={listening}
-        >
-          {listening ? <MicOff size={18} strokeWidth={2} /> : <Mic size={18} strokeWidth={2} />}
-        </button>
-      )}
+      <button
+        type="button"
+        className={`feynman-mic-btn voice-mic-btn${listening ? ' active voice-mic-btn--active' : ''}`}
+        onClick={handleMicClick}
+        disabled={disabled || sending || requesting}
+        aria-label={listening ? 'Stop microphone' : 'Voice input'}
+        aria-pressed={listening}
+      >
+        {listening ? <MicOff size={18} strokeWidth={2} /> : <Mic size={18} strokeWidth={2} />}
+      </button>
+      <MathSymbolsButton onInsert={handleMathInsert} disabled={disabled || sending} />
       <textarea
+        ref={textareaRef}
         className="feynman-chat-textarea"
         value={value}
         onChange={(e) => onChange(e.target.value)}

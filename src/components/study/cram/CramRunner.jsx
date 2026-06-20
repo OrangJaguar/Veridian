@@ -159,7 +159,7 @@ export default function CramRunner({
       {!paused && (
         <>
           <div className="quiz-question-stem">
-            <LatexRenderer content={q.stem} />
+            <LatexRenderer text={q.stem} />
           </div>
           <div className="quiz-options">
             {options.map((opt) => {
@@ -177,14 +177,14 @@ export default function CramRunner({
                   disabled={answered}
                   onClick={() => handleSelect(opt)}
                 >
-                  <LatexRenderer content={opt} />
+                  <LatexRenderer text={opt} />
                 </button>
               );
             })}
           </div>
           {answered && q.explanation && (
             <div className="quiz-explanation">
-              <LatexRenderer content={q.explanation} />
+              <LatexRenderer text={q.explanation} />
             </div>
           )}
           {answered && (

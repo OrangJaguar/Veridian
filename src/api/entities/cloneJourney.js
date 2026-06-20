@@ -1,10 +1,79 @@
 import { requireAuth } from '@/api/requireAuth';
 import { createJourney, updateJourney } from '@/api/entities/journeys';
 import { createModules } from '@/api/entities/modules';
+import { createActivity } from '@/api/entities/activities';
+import { createCards } from '@/api/entities/cards';
 import { scaffoldJourneyActivities } from '@/api/entities/journeyScaffold';
-import { generateJourneyId, generateModuleId } from '@/utils/schemas/ids';
+import {
+  generateJourneyId,
+  generateModuleId,
+  generateActivityId,
+  generateCardId,
+} from '@/utils/schemas/ids';
 import { base44 } from '@/api/base44Client';
 import { isVeridianCertifiedJourney } from '@/lib/veridianCertified';
+
+function deepCopy(value) {
+  return JSON.parse(JSON.stringify(value ?? null));
+}
+
+async function copyCertifiedActivities({
+  sourceJourneyId,
+  newJourneyId,
+  moduleIdMap,
+  selectedModuleIds,
+}) {
+  const sourceActivities = await base44.entities.Activity.filter({ journeyId: sourceJourneyId });
+  const selectedSet = new Set(selectedModuleIds);
+  const relevant = sourceActivities.filter(
+    (act) => !act.moduleId || selectedSet.has(act.moduleId),
+  );
+
+  const activityIdMap = new Map();
+
+  for (const source of relevant) {
+    const newActivityId = generateActivityId();
+    activityIdMap.set(source.activityId, newActivityId);
+
+    await createActivity(newJourneyId, {
+      activityId: newActivityId,
+      moduleId: source.moduleId ? moduleIdMap.get(source.moduleId) ?? null : null,
+      scope: source.scope,
+      type: source.type,
+      status: source.status,
+      title: source.title,
+      description: source.description ?? '',
+      content: deepCopy(source.content),
+      stats: deepCopy(source.stats),
+      itemCount: source.itemCount ?? 0,
+      libraryVisible: false,
+    });
+  }
+
+  for (const source of relevant) {
+    if (source.type !== 'flashcardSet') continue;
+    const newActivityId = activityIdMap.get(source.activityId);
+    if (!newActivityId) continue;
+
+    const sourceCards = await base44.entities.Card.filter({ activityId: source.activityId });
+    if (!sourceCards.length) continue;
+
+    await createCards(
+      newActivityId,
+      newJourneyId,
+      sourceCards.map((card) => ({
+        cardId: generateCardId(),
+        front: card.front,
+        back: card.back,
+        conceptTag: card.conceptTag,
+        fsrsState: deepCopy(card.fsrsState),
+        suspended: card.suspended ?? false,
+      })),
+    );
+  }
+
+  return activityIdMap;
+}
 
 /**
  * Clone a public journey into the current user's account.
@@ -56,21 +125,36 @@ export async function cloneJourney(sourceJourneyId, {
     updatedAt: now,
   });
 
-  const modules = await createModules(
-    newJourneyId,
-    sorted.map((mod, index) => ({
-      moduleId: generateModuleId(),
+  const moduleIdMap = new Map();
+  const modulePayloads = sorted.map((mod, index) => {
+    const newModuleId = generateModuleId();
+    moduleIdMap.set(mod.moduleId, newModuleId);
+    return {
+      moduleId: newModuleId,
       name: mod.name,
       description: mod.description ?? '',
       order: index,
-      stage: 'A',
-      masteryScore: 0,
-      knowledgeMap: mod.knowledgeMap ?? { concepts: [] },
+      stage: certified ? (mod.stage ?? 'A') : 'A',
+      masteryScore: certified ? (mod.masteryScore ?? 0) : 0,
+      knowledgeMap: deepCopy(mod.knowledgeMap) ?? { concepts: [] },
+      moduleStatus: mod.moduleStatus,
+      estimatedStudyMinutes: mod.estimatedStudyMinutes,
       libraryVisible: false,
-    })),
-  );
+    };
+  });
 
-  await scaffoldJourneyActivities(newJourneyId, modules);
+  const modules = await createModules(newJourneyId, modulePayloads);
+
+  if (certified) {
+    await copyCertifiedActivities({
+      sourceJourneyId,
+      newJourneyId,
+      moduleIdMap,
+      selectedModuleIds: sorted.map((m) => m.moduleId),
+    });
+  } else {
+    await scaffoldJourneyActivities(newJourneyId, modules);
+  }
 
   await updateJourney(sourceJourneyId, {
     cloneCount: (source.cloneCount ?? 0) + 1,

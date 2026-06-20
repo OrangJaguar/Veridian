@@ -40,32 +40,34 @@ export default function SettingsStudySection() {
         />
       </div>
 
-      <VeridianCheckbox
-        className="settings-veridian-check"
-        checked={preferences?.strictMode === true}
-        onChange={(e) => save({ strictMode: e.target.checked })}
-        disabled={updatePrefs.isPending}
-      >
-        Strict mode for new quizzes (timed by default)
-      </VeridianCheckbox>
+      <div className="settings-checkboxes-row">
+        <VeridianCheckbox
+          className="settings-veridian-check"
+          checked={preferences?.strictMode === true}
+          onChange={(e) => save({ strictMode: e.target.checked })}
+          disabled={updatePrefs.isPending}
+        >
+          Strict mode for new quizzes (timed by default)
+        </VeridianCheckbox>
 
-      <VeridianCheckbox
-        className="settings-veridian-check"
-        checked={preferences?.haptics !== false}
-        onChange={(e) => save({ haptics: e.target.checked })}
-        disabled={updatePrefs.isPending}
-      >
-        Haptic feedback during study
-      </VeridianCheckbox>
+        <VeridianCheckbox
+          className="settings-veridian-check"
+          checked={preferences?.haptics !== false}
+          onChange={(e) => save({ haptics: e.target.checked })}
+          disabled={updatePrefs.isPending}
+        >
+          Haptic feedback during study
+        </VeridianCheckbox>
 
-      <VeridianCheckbox
-        className="settings-veridian-check"
-        checked={preferences?.audio !== false}
-        onChange={(e) => save({ audio: e.target.checked })}
-        disabled={updatePrefs.isPending}
-      >
-        Sound effects during study
-      </VeridianCheckbox>
+        <VeridianCheckbox
+          className="settings-veridian-check"
+          checked={preferences?.audio !== false}
+          onChange={(e) => save({ audio: e.target.checked })}
+          disabled={updatePrefs.isPending}
+        >
+          Sound effects during study
+        </VeridianCheckbox>
+      </div>
     </section>
   );
 }

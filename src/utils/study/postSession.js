@@ -62,11 +62,22 @@ export async function runPostSessionEffects(session, activity) {
     const mod = modules.find((m) => m.moduleId === moduleId);
     if (mod) {
       const masteryScore = calculateModuleMastery(mod, activities, sessions, cards);
-      const stagePatch = mod.stage === 'B' && masteryScore >= STAGE_C_PROMOTION_THRESHOLD
-        ? { masteryScore, stage: 'C' }
-        : { masteryScore };
+      let stagePatch = { masteryScore };
+
+      if (activity.type === 'learningGuide' && mod.stage === 'A') {
+        const completedIds = session.sessionData?.completedSectionIds
+          ?? activity.content?.progress?.completedSectionIds
+          ?? [];
+        const total = activity.content?.sections?.length ?? activity.itemCount ?? 0;
+        if (total > 0 && completedIds.length >= total) {
+          stagePatch = { masteryScore, stage: 'B' };
+        }
+      } else if (mod.stage === 'B' && masteryScore >= STAGE_C_PROMOTION_THRESHOLD) {
+        stagePatch = { masteryScore, stage: 'C' };
+      }
+
       await updateModule(moduleId, stagePatch);
-      if (stagePatch.stage === 'C') {
+      if (stagePatch.stage === 'B' || stagePatch.stage === 'C') {
         await rebuildWeeklyPlan(journeyId, { force: true });
       }
     }

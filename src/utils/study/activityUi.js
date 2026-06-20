@@ -1,5 +1,10 @@
 import { ACTIVITY_LABELS } from '@/utils/studyPlanner';
-import { isLegacyGeneratingActivity } from '@/utils/study/activityContent';
+import {
+  isLegacyGeneratingActivity,
+  hasLearningGuideContent,
+  isLearningGuideComplete,
+  isLearningGuideInProgress,
+} from '@/utils/study/activityContent';
 
 export function getActivityDisplayName(activity) {
   return activity.title ?? ACTIVITY_LABELS[activity.type] ?? activity.type;
@@ -9,8 +14,21 @@ export function getActivityActionLabel(activity) {
   if (isLegacyGeneratingActivity(activity)) return 'Generating…';
   if (activity.status === 'failed') return 'Retry';
   if (activity.type === 'flashcardSet') return 'Review';
-  if (activity.type === 'learningGuide' && activity.status === 'notGenerated') return 'Generate';
+
+  if (activity.type === 'learningGuide') {
+    if (activity.status === 'notGenerated') return 'Generate';
+    if (!hasLearningGuideContent(activity)) return 'Generate';
+    if (isLearningGuideComplete(activity)) return 'Redo';
+    if (isLearningGuideInProgress(activity)) return 'Continue';
+    return 'Start';
+  }
+
   if (activity.status === 'notGenerated') return 'Generate';
+
+  if (activity.type === 'practiceQuiz' && activity.stats?.totalSessions > 0) {
+    return 'Continue';
+  }
+
   return 'Start';
 }
 

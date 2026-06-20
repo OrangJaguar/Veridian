@@ -1,18 +1,34 @@
 import DetailBackButton from '@/components/shared/DetailBackButton';
+import EditableRenameTitle from '@/components/shared/EditableRenameTitle';
+import { buildModuleNameRules, isValidModuleName, normalizeModuleName } from '@/utils/schemas/moduleName';
+import { useUpdateModule } from '@/hooks/mutations/useModuleMutations';
 
 const STAGE_LABELS = { A: 'Learn', B: 'Practice', C: 'Mastery' };
 
 export default function ModuleDetailHeader({ module: mod, journey, journeyId }) {
+  const updateModule = useUpdateModule();
   const stage = mod.stage || 'A';
   const mastery = mod.masteryScore ?? 0;
   const backLabel = journey?.title ?? 'Journey';
+
+  const handleRename = (name) => {
+    updateModule.mutate({ moduleId: mod.moduleId, journeyId, patch: { name } });
+  };
 
   return (
     <>
       <header className="detail-title-header">
         <DetailBackButton to={`/journeys/${journeyId}`} label={backLabel} />
         <div className="detail-title-body">
-          <h1 className="module-detail-title">{mod.name}</h1>
+          <EditableRenameTitle
+            value={mod.name}
+            onSave={handleRename}
+            buildRules={buildModuleNameRules}
+            isValid={isValidModuleName}
+            normalize={normalizeModuleName}
+            titleClassName="module-detail-title"
+            modalTitle="Module name requirements"
+          />
           {mod.description && <p className="module-detail-desc">{mod.description}</p>}
         </div>
       </header>

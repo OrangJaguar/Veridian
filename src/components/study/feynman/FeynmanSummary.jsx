@@ -71,17 +71,24 @@ export default function FeynmanSummary({
               return (
                 <div key={concept.id} className="feynman-transcript-concept">
                   <h4>{concept.term}</h4>
-                  {msgs.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`feynman-transcript-line feynman-transcript-line--${msg.role}`}
-                    >
-                      <span className="feynman-transcript-speaker">
-                        {msg.role === 'user' ? 'You' : 'Student'}
-                      </span>
-                      <LatexRenderer text={msg.text} />
-                    </div>
-                  ))}
+                  <div className="feynman-transcript-messages">
+                    {msgs.map((msg) => {
+                      const isUser = msg.role === 'user';
+                      return (
+                        <div
+                          key={msg.id}
+                          className={`feynman-bubble-row feynman-bubble-row--${isUser ? 'user' : 'ai'}`}
+                        >
+                          <div className={`feynman-bubble feynman-bubble--${isUser ? 'user' : 'ai'}`}>
+                            <span className="feynman-bubble-speaker">
+                              {isUser ? 'You' : 'Student'}
+                            </span>
+                            <LatexRenderer text={msg.text} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               );
             })}
@@ -115,7 +122,7 @@ export default function FeynmanSummary({
               </div>
               <div className="feynman-metric">
                 <span className="feynman-metric-label">Thoroughness</span>
-                <span className="feynman-metric-value feynman-metric-text">{summary.thoroughness}</span>
+                <span className="feynman-metric-value feynman-metric-text"><LatexRenderer text={summary.thoroughness} /></span>
               </div>
             </div>
 
@@ -123,7 +130,7 @@ export default function FeynmanSummary({
               <div className="feynman-detail-block">
                 <h4>Strengths</h4>
                 {summary.strengths?.length ? (
-                  <ul>{summary.strengths.map((s) => <li key={s}>{s}</li>)}</ul>
+                  <ul>{summary.strengths.map((s) => <li key={s}><LatexRenderer text={s} /></li>)}</ul>
                 ) : (
                   <p className="feynman-detail-empty">—</p>
                 )}
@@ -131,7 +138,7 @@ export default function FeynmanSummary({
               <div className="feynman-detail-block">
                 <h4>Weaknesses</h4>
                 {summary.weaknesses?.length ? (
-                  <ul>{summary.weaknesses.map((s) => <li key={s}>{s}</li>)}</ul>
+                  <ul>{summary.weaknesses.map((s) => <li key={s}><LatexRenderer text={s} /></li>)}</ul>
                 ) : (
                   <p className="feynman-detail-empty">None flagged</p>
                 )}
@@ -141,7 +148,7 @@ export default function FeynmanSummary({
             <div className="feynman-detail-block">
               <h4>Suggested next steps</h4>
               {summary.suggestedNextSteps?.length ? (
-                <ul>{summary.suggestedNextSteps.map((s) => <li key={s}>{s}</li>)}</ul>
+                <ul>{summary.suggestedNextSteps.map((s) => <li key={s}><LatexRenderer text={s} /></li>)}</ul>
               ) : (
                 <p className="feynman-detail-empty">—</p>
               )}

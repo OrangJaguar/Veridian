@@ -4,6 +4,11 @@ import { queryClient } from '@/lib/query-client';
 import { clearAuthCache } from '@/api/requireAuth';
 import { touchLastActive } from '@/api/entities/preferences';
 import { useCurrentUser } from '@/hooks/queries/useCurrentUser';
+import {
+  clearInMemoryUserQueries,
+  clearLegacyPersistedCache,
+  stopActivePersistSubscription,
+} from '@/lib/query-persist';
 
 export const AuthContext = createContext(null);
 
@@ -36,12 +41,13 @@ export default function AuthProvider({ children }) {
   const refreshUser = useCallback(() => refetch(), [refetch]);
 
   const signOut = useCallback(async () => {
+    stopActivePersistSubscription();
     await base44.auth.logout();
     clearAuthCache();
+    clearInMemoryUserQueries(queryClient);
+    clearLegacyPersistedCache();
     queryClient.setQueryData(['auth', 'me'], null);
-    queryClient.removeQueries({ queryKey: ['preferences'] });
-    queryClient.invalidateQueries({ queryKey: ['auth'] });
-    queryClient.invalidateQueries({ queryKey: ['decks'] });
+    queryClient.removeQueries({ queryKey: ['auth'] });
   }, []);
 
   const value = useMemo(() => ({

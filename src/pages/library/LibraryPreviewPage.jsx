@@ -33,7 +33,7 @@ export default function LibraryPreviewPage() {
     );
   }
 
-  const { journey, modules } = data;
+  const { journey, modules, isOwner } = data;
 
   return (
     <div className="library-preview-page">
@@ -83,23 +83,34 @@ export default function LibraryPreviewPage() {
       </section>
 
       <div className="library-preview-actions">
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => {
-            if (!isAuthenticated) return;
-            setCloneOpen(true);
-          }}
-          disabled={!isAuthenticated}
-        >
-          Clone this journey
-        </button>
-        {!isAuthenticated && (
-          <p className="library-preview-signin-hint">Sign in to clone and start studying</p>
+        {isOwner ? (
+          <>
+            <Link to={`/journeys/${journeyId}`} className="btn btn-primary">
+              Open my journey
+            </Link>
+            <p className="library-preview-signin-hint">This is your public journey — open it to study or edit.</p>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                if (!isAuthenticated) return;
+                setCloneOpen(true);
+              }}
+              disabled={!isAuthenticated}
+            >
+              Clone this journey
+            </button>
+            {!isAuthenticated && (
+              <p className="library-preview-signin-hint">Sign in to clone and start studying</p>
+            )}
+          </>
         )}
       </div>
 
-      {cloneOpen && (
+      {cloneOpen && !isOwner && (
         <CloneJourneyModal
           journeyId={journeyId}
           sourceTitle={journey.title}

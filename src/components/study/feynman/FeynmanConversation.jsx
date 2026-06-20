@@ -13,6 +13,12 @@ export default function FeynmanConversation({
   onSend,
   onConceptChange,
   onDone,
+  onExploreAnother,
+  onConfirmTopic,
+  showTopicPicker,
+  pickerConceptId,
+  onPickerConceptChange,
+  pickerOptions,
   onExit,
   sending,
   showDone,
@@ -25,7 +31,7 @@ export default function FeynmanConversation({
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, sending, showDone]);
+  }, [messages, sending, showDone, showTopicPicker]);
 
   const inputDisabled = atTurnLimit || sending;
 
@@ -54,12 +60,39 @@ export default function FeynmanConversation({
           )}
           {showDone && !sending && (
             <div className="feynman-done-row">
-              {undiscussedCount === 0 && (
+              {pickerOptions.length === 0 && (
                 <p className="feynman-all-covered">All concepts have been discussed.</p>
               )}
-              <button type="button" className="btn btn-primary" onClick={onDone}>
-                Done — view summary
-              </button>
+              <div className="feynman-done-actions">
+                {pickerOptions.length > 0 && (
+                  <button type="button" className="btn btn-secondary" onClick={onExploreAnother}>
+                    Explore another topic
+                  </button>
+                )}
+                <button type="button" className="btn btn-primary" onClick={onDone}>
+                  Done — view summary
+                </button>
+              </div>
+              {showTopicPicker && pickerOptions.length > 0 && (
+                <div className="feynman-topic-picker">
+                  <p className="feynman-topic-picker-label">Pick your next topic:</p>
+                  <div className="feynman-topic-picker-row">
+                    <select
+                      className="feynman-concept-select feynman-topic-picker-select"
+                      value={pickerConceptId}
+                      onChange={(e) => onPickerConceptChange(e.target.value)}
+                      aria-label="Select next concept"
+                    >
+                      {pickerOptions.map((c) => (
+                        <option key={c.id} value={c.id}>{c.term}</option>
+                      ))}
+                    </select>
+                    <button type="button" className="btn btn-primary btn-sm" onClick={onConfirmTopic}>
+                      Start explaining
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           <div ref={bottomRef} />

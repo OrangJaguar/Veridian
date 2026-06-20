@@ -1,5 +1,3 @@
-export const VERIDIAN_CERTIFIED_EMAIL = 'veridian.study@gmail.com';
-
 export function isVeridianCertifiedJourney(journey) {
   return journey?.isVeridianCertified === true;
 }

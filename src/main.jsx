@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from '@/App.jsx';
 import QueryProvider from '@/providers/QueryProvider';
 import AuthProvider from '@/providers/AuthProvider';
+import QueryPersistManager from '@/components/providers/QueryPersistManager';
 import ErrorBoundary from '@/components/errors/ErrorBoundary';
 import GlobalErrorHandlers from '@/components/errors/GlobalErrorHandlers';
 import { Toaster } from '@/components/ui/sonner';
@@ -17,6 +18,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <ErrorBoundary>
     <QueryProvider>
       <AuthProvider>
+        <QueryPersistManager>
         <GlobalErrorHandlers />
         <div className="app-root-shell">
           <BrowserRouter>
@@ -26,6 +28,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           </BrowserRouter>
           <Toaster />
         </div>
+        </QueryPersistManager>
       </AuthProvider>
     </QueryProvider>
   </ErrorBoundary>,

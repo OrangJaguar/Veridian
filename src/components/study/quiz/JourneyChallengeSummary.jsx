@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import LatexRenderer from '@/components/shared/LatexRenderer';
 import { formatStudyTime } from '@/utils/study/feedback';
 
 function barColor(accuracy) {
@@ -79,7 +80,7 @@ export default function JourneyChallengeSummary({
                   <div className="module-accuracy-fill" style={{ width: `${row.accuracy}%` }} />
                 </div>
                 {row.missed && (
-                  <p className="module-breakdown-missed">Most missed: {row.missed}</p>
+                  <p className="module-breakdown-missed">Most missed: <LatexRenderer text={row.missed} /></p>
                 )}
               </li>
             ))}
@@ -126,7 +127,7 @@ export default function JourneyChallengeSummary({
             return (
               <div key={q.id} className={`review-item${isCorrect ? ' correct' : ' wrong'}`}>
                 <p className="review-item-num">Q{idx + 1}</p>
-                <p className="review-item-stem">{q.stem}</p>
+                <p className="review-item-stem"><LatexRenderer text={q.stem} /></p>
               </div>
             );
           })}

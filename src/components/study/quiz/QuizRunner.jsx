@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Pause, Flag } from 'lucide-react';
+import { Pause, Play, Flag } from 'lucide-react';
 import LatexRenderer from '@/components/shared/LatexRenderer';
 import QuizQuestionNav from '@/components/study/quiz/QuizQuestionNav';
 import QuizTimeNotice from '@/components/study/quiz/QuizTimeNotice';
@@ -29,8 +29,9 @@ export default function QuizRunner({
   const instantFeedback = !strictMode && config.instantFeedback !== false;
   const diagnosticMode = config.diagnosticMode === true;
   const strictSecondsPerQuestion = config.strictSecondsPerQuestion ?? 60;
+  const [activeQuestions, setActiveQuestions] = useState(questions);
   const totalLimitSec = strictTimedMode
-    ? questions.length * strictSecondsPerQuestion
+    ? activeQuestions.length * strictSecondsPerQuestion
     : null;
 
   const [index, setIndex] = useState(0);
@@ -51,7 +52,7 @@ export default function QuizRunner({
   const autoSubmitted = useRef(false);
   const answersByIndexRef = useRef(answersByIndex);
 
-  const q = questions[index];
+  const q = activeQuestions[index];
   const remainingSec = strictTimedMode && totalLimitSec != null
     ? Math.max(0, totalLimitSec - elapsedSec)
     : null;
@@ -59,6 +60,17 @@ export default function QuizRunner({
   useEffect(() => {
     answersByIndexRef.current = answersByIndex;
   }, [answersByIndex]);
+
+  useEffect(() => {
+    setActiveQuestions(questions);
+    setAnswersByIndex(questions.map(() => null));
+    setIndex(0);
+    setSelected(null);
+    setAnswered(false);
+    setFlagged(new Set());
+    setPendingIntervention(null);
+    autoSubmitted.current = false;
+  }, [questions]);
 
   useEffect(() => {
     questionStartRef.current = Date.now();
@@ -69,6 +81,14 @@ export default function QuizRunner({
     const id = setInterval(() => setElapsedSec((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, [paused]);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.hidden) setPaused(true);
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, []);
 
   useEffect(() => {
     if (!strictTimedMode || paused || autoSubmitted.current) return;
@@ -165,29 +185,41 @@ export default function QuizRunner({
     setAnswered(true);
   }, [q, index, isCorrect, consecutiveMisses, onIntervention, diagnosticMode]);
 
-  const handleSelect = (option) => {
-    if (answered || paused) return;
+  const handleSelect = useCallback((option) => {
+    if (paused) return;
     recordAnswer(option);
-  };
+  }, [paused, recordAnswer]);
+
+  const goBack = useCallback(() => {
+    if (index <= 0 || paused) return;
+    const prevIndex = index - 1;
+    setIndex(prevIndex);
+    restoreQuestionState(prevIndex);
+    setPendingIntervention(null);
+  }, [index, paused, restoreQuestionState]);
+
+  const finishQuiz = useCallback((answersOverride) => {
+    const flat = (answersOverride ?? answersByIndexRef.current).filter(Boolean);
+    onComplete(
+      flat,
+      Math.round((Date.now() - sessionStartRef.current) / 1000),
+      { flaggedIndices: [...flagged] },
+    );
+  }, [onComplete, flagged]);
 
   const advance = useCallback(() => {
     if (pendingIntervention && refresherContent === undefined) return;
     setPendingIntervention(null);
 
-    if (index + 1 >= questions.length) {
-      const flat = answersByIndexRef.current.filter(Boolean);
-      onComplete(
-        flat,
-        Math.round((Date.now() - sessionStartRef.current) / 1000),
-        { flaggedIndices: [...flagged] },
-      );
+    if (index + 1 >= activeQuestions.length) {
+      finishQuiz();
       return;
     }
 
     const nextIndex = index + 1;
     setIndex(nextIndex);
     restoreQuestionState(nextIndex);
-  }, [index, questions.length, onComplete, pendingIntervention, refresherContent, restoreQuestionState]);
+  }, [index, activeQuestions.length, finishQuiz, pendingIntervention, refresherContent, restoreQuestionState]);
 
   const toggleFlag = () => {
     setFlagged((prev) => {
@@ -198,21 +230,68 @@ export default function QuizRunner({
     });
   };
 
+  const questionIsBroken = useCallback((question) => {
+    if (!question) return false;
+    if (question.type === 'shortAnswer' || question.type === 'trueFalse') return false;
+    return !(question.options?.length);
+  }, []);
+
+  const reindexFlagged = useCallback((removedIndex) => {
+    setFlagged((prev) => {
+      const next = new Set();
+      prev.forEach((fi) => {
+        if (fi === removedIndex) return;
+        next.add(fi > removedIndex ? fi - 1 : fi);
+      });
+      return next;
+    });
+  }, []);
+
+  const removeBrokenQuestion = useCallback(() => {
+    if (!q) return;
+
+    const nextQuestions = activeQuestions.filter((_, i) => i !== index);
+    const nextAnswers = answersByIndex.filter((_, i) => i !== index);
+    reindexFlagged(index);
+
+    if (!nextQuestions.length) {
+      setActiveQuestions([]);
+      setAnswersByIndex([]);
+      finishQuiz(nextAnswers);
+      return;
+    }
+
+    setActiveQuestions(nextQuestions);
+    setAnswersByIndex(nextAnswers);
+    answersByIndexRef.current = nextAnswers;
+
+    const nextIndex = Math.min(index, nextQuestions.length - 1);
+    setIndex(nextIndex);
+    setPendingIntervention(null);
+
+    const existing = nextAnswers[nextIndex];
+    if (existing) {
+      setSelected(existing.response);
+      setAnswered(true);
+    } else {
+      setSelected(null);
+      setAnswered(false);
+    }
+  }, [q, activeQuestions, answersByIndex, index, reindexFlagged, finishQuiz]);
+
   useEffect(() => {
     const onKeyDown = (e) => {
       if (paused || !q) return;
       const options = q.options ?? (q.type === 'trueFalse' ? ['True', 'False'] : []);
 
       if (e.key === ' ' || e.key === 'Spacebar') {
-        if (answered) {
-          e.preventDefault();
-          advance();
-        }
+        e.preventDefault();
+        advance();
         return;
       }
 
       const num = Number(e.key);
-      if (num >= 1 && num <= options.length && !answered) {
+      if (num >= 1 && num <= options.length) {
         e.preventDefault();
         handleSelect(options[num - 1]);
       }
@@ -220,9 +299,9 @@ export default function QuizRunner({
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  });
+  }, [paused, q, advance, handleSelect]);
 
-  if (!questions.length) {
+  if (!activeQuestions.length) {
     return (
       <div className="study-mode-view quiz-runner-empty">
         <p className="journeys-status">No questions loaded yet.</p>
@@ -236,8 +315,9 @@ export default function QuizRunner({
   if (!q) return null;
 
   const options = q.options ?? (q.type === 'trueFalse' ? ['True', 'False'] : []);
+  const isBroken = questionIsBroken(q);
   const answeredCount = answersByIndex.filter(Boolean).length;
-  const progressPct = questions.length ? (answeredCount / questions.length) * 100 : 0;
+  const progressPct = activeQuestions.length ? (answeredCount / activeQuestions.length) * 100 : 0;
   const completionPct = Math.round(progressPct);
   const selectedCorrect = selected != null && isCorrect(selected, q);
   const timerDisplay = strictTimedMode
@@ -246,7 +326,7 @@ export default function QuizRunner({
   const isFlagged = flagged.has(index);
 
   const optionClass = (opt) => {
-    if (!answered || !instantFeedback) {
+    if (!instantFeedback || selected == null) {
       return selected === opt ? ' selected' : '';
     }
     if (selected === opt) {
@@ -295,7 +375,7 @@ export default function QuizRunner({
               onClick={() => setPaused((p) => !p)}
               aria-label={paused ? 'Resume timer' : 'Pause timer'}
             >
-              <Pause size={12} fill="currentColor" />
+              {paused ? <Play size={12} fill="currentColor" /> : <Pause size={12} fill="currentColor" />}
             </button>
             <button
               type="button"
@@ -348,7 +428,7 @@ export default function QuizRunner({
                   key={opt}
                   type="button"
                   className={`option-btn${optionClass(opt)}`}
-                  disabled={answered}
+                  disabled={paused}
                   onClick={() => handleSelect(opt)}
                 >
                   <span className="option-key">{i + 1}</span>
@@ -356,7 +436,20 @@ export default function QuizRunner({
                 </button>
               ))}
             </div>
-            {instantFeedback && answered && q.explanation && (
+            {isBroken && (
+              <div className="quiz-broken-question">
+                <p>This question has no answer choices. Skip it or remove it from this quiz.</p>
+                <div className="quiz-broken-question-actions">
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={advance}>
+                    Skip for now
+                  </button>
+                  <button type="button" className="btn btn-primary btn-sm" onClick={removeBrokenQuestion}>
+                    Remove question
+                  </button>
+                </div>
+              </div>
+            )}
+            {instantFeedback && selected != null && q.explanation && (
               <div className={`feedback-text${selectedCorrect ? ' feedback-correct' : ' feedback-wrong'}`}>
                 <LatexRenderer text={q.explanation} />
               </div>
@@ -368,22 +461,27 @@ export default function QuizRunner({
               open={navOpen}
               onToggle={setNavOpen}
               currentIndex={index}
-              total={questions.length}
+              total={activeQuestions.length}
               answersByIndex={answersByIndex}
               flagged={flagged}
               onJump={jumpToQuestion}
             />
-            <div>
-              <span className="keyboard-hint" style={{ marginRight: '1rem' }}>
-                Press &apos;Space&apos; to advance
-              </span>
+            <div className="quiz-nav-actions">
+              {index > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={goBack}
+                >
+                  Back
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn-primary"
-                disabled={!answered}
                 onClick={advance}
               >
-                {index + 1 >= questions.length ? 'Finish' : 'Next'}
+                {index + 1 >= activeQuestions.length ? 'Finish' : 'Next'}
               </button>
             </div>
           </div>

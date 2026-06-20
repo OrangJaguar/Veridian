@@ -91,6 +91,10 @@ export function generateFreeRecallHint(payload, options) {
   return callStudy('generateFreeRecallHint', payload, options);
 }
 
+export function generateFreeRecallHints(payload, options) {
+  return callStudy('generateFreeRecallHints', payload, options);
+}
+
 export function generateInterleavedQuestions(payload, options) {
   return callStudy('generateInterleavedQuestions', payload, options);
 }

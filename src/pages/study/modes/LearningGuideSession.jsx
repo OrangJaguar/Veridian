@@ -1,45 +1,72 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import LearningGuideViewer from '@/components/study/learning-guide/LearningGuideViewer';
 import SessionSummary from '@/components/study/SessionSummary';
-import { StudyAiLoading, StudyAiError } from '@/components/study/StudyAiStatus';
+import { StudyAiError } from '@/components/study/StudyAiStatus';
+import AiGenerationLoading from '@/components/shared/AiGenerationLoading';
 import StudyAiRawPanel from '@/components/study/StudyAiRawPanel';
-import { generateLearningGuide, fetchGeminiStudyRaw } from '@/api/ai/study';
+import { fetchGeminiStudyRaw } from '@/api/ai/study';
 import { generateLearningGuideProgressive } from '@/utils/study/generateLearningGuideProgressive';
 import { sectionCountForConcepts } from '@/api/ai/prompts/learningGuide';
 import { normalizeGuideContent } from '@/utils/study/normalizeGuideContent';
-import { hasLearningGuideContent } from '@/utils/study/activityContent';
+import {
+  hasLearningGuideContent,
+  resolveGuideSectionIndex,
+  resolveGuideCheckIns,
+} from '@/utils/study/activityContent';
 import { useStudyAiAutoGeneration } from '@/hooks/ai/useStudyAiGeneration';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
-import { useAbandonSession } from '@/hooks/study/useAbandonSession';
 import { useUpdateActivity } from '@/hooks/mutations/useActivityMutations';
 import { useUpdateSession } from '@/hooks/mutations/useSessionMutations';
 import { useJourney } from '@/hooks/queries/useJourneys';
+import { queryKeys } from '@/api/query-keys';
 import { isRawDumpEnabled, getLastRawGemini } from '@/utils/study/studyAiTrace';
 
 export default function LearningGuideSession({ session, activity, module, journeyId }) {
   const rawDumpMode = isRawDumpEnabled();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: journey } = useJourney(journeyId);
   const guideReady = hasLearningGuideContent(activity);
   const [content, setContent] = useState(() => (
     guideReady ? activity.content : {}
   ));
   const [completedIds, setCompletedIds] = useState(
-    () => activity.content?.progress?.completedSectionIds ?? [],
+    () => activity.content?.progress?.completedSectionIds ?? session.sessionData?.completedSectionIds ?? [],
   );
   const [phase, setPhase] = useState('active');
   const [rawText, setRawText] = useState(null);
   const [rawLoading, setRawLoading] = useState(false);
   const [rawError, setRawError] = useState(null);
   const [sectionProgress, setSectionProgress] = useState(null);
+  const progressRef = useRef({
+    sectionIndex: resolveGuideSectionIndex(
+      activity.content?.sections ?? [],
+      activity.content?.progress,
+      session.sessionData,
+    ),
+    checkInBySection: resolveGuideCheckIns(activity.content?.progress, session.sessionData),
+    completedSectionIds: activity.content?.progress?.completedSectionIds ?? [],
+  });
   const { completeSessionInBackground } = useCompleteSession();
-  const abandonSession = useAbandonSession();
   const updateActivity = useUpdateActivity();
   const updateSession = useUpdateSession();
 
   const sections = content.sections ?? [];
   const returnPath = `/journeys/${journeyId}/modules/${module?.moduleId}`;
   const moduleId = module?.moduleId;
+
+  const initialSectionIndex = resolveGuideSectionIndex(
+    sections,
+    activity.content?.progress,
+    session.sessionData,
+  );
+  const initialCheckInBySection = resolveGuideCheckIns(
+    activity.content?.progress,
+    session.sessionData,
+  );
 
   useEffect(() => {
     if (activity.content?.sections?.length) {
@@ -162,26 +189,112 @@ export default function LearningGuideSession({ session, activity, module, journe
     },
   });
 
-  const handleExit = () => {
-    window.speechSynthesis?.cancel();
-    abandonSession({ sessionId: session.sessionId, journeyId, returnPath });
-  };
+  const persistGuideProgress = useCallback(async (snapshot) => {
+    const {
+      sectionIndex,
+      checkInBySection = {},
+      completedSectionIds = completedIds,
+    } = snapshot;
 
-  const handleSectionComplete = async (sectionId) => {
-    const next = [...new Set([...completedIds, sectionId])];
-    setCompletedIds(next);
-    const nextContent = { ...content, progress: { completedSectionIds: next } };
+    const nextContent = {
+      ...content,
+      progress: {
+        completedSectionIds,
+        currentSectionIndex: sectionIndex,
+        checkInBySection,
+      },
+    };
+
     setContent(nextContent);
+    setCompletedIds(completedSectionIds);
+
     await updateActivity.mutateAsync({
       activityId: activity.activityId,
       journeyId,
       moduleId,
       patch: { content: nextContent },
     });
+
+    await updateSession.mutateAsync({
+      sessionId: session.sessionId,
+      journeyId,
+      skipInvalidate: true,
+      patch: {
+        status: 'in_progress',
+        sessionData: {
+          ...session.sessionData,
+          currentSectionIndex: sectionIndex,
+          completedSectionIds,
+          checkInBySection,
+        },
+      },
+    });
+
+    queryClient.invalidateQueries({ queryKey: queryKeys.sessions.byJourney(journeyId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.activities.byModule(moduleId) });
+  }, [
+    activity.activityId,
+    completedIds,
+    content,
+    journeyId,
+    moduleId,
+    queryClient,
+    session.sessionData,
+    session.sessionId,
+    updateActivity,
+    updateSession,
+  ]);
+
+  const handleProgressChange = useCallback((snapshot) => {
+    progressRef.current = snapshot;
+  }, []);
+
+  const handleExit = async () => {
+    window.speechSynthesis?.cancel();
+    try {
+      await persistGuideProgress(progressRef.current);
+    } catch {
+      // still leave
+    }
+    navigate(returnPath);
   };
 
-  const handleFinish = ({ checkInResults = {}, completedSectionIds = completedIds }) => {
-    const checkInEntries = Object.entries(checkInResults).map(([sectionId, result]) => ({
+  const handleSectionComplete = async (sectionId, snapshot) => {
+    const next = snapshot?.completedSectionIds
+      ?? [...new Set([...completedIds, sectionId])];
+    setCompletedIds(next);
+    progressRef.current = {
+      sectionIndex: snapshot?.sectionIndex ?? progressRef.current.sectionIndex,
+      checkInBySection: snapshot?.checkInBySection ?? progressRef.current.checkInBySection,
+      completedSectionIds: next,
+    };
+    await persistGuideProgress(progressRef.current);
+  };
+
+  const handleFinish = async ({ checkInResults = {}, completedSectionIds: finishedIds = completedIds }) => {
+    const allSectionIds = sections.map((s) => s.sectionId);
+    const checkInBySection = checkInResults;
+
+    const nextContent = {
+      ...content,
+      progress: {
+        completedSectionIds: allSectionIds,
+        currentSectionIndex: 0,
+        checkInBySection,
+      },
+    };
+
+    setCompletedIds(allSectionIds);
+    setContent(nextContent);
+
+    await updateActivity.mutateAsync({
+      activityId: activity.activityId,
+      journeyId,
+      moduleId,
+      patch: { content: nextContent },
+    });
+
+    const checkInEntries = Object.entries(checkInBySection).map(([sectionId, result]) => ({
       sectionId,
       ...result,
     }));
@@ -191,14 +304,15 @@ export default function LearningGuideSession({ session, activity, module, journe
       sessionId: session.sessionId,
       journeyId,
       activityId: activity.activityId,
-      activity,
+      activity: { ...activity, content: nextContent },
       sessionData: {
-        completedSectionIds,
+        completedSectionIds: allSectionIds,
         checkInResults: checkInEntries,
+        checkInBySection,
       },
-      score: sections.length ? Math.round((completedSectionIds.length / sections.length) * 100) : 0,
+      score: sections.length ? 100 : 0,
       outcomeSummary: {
-        itemsCompleted: completedSectionIds.length,
+        itemsCompleted: allSectionIds.length,
         nextAction: 'Begin Stage B practice',
       },
       startedAt: session.startedAt,
@@ -207,7 +321,12 @@ export default function LearningGuideSession({ session, activity, module, journe
 
   if (rawDumpMode) {
     if (rawLoading) {
-      return <StudyAiLoading label="Fetching raw Gemini response (no parsing)…" />;
+      return (
+        <AiGenerationLoading
+          action="rawGeminiDump"
+          className="study-mode-view guide-mode-view guide-mode-view--loading"
+        />
+      );
     }
     if (rawText) {
       return (
@@ -220,25 +339,29 @@ export default function LearningGuideSession({ session, activity, module, journe
     }
     if (rawError) {
       return (
-        <>
-          <StudyAiError
-            message={rawError.message || 'Raw dump request failed.'}
-            error={rawError}
-            onExit={handleExit}
-          />
-        </>
+        <StudyAiError
+          message={rawError.message || 'Raw dump request failed.'}
+          error={rawError}
+          onExit={handleExit}
+        />
       );
     }
   }
 
   if (isLoading) {
+    const guideStepIndex = sectionProgress
+      ? Math.min(2, Math.floor(((sectionProgress.current - 1) / sectionProgress.total) * 3))
+      : 0;
+    const guideProgressDetail = sectionProgress
+      ? `Section ${sectionProgress.current} of ${sectionProgress.total}`
+      : null;
+
     return (
-      <StudyAiLoading
-        label={
-          sectionProgress
-            ? `Generating section ${sectionProgress.current} of ${sectionProgress.total}…`
-            : 'Generating your learning guide…'
-        }
+      <AiGenerationLoading
+        action="generateLearningGuide"
+        className="study-mode-view guide-mode-view guide-mode-view--loading"
+        activeStepIndex={guideStepIndex}
+        progressDetail={guideProgressDetail}
       />
     );
   }
@@ -279,9 +402,12 @@ export default function LearningGuideSession({ session, activity, module, journe
     <LearningGuideViewer
       sections={sections}
       completedIds={completedIds}
+      initialSectionIndex={initialSectionIndex}
+      initialCheckInBySection={initialCheckInBySection}
       onSectionComplete={handleSectionComplete}
       onFinish={handleFinish}
       onExit={handleExit}
+      onProgressChange={handleProgressChange}
     />
   );
 }

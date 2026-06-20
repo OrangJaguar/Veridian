@@ -35,11 +35,4 @@ export const US_STATES = [
   'Wisconsin', 'Wyoming', 'District of Columbia',
 ];
 
-export const COUNTRY_OPTIONS = [
-  'United States',
-  'Canada',
-  'United Kingdom',
-  'Australia',
-  'India',
-  'Other',
-];
+export { COUNTRY_OPTIONS } from '@/lib/geo/countries';

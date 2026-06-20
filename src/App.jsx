@@ -29,6 +29,11 @@ import OnboardingGate from '@/components/onboarding/OnboardingGate';
 import NotFoundPage from '@/pages/NotFoundPage';
 import RequireAdmin from '@/components/routing/RequireAdmin';
 import ErrorsDashboardPage from '@/pages/admin/ErrorsDashboardPage';
+import DataDashboardPage from '@/pages/admin/DataDashboardPage';
+import AdminJourneysPage from '@/pages/admin/AdminJourneysPage';
+import AdminJourneyNewPage from '@/pages/admin/AdminJourneyNewPage';
+import AdminJourneyEditorPage from '@/pages/admin/AdminJourneyEditorPage';
+import AdminModuleEditorPage from '@/pages/admin/AdminModuleEditorPage';
 import FeedbackPage from '@/pages/feedback/FeedbackPage';
 
 export default function App() {
@@ -57,6 +62,46 @@ export default function App() {
           element={(
             <RequireAdmin>
               <ErrorsDashboardPage />
+            </RequireAdmin>
+          )}
+        />
+        <Route
+          path="/data"
+          element={(
+            <RequireAdmin>
+              <DataDashboardPage />
+            </RequireAdmin>
+          )}
+        />
+        <Route
+          path="/adminjourneys"
+          element={(
+            <RequireAdmin>
+              <AdminJourneysPage />
+            </RequireAdmin>
+          )}
+        />
+        <Route
+          path="/adminjourneys/new"
+          element={(
+            <RequireAdmin>
+              <AdminJourneyNewPage />
+            </RequireAdmin>
+          )}
+        />
+        <Route
+          path="/adminjourneys/:journeyId"
+          element={(
+            <RequireAdmin>
+              <AdminJourneyEditorPage />
+            </RequireAdmin>
+          )}
+        />
+        <Route
+          path="/adminjourneys/:journeyId/modules/:moduleId"
+          element={(
+            <RequireAdmin>
+              <AdminModuleEditorPage />
             </RequireAdmin>
           )}
         />

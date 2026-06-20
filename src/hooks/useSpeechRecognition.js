@@ -1,5 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
+import {
+  isSecureSpeechContext,
+  requestMicrophoneAccess,
+  speechRecognitionErrorMessage,
+} from '@/utils/speech/microphone';
 
 export function isSpeechRecognitionSupported() {
   return typeof window !== 'undefined'
@@ -11,18 +16,22 @@ function getRecognitionCtor() {
 }
 
 /**
- * Browser speech-to-text via Web Speech API + explicit mic permission prompt.
- * No server/API key required — Chrome and Edge work best.
+ * Browser speech-to-text via Web Speech API.
+ * Recognition starts synchronously on click to preserve the user-gesture;
+ * getUserMedia runs only as a fallback when the browser blocks speech.
  */
-export function useSpeechRecognition({ onTranscript }) {
+export function useSpeechRecognition({ onTranscript, lang }) {
   const [listening, setListening] = useState(false);
+  const [requesting, setRequesting] = useState(false);
   const recognitionRef = useRef(null);
+  const sessionIdRef = useRef(0);
   const wantListeningRef = useRef(false);
   const baseTextRef = useRef('');
   const lastTranscriptRef = useRef('');
 
   const stop = useCallback(() => {
     wantListeningRef.current = false;
+    sessionIdRef.current += 1;
     try {
       recognitionRef.current?.stop?.();
     } catch {
@@ -30,44 +39,23 @@ export function useSpeechRecognition({ onTranscript }) {
     }
     recognitionRef.current = null;
     setListening(false);
+    setRequesting(false);
   }, []);
 
-  const requestMicPermission = useCallback(async () => {
-    if (!navigator.mediaDevices?.getUserMedia) return true;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((track) => track.stop());
-      return true;
-    } catch (err) {
-      const message = err?.name === 'NotAllowedError'
-        ? 'Microphone access denied. Allow the mic in your browser bar and try again.'
-        : 'Could not access the microphone.';
-      toast.error(message);
-      return false;
-    }
-  }, []);
-
-  const start = useCallback(async (baseText = '') => {
+  const beginRecognition = useCallback((baseText = '', sessionId) => {
     const SpeechRecognition = getRecognitionCtor();
-    if (!SpeechRecognition) {
-      toast.error('Voice input is not supported in this browser. Try Chrome or Edge.');
-      return;
-    }
+    if (!SpeechRecognition) return false;
 
-    const permitted = await requestMicPermission();
-    if (!permitted) return;
-
-    stop();
-    wantListeningRef.current = true;
     baseTextRef.current = baseText;
     lastTranscriptRef.current = baseText.trim();
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = navigator.language || 'en-US';
+    recognition.lang = lang || navigator.language || 'en-US';
 
     recognition.onresult = (event) => {
+      if (sessionIdRef.current !== sessionId) return;
       let sessionText = '';
       for (let i = 0; i < event.results.length; i += 1) {
         sessionText += event.results[i][0].transcript;
@@ -81,20 +69,22 @@ export function useSpeechRecognition({ onTranscript }) {
     };
 
     recognition.onerror = (event) => {
-      if (event.error === 'aborted') return;
-      if (event.error === 'no-speech') return;
+      if (sessionIdRef.current !== sessionId) return;
+      if (event.error === 'aborted' || event.error === 'no-speech') return;
+
       wantListeningRef.current = false;
       setListening(false);
-      if (event.error === 'not-allowed') {
-        toast.error('Microphone permission denied.');
-      } else if (event.error === 'network') {
-        toast.error('Voice input needs a network connection in this browser.');
-      } else {
-        toast.error(`Voice input stopped (${event.error}).`);
-      }
+      recognitionRef.current = null;
+
+      const message = speechRecognitionErrorMessage(event.error);
+      if (message) toast.error(message);
     };
 
     recognition.onend = () => {
+      if (sessionIdRef.current !== sessionId) {
+        setListening(false);
+        return;
+      }
       if (!wantListeningRef.current) {
         setListening(false);
         return;
@@ -105,6 +95,7 @@ export function useSpeechRecognition({ onTranscript }) {
       } catch {
         wantListeningRef.current = false;
         setListening(false);
+        recognitionRef.current = null;
       }
     };
 
@@ -113,24 +104,74 @@ export function useSpeechRecognition({ onTranscript }) {
       recognitionRef.current = recognition;
       setListening(true);
       toast.message('Listening… speak now', { duration: 2000 });
+      return true;
     } catch {
       wantListeningRef.current = false;
-      toast.error('Could not start voice input.');
+      setListening(false);
+      return false;
     }
-  }, [onTranscript, requestMicPermission, stop]);
+  }, [lang, onTranscript]);
 
-  const toggle = useCallback(async (baseText = '') => {
-    if (listening) {
+  const requestMicThenStart = useCallback((baseText, sessionId) => {
+    setRequesting(true);
+    requestMicrophoneAccess()
+      .then((result) => {
+        setRequesting(false);
+        if (sessionIdRef.current !== sessionId || !wantListeningRef.current) return;
+
+        if (!result.ok) {
+          wantListeningRef.current = false;
+          toast.error(result.message);
+          return;
+        }
+
+        if (!beginRecognition(baseText, sessionId)) {
+          wantListeningRef.current = false;
+          toast.error('Could not start voice input. Tap Mic again after allowing access.');
+        }
+      })
+      .catch(() => {
+        setRequesting(false);
+        wantListeningRef.current = false;
+        toast.error('Could not access the microphone.');
+      });
+  }, [beginRecognition]);
+
+  const start = useCallback((baseText = '') => {
+    if (!isSecureSpeechContext()) {
+      toast.error('Microphone requires HTTPS or localhost. Open Veridian in Chrome or Edge.');
+      return;
+    }
+
+    if (!isSpeechRecognitionSupported()) {
+      toast.error('Voice input is not supported in this browser. Try Chrome or Edge on desktop.');
+      return;
+    }
+
+    stop();
+    wantListeningRef.current = true;
+    const sessionId = ++sessionIdRef.current;
+
+    // Start immediately while the click user-gesture is still active.
+    if (beginRecognition(baseText, sessionId)) return;
+
+    // Fallback: explicit browser mic prompt, then retry recognition.
+    requestMicThenStart(baseText, sessionId);
+  }, [beginRecognition, requestMicThenStart, stop]);
+
+  const toggle = useCallback((baseText = '') => {
+    if (listening || requesting) {
       stop();
       return;
     }
-    await start(baseText);
-  }, [listening, start, stop]);
+    start(baseText);
+  }, [listening, requesting, start, stop]);
 
   useEffect(() => () => stop(), [stop]);
 
   return {
     listening,
+    requesting,
     toggle,
     start,
     stop,

@@ -23,6 +23,7 @@ export default function OnboardingPage() {
   const [studyGoals, setStudyGoals] = useState([]);
   const [gradeLevel, setGradeLevel] = useState('');
   const [country, setCountry] = useState('');
+  const [customCountry, setCustomCountry] = useState('');
   const [usState, setUsState] = useState('');
   const [researchConsent, setResearchConsent] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -34,6 +35,8 @@ export default function OnboardingPage() {
     ));
   };
 
+  const resolvedCountry = country === 'Other' ? customCountry.trim() : country;
+
   const finish = async (patch = {}) => {
     setSaving(true);
     setError('');
@@ -41,7 +44,7 @@ export default function OnboardingPage() {
       const updated = await completeOnboarding({
         studyGoals,
         gradeLevel: gradeLevel || undefined,
-        country: country || undefined,
+        country: resolvedCountry || undefined,
         usState: country === 'United States' ? usState || undefined : undefined,
         researchConsent,
         researchConsentAt: researchConsent ? Date.now() : undefined,
@@ -80,7 +83,7 @@ export default function OnboardingPage() {
       await saveOnboardingProgress(step, {
         studyGoals,
         gradeLevel: gradeLevel || undefined,
-        country: country || undefined,
+        country: resolvedCountry || undefined,
         usState: country === 'United States' ? usState || undefined : undefined,
         researchConsent,
         researchConsentAt: researchConsent ? Date.now() : undefined,
@@ -136,17 +139,17 @@ export default function OnboardingPage() {
         {step === 2 && (
           <>
             <h1 className="onboarding-title">What best describes you?</h1>
-            <div className="onboarding-options">
-              {GRADE_LEVEL_OPTIONS.map((level) => (
-                <button
-                  key={level}
-                  type="button"
-                  className={`onboarding-option${gradeLevel === level ? ' selected' : ''}`}
-                  onClick={() => setGradeLevel(level)}
-                >
-                  {level}
-                </button>
-              ))}
+            <p className="onboarding-lead">Pick the option that fits you best.</p>
+            <div className="onboarding-fields onboarding-step-body">
+              <label className="veridian-form-field">
+                Grade level
+                <select value={gradeLevel} onChange={(e) => setGradeLevel(e.target.value)}>
+                  <option value="">Select grade level</option>
+                  {GRADE_LEVEL_OPTIONS.map((level) => (
+                    <option key={level} value={level}>{level}</option>
+                  ))}
+                </select>
+              </label>
             </div>
           </>
         )}
@@ -154,16 +157,34 @@ export default function OnboardingPage() {
         {step === 3 && (
           <>
             <h1 className="onboarding-title">Where are you located?</h1>
-            <div className="onboarding-fields">
+            <div className="onboarding-fields onboarding-step-body">
               <label className="veridian-form-field">
                 Country
-                <select value={country} onChange={(e) => { setCountry(e.target.value); setUsState(''); }}>
+                <select
+                  value={country}
+                  onChange={(e) => {
+                    setCountry(e.target.value);
+                    setUsState('');
+                    if (e.target.value !== 'Other') setCustomCountry('');
+                  }}
+                >
                   <option value="">Select country</option>
                   {COUNTRY_OPTIONS.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
               </label>
+              {country === 'Other' && (
+                <label className="veridian-form-field">
+                  Your country
+                  <input
+                    type="text"
+                    value={customCountry}
+                    placeholder="Enter your country"
+                    onChange={(e) => setCustomCountry(e.target.value)}
+                  />
+                </label>
+              )}
               {country === 'United States' && (
                 <label className="veridian-form-field">
                   State

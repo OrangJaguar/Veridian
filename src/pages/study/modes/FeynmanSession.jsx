@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
-import VeridianLoading from '@/components/shared/VeridianLoading';
+import AiGenerationLoading from '@/components/shared/AiGenerationLoading';
 import FeynmanConversation from '@/components/study/feynman/FeynmanConversation';
 import FeynmanSummary from '@/components/study/feynman/FeynmanSummary';
 import { feynmanConversationTurn, feynmanSummarizeConcept } from '@/api/ai/study';
@@ -46,6 +46,9 @@ function initState(concepts) {
 export default function FeynmanSession({ session, activity, module, journeyId }) {
   const concepts = module?.knowledgeMap?.concepts ?? [];
   const [{ currentConceptId, conceptThreads }, setSessionState] = useState(() => initState(concepts));
+  const [finishedConceptIds, setFinishedConceptIds] = useState([]);
+  const [showTopicPicker, setShowTopicPicker] = useState(false);
+  const [pickerConceptId, setPickerConceptId] = useState('');
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [summarizing, setSummarizing] = useState(false);
@@ -65,15 +68,61 @@ export default function FeynmanSession({ session, activity, module, journeyId })
   const hasUserMessages = threadHasUserMessages(currentThread);
 
   const undiscussedCount = useMemo(
-    () => concepts.filter((c) => !threadHasUserMessages(conceptThreads[c.id])).length,
-    [concepts, conceptThreads],
+    () => concepts.filter((c) => !finishedConceptIds.includes(c.id)).length,
+    [concepts, finishedConceptIds],
   );
+
+  const switchableConcepts = useMemo(
+    () => concepts.filter((c) => !finishedConceptIds.includes(c.id)),
+    [concepts, finishedConceptIds],
+  );
+
+  const pickerOptions = useMemo(() => concepts.filter((c) => {
+    if (finishedConceptIds.includes(c.id)) return false;
+    if (c.id === currentConceptId && threadHasUserMessages(currentThread)) return false;
+    return true;
+  }), [concepts, finishedConceptIds, currentConceptId, currentThread]);
 
   const showDone = hasUserMessages && (lastAiMessage?.readyToComplete || atTurnLimit);
 
   const handleExit = () => {
     abandonSession({ sessionId: session.sessionId, journeyId, returnPath });
   };
+
+  const handleExploreAnother = useCallback(() => {
+    const remaining = concepts.filter((c) => {
+      if (finishedConceptIds.includes(c.id)) return false;
+      if (c.id === currentConceptId && threadHasUserMessages(currentThread)) return false;
+      return true;
+    });
+
+    if (!remaining.length) {
+      toast.message('All concepts covered — finish the session when you\'re ready.');
+      setShowTopicPicker(false);
+      return;
+    }
+
+    setPickerConceptId(remaining[0].id);
+    setShowTopicPicker(true);
+  }, [concepts, currentConceptId, currentThread, finishedConceptIds]);
+
+  const handleConfirmTopic = useCallback(() => {
+    if (!pickerConceptId) return;
+
+    setFinishedConceptIds((prev) => {
+      const next = new Set(prev);
+      if (threadHasUserMessages(currentThread)) next.add(currentConceptId);
+      return Array.from(next);
+    });
+
+    setSessionState((prev) => {
+      const nextThreads = { ...prev.conceptThreads };
+      nextThreads[pickerConceptId] = ensureThread(prev.conceptThreads, pickerConceptId);
+      return { currentConceptId: pickerConceptId, conceptThreads: nextThreads };
+    });
+    setDraft('');
+    setShowTopicPicker(false);
+  }, [pickerConceptId, currentConceptId, currentThread]);
 
   const handleConceptChange = useCallback((newConceptId) => {
     setSessionState((prev) => {
@@ -239,9 +288,10 @@ export default function FeynmanSession({ session, activity, module, journeyId })
 
   if (summarizing) {
     return (
-      <div className="feynman-mode-view">
-        <VeridianLoading fullPage label="Building your summary…" />
-      </div>
+      <AiGenerationLoading
+        action="feynmanSummarizeConcept"
+        className="study-mode-view feynman-mode-view"
+      />
     );
   }
 
@@ -258,7 +308,7 @@ export default function FeynmanSession({ session, activity, module, journeyId })
 
   return (
     <FeynmanConversation
-      concepts={concepts}
+      concepts={switchableConcepts.length ? switchableConcepts : concepts}
       currentConceptId={currentConceptId}
       messages={messages}
       draft={draft}
@@ -266,6 +316,12 @@ export default function FeynmanSession({ session, activity, module, journeyId })
       onSend={handleSend}
       onConceptChange={handleConceptChange}
       onDone={handleDone}
+      onExploreAnother={handleExploreAnother}
+      onConfirmTopic={handleConfirmTopic}
+      showTopicPicker={showTopicPicker}
+      pickerConceptId={pickerConceptId}
+      onPickerConceptChange={setPickerConceptId}
+      pickerOptions={pickerOptions}
       onExit={handleExit}
       sending={sending}
       showDone={showDone}

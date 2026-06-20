@@ -1,16 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Pause, Mic, MicOff, Lightbulb } from 'lucide-react';
+import { toast } from 'sonner';
 import StudyBackButton from '@/components/study/shared/StudyBackButton';
 import FreeRecallHintModal from '@/components/study/free-recall/FreeRecallHintModal';
 import { formatStudyTime } from '@/utils/study/feedback';
-import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { useSpeechRecognition, isSpeechRecognitionSupported } from '@/hooks/useSpeechRecognition';
+import MathSymbolsButton from '@/components/shared/MathSymbolsButton';
+import { insertAtCursor } from '@/utils/latex/insertAtCursor';
+
+import ModuleConceptsTooltip from '@/components/study/free-recall/ModuleConceptsTooltip';
 
 export default function FreeRecallEditor({
   moduleName,
+  concepts = [],
   response,
   onResponseChange,
   hints,
-  hintLoading,
+  hintsPreloading,
   hintModalOpen,
   onHintModalOpen,
   onHintModalClose,
@@ -23,13 +29,22 @@ export default function FreeRecallEditor({
   const [timerHidden, setTimerHidden] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [wasVoice, setWasVoice] = useState(false);
+  const textareaRef = useRef(null);
 
-  const { listening, toggle: toggleMic, supported: micSupported } = useSpeechRecognition({
+  const { listening, requesting, toggle: toggleMic, supported: micSupported } = useSpeechRecognition({
     onTranscript: (text) => {
       onResponseChange(text);
       setWasVoice(true);
     },
   });
+
+  const handleMicClick = () => {
+    if (!micSupported) {
+      toast.error('Voice input requires Chrome or Edge on desktop.');
+      return;
+    }
+    toggleMic(response);
+  };
 
   useEffect(() => {
     if (paused) return undefined;
@@ -41,12 +56,32 @@ export default function FreeRecallEditor({
     onSubmit({ elapsedSec, wasVoice });
   };
 
+  const handleMathInsert = (latex) => {
+    const el = textareaRef.current;
+    if (!el) {
+      onResponseChange(`${response}${latex}`);
+      return;
+    }
+    const { text, selectionStart, selectionEnd } = insertAtCursor(
+      response,
+      latex,
+      el.selectionStart,
+      el.selectionEnd,
+    );
+    onResponseChange(text);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(selectionStart, selectionEnd);
+    });
+  };
+
   return (
     <div className="study-mode-view free-recall-mode-view">
       <header className="free-recall-header">
         <StudyBackButton onClick={onExit} label="Exit recall" />
         <h1 className="free-recall-title">
           Write everything you remember about <span>{moduleName}</span>
+          <ModuleConceptsTooltip concepts={concepts} />
         </h1>
       </header>
 
@@ -62,18 +97,18 @@ export default function FreeRecallEditor({
             Hint
             {hints.length > 0 && <span className="free-recall-hint-badge">{hints.length}/3</span>}
           </button>
-          {micSupported && (
-            <button
-              type="button"
-              className={`free-recall-tool-btn voice-mic-btn${listening ? ' active voice-mic-btn--active' : ''}`}
-              onClick={() => toggleMic(response)}
-              aria-label={listening ? 'Stop microphone' : 'Voice input'}
-              aria-pressed={listening}
-            >
-              {listening ? <MicOff size={16} strokeWidth={2} /> : <Mic size={16} strokeWidth={2} />}
-              {listening ? 'Listening…' : 'Mic'}
-            </button>
-          )}
+          <button
+            type="button"
+            className={`free-recall-tool-btn voice-mic-btn${listening ? ' active voice-mic-btn--active' : ''}`}
+            onClick={handleMicClick}
+            disabled={requesting}
+            aria-label={listening ? 'Stop microphone' : 'Voice input'}
+            aria-pressed={listening}
+          >
+            {listening ? <MicOff size={16} strokeWidth={2} /> : <Mic size={16} strokeWidth={2} />}
+            {requesting ? 'Allow mic…' : listening ? 'Listening…' : 'Mic'}
+          </button>
+          <MathSymbolsButton onInsert={handleMathInsert} />
         </div>
 
         <div className="timer-suite">
@@ -110,10 +145,11 @@ export default function FreeRecallEditor({
         <>
           <div className="free-recall-editor-wrap">
             <textarea
+              ref={textareaRef}
               className="free-recall-textarea"
               value={response}
               onChange={(e) => onResponseChange(e.target.value)}
-              placeholder={micSupported
+              placeholder={isSpeechRecognitionSupported()
                 ? 'Start typing or tap Mic to speak…'
                 : 'Start typing everything you remember…'}
               spellCheck
@@ -137,7 +173,7 @@ export default function FreeRecallEditor({
       <FreeRecallHintModal
         open={hintModalOpen}
         hints={hints}
-        loading={hintLoading}
+        preloading={hintsPreloading}
         onClose={onHintModalClose}
         onGenerateNext={onGenerateHint}
       />

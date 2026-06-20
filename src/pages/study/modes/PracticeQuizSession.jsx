@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import QuizSetupModal from '@/components/study/quiz/QuizSetupModal';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
+import ApClassroomQuizRunner from '@/components/study/quiz/ap-classroom/ApClassroomQuizRunner';
 import QuizSummary from '@/components/study/quiz/QuizSummary';
-import { StudyAiLoading, StudyAiError } from '@/components/study/StudyAiStatus';
+import { StudyAiError } from '@/components/study/StudyAiStatus';
+import AiGenerationLoading from '@/components/shared/AiGenerationLoading';
 import { generatePracticeQuestions, generateConceptRefresher } from '@/api/ai/study';
 import { focusGuidanceForPreset } from '@/api/ai/prompts/practiceQuiz';
 import { getWeakConceptIds } from '@/utils/study/conceptWeakness';
@@ -13,6 +15,7 @@ import {
 } from '@/utils/study/quizDedup';
 import { normalizeQuizQuestions } from '@/utils/study/normalizeQuizQuestions';
 import { requireGeneratedQuestions } from '@/utils/study/requireGeneratedQuestions';
+import { selectQuestionsFromBank, shouldUseQuestionBank } from '@/utils/study/sampleQuestionBank';
 import { runStudyAiGeneration } from '@/hooks/ai/runStudyAiGeneration';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
@@ -62,6 +65,27 @@ export default function PracticeQuizSession({ session, activity, module, journey
   };
 
   const generateQuestions = useCallback(async (setupConfig) => {
+    if (shouldUseQuestionBank(journey, activity)) {
+      const bankQuestions = selectQuestionsFromBank(
+        activity.content.questionBank,
+        setupConfig,
+        { weakConceptIds },
+      );
+      requireGeneratedQuestions(bankQuestions, setupConfig.questionCount, 'questions');
+      await updateSession.mutateAsync({
+        sessionId: session.sessionId,
+        journeyId,
+        patch: {
+          sessionData: {
+            quizConfig: setupConfig,
+            questions: bankQuestions,
+            aiGeneration: { status: 'ready', completedAt: Date.now(), source: 'questionBank' },
+          },
+        },
+      });
+      return bankQuestions;
+    }
+
     const { avoidQuestionIds, avoidStemPreviews, seen } = buildQuizAvoidList(
       activity,
       sessions,
@@ -90,6 +114,7 @@ export default function PracticeQuizSession({ session, activity, module, journey
         weakConceptIds,
         avoidQuestionIds,
         avoidStemPreviews,
+        questionStyle: setupConfig.questionStyle ?? 'standard',
       }),
       normalize: (raw) => normalizeQuizQuestions(raw, setupConfig.questionCount),
       validate: (nextQuestions) => {
@@ -112,6 +137,7 @@ export default function PracticeQuizSession({ session, activity, module, journey
   }, [
     activity,
     concepts,
+    journey,
     journey?.subject,
     journey?.title,
     module?.description,
@@ -241,7 +267,12 @@ export default function PracticeQuizSession({ session, activity, module, journey
   }
 
   if (loading && !questions.length) {
-    return <StudyAiLoading label="Generating your quiz…" />;
+    return (
+      <AiGenerationLoading
+        action="generatePracticeQuestions"
+        className="study-mode-view guide-mode-view guide-mode-view--loading"
+      />
+    );
   }
 
   if (genError && phase === 'setup' && !loading) {
@@ -264,14 +295,24 @@ export default function PracticeQuizSession({ session, activity, module, journey
         loading={loading}
       />
       {phase === 'active' && questions.length > 0 && (
-        <QuizRunner
-          questions={questions}
-          config={config}
-          onComplete={handleComplete}
-          onExit={handleExit}
-          onIntervention={handleIntervention}
-          refresherContent={refresherContent}
-        />
+        config.uiPreset === 'apClassroom' ? (
+          <ApClassroomQuizRunner
+            questions={questions}
+            config={config}
+            moduleName={module?.name}
+            onComplete={handleComplete}
+            onExit={handleExit}
+          />
+        ) : (
+          <QuizRunner
+            questions={questions}
+            config={config}
+            onComplete={handleComplete}
+            onExit={handleExit}
+            onIntervention={handleIntervention}
+            refresherContent={refresherContent}
+          />
+        )
       )}
     </>
   );

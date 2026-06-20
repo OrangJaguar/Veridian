@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import LatexRenderer from '@/components/shared/LatexRenderer';
 import { formatStudyTime } from '@/utils/study/feedback';
 
 function formatCopyText({
@@ -103,7 +104,7 @@ export default function FreeRecallSummary({
           <span className="stat-value">{result?.coveragePercent ?? 0}%</span>
           <span className="stat-label">Coverage estimate</span>
           {result?.coverageEstimate && (
-            <span className="free-recall-summary-sub">{result.coverageEstimate}</span>
+            <span className="free-recall-summary-sub"><LatexRenderer text={result.coverageEstimate} /></span>
           )}
         </div>
         <div className="stat-box">
@@ -114,13 +115,13 @@ export default function FreeRecallSummary({
 
       <div className="free-recall-summary-feedback">
         <h3 className="free-recall-summary-heading">Grading</h3>
-        {feedback && <p className="free-recall-summary-text">{feedback}</p>}
+        {feedback && <p className="free-recall-summary-text"><LatexRenderer text={feedback} /></p>}
 
         <div className="free-recall-summary-details">
           <div className="free-recall-detail-block">
             <h4>Missed ideas</h4>
             {missed.length ? (
-              <ul>{missed.map((item) => <li key={item}>{item}</li>)}</ul>
+              <ul>{missed.map((item) => <li key={item}><LatexRenderer text={item} /></li>)}</ul>
             ) : (
               <p className="free-recall-detail-empty">None flagged</p>
             )}
@@ -128,7 +129,7 @@ export default function FreeRecallSummary({
           <div className="free-recall-detail-block">
             <h4>Incorrect ideas</h4>
             {incorrect.length ? (
-              <ul>{incorrect.map((item) => <li key={item}>{item}</li>)}</ul>
+              <ul>{incorrect.map((item) => <li key={item}><LatexRenderer text={item} /></li>)}</ul>
             ) : (
               <p className="free-recall-detail-empty">None flagged</p>
             )}
@@ -136,12 +137,12 @@ export default function FreeRecallSummary({
           {result?.hintsUsedNote && (
             <div className="free-recall-detail-block">
               <h4>Hints used</h4>
-              <p>{result.hintsUsedNote}</p>
+              <p><LatexRenderer text={result.hintsUsedNote} /></p>
             </div>
           )}
           <div className="free-recall-detail-block">
             <h4>Next concept to revisit</h4>
-            <p>{nextConcept}</p>
+            <p><LatexRenderer text={nextConcept} /></p>
           </div>
         </div>
       </div>

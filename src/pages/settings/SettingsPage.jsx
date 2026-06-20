@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import SettingsAccountSection from '@/components/settings/SettingsAccountSection';
 import SettingsAppearanceSection from '@/components/settings/SettingsAppearanceSection';
 import SettingsStudySection from '@/components/settings/SettingsStudySection';
@@ -10,7 +11,19 @@ import LoginPrompt from '@/components/stubs/LoginPrompt';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function SettingsPage() {
-  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const { isAuthenticated, signOut } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    try {
+      await signOut();
+      navigate('/', { replace: true });
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   if (!isAuthenticated) {
     return <LoginPrompt action="manage your settings" />;
@@ -25,6 +38,14 @@ export default function SettingsPage() {
             Account, preferences, and app customization.
           </p>
         </div>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm settings-sign-out-btn"
+          onClick={handleSignOut}
+          disabled={signingOut}
+        >
+          {signingOut ? 'Signing out…' : 'Sign out'}
+        </button>
       </header>
 
       <SettingsAccountSection />

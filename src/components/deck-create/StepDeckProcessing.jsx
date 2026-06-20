@@ -1,4 +1,4 @@
-import VeridianLoading from '@/components/shared/VeridianLoading';
+import AiGenerationLoading from '@/components/shared/AiGenerationLoading';
 import { useDeckCreateStore } from '@/store/deckCreateStore';
 
 export default function StepDeckProcessing({ onRetry, onBack }) {
@@ -20,9 +20,12 @@ export default function StepDeckProcessing({ onRetry, onBack }) {
 
   return (
     <div className="create-step create-step-processing">
-      <VeridianLoading />
-      <h2 className="create-step-title">{isProcessing ? 'Generating your deck…' : 'Saving your deck…'}</h2>
-      <p className="create-step-desc">AI is building cards from your content. This usually takes under a minute.</p>
+      <AiGenerationLoading
+        action={isProcessing ? 'generateFlashcards' : 'saveDeck'}
+        fullPage={false}
+        className="create-step-ai-loading"
+      />
+      <p className="create-step-desc">This usually takes under a minute.</p>
     </div>
   );
 }

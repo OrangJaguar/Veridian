@@ -1,19 +1,56 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import VeridianLoading from '@/components/shared/VeridianLoading';
+import AiGenerationLoading from '@/components/shared/AiGenerationLoading';
 import FreeRecallEditor from '@/components/study/free-recall/FreeRecallEditor';
 import FreeRecallSummary from '@/components/study/free-recall/FreeRecallSummary';
-import { generateFreeRecallHint, gradeFreeRecall } from '@/api/ai/study';
+import { generateFreeRecallHints, generateFreeRecallHint, gradeFreeRecall } from '@/api/ai/study';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
 import { useJourney } from '@/hooks/queries/useJourneys';
+
+const MAX_HINTS = 3;
+
+async function preloadRecallHints(module) {
+  const base = {
+    moduleName: module?.name ?? 'this module',
+    moduleDescription: module?.description,
+    knowledgeMap: module?.knowledgeMap,
+    studentResponseSoFar: '',
+  };
+
+  try {
+    const data = await generateFreeRecallHints(base);
+    const hints = (data?.hints ?? [])
+      .map((h) => ({ tier: h.tier, text: String(h.hint ?? h.text ?? '').trim() }))
+      .filter((h) => h.text)
+      .sort((a, b) => a.tier - b.tier);
+    if (hints.length >= MAX_HINTS) return hints.slice(0, MAX_HINTS);
+  } catch {
+    /* fall through to sequential preload */
+  }
+
+  const built = [];
+  for (let tier = 1; tier <= MAX_HINTS; tier += 1) {
+    const data = await generateFreeRecallHint({
+      ...base,
+      tier,
+      previousHints: built.map((h) => h.text),
+    });
+    const text = String(data?.hint ?? '').trim();
+    if (!text) break;
+    built.push({ tier, text });
+  }
+  return built;
+}
 
 export default function FreeRecallSession({ session, activity, module, journeyId }) {
   const { data: journey } = useJourney(journeyId);
   const [response, setResponse] = useState('');
   const [hints, setHints] = useState([]);
+  const [preloadedHints, setPreloadedHints] = useState([]);
+  const [hintsPreloading, setHintsPreloading] = useState(true);
   const [hintModalOpen, setHintModalOpen] = useState(false);
-  const [hintLoading, setHintLoading] = useState(false);
+  const hintsPreloadStarted = useRef(false);
   const [submitting, setSubmitting] = useState(false);
   const [phase, setPhase] = useState('active');
   const [result, setResult] = useState(null);
@@ -23,31 +60,44 @@ export default function FreeRecallSession({ session, activity, module, journeyId
   const abandonSession = useAbandonSession();
   const returnPath = `/journeys/${journeyId}/modules/${module?.moduleId}`;
   const moduleName = module?.name ?? 'this module';
+  const concepts = module?.knowledgeMap?.concepts ?? [];
+
+  useEffect(() => {
+    if (!module?.moduleId || hintsPreloadStarted.current) return undefined;
+    hintsPreloadStarted.current = true;
+    let cancelled = false;
+
+    preloadRecallHints(module)
+      .then((loaded) => {
+        if (!cancelled) setPreloadedHints(loaded);
+      })
+      .catch(() => {
+        /* hints remain empty — user can still finish without them */
+      })
+      .finally(() => {
+        if (!cancelled) setHintsPreloading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [module?.moduleId, module]);
 
   const handleExit = () => {
     abandonSession({ sessionId: session.sessionId, journeyId, returnPath });
   };
 
-  const handleGenerateHint = async () => {
-    if (hints.length >= 3 || hintLoading) return;
-    setHintLoading(true);
-    try {
-      const tier = hints.length + 1;
-      const data = await generateFreeRecallHint({
-        tier,
-        moduleName,
-        moduleDescription: module?.description,
-        knowledgeMap: module?.knowledgeMap,
-        studentResponseSoFar: response,
-        previousHints: hints.map((h) => h.text),
-      });
-      const text = String(data?.hint ?? '').trim();
-      if (!text) throw new Error('Empty hint from AI');
-      setHints((prev) => [...prev, { tier, text }]);
-    } catch (err) {
-      toast.error(err.message || 'Failed to generate hint');
-    } finally {
-      setHintLoading(false);
+  const handleGenerateHint = () => {
+    if (hints.length >= MAX_HINTS) return;
+
+    const next = preloadedHints[hints.length];
+    if (next) {
+      setHints((prev) => [...prev, next]);
+      return;
+    }
+
+    if (hintsPreloading) {
+      toast.message('Hints are still loading — try again in a moment.');
+    } else {
+      toast.error('Hints unavailable right now.');
     }
   };
 
@@ -126,19 +176,21 @@ export default function FreeRecallSession({ session, activity, module, journeyId
 
   if (submitting) {
     return (
-      <div className="study-mode-view free-recall-mode-view">
-        <VeridianLoading fullPage label="Grading your recall…" />
-      </div>
+      <AiGenerationLoading
+        action="gradeFreeRecall"
+        className="study-mode-view free-recall-mode-view"
+      />
     );
   }
 
   return (
     <FreeRecallEditor
       moduleName={moduleName}
+      concepts={concepts}
       response={response}
       onResponseChange={setResponse}
       hints={hints}
-      hintLoading={hintLoading}
+      hintsPreloading={hintsPreloading}
       hintModalOpen={hintModalOpen}
       onHintModalOpen={() => setHintModalOpen(true)}
       onHintModalClose={() => setHintModalOpen(false)}

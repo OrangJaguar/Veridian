@@ -2,9 +2,11 @@ import { useState } from 'react';
 import LatexRenderer from '@/components/shared/LatexRenderer';
 import { playStudySound, triggerStudyHaptic } from '@/utils/study/feedback';
 
-export default function LearningGuideCheckIn({ checkIn, onAnswered }) {
-  const [selected, setSelected] = useState(null);
-  const [revealed, setRevealed] = useState(false);
+export default function LearningGuideCheckIn({ checkIn, onAnswered, initialAnswer }) {
+  const [selected, setSelected] = useState(initialAnswer?.selected ?? null);
+  const [revealed, setRevealed] = useState(
+    Boolean(initialAnswer?.revealed || initialAnswer?.skipped || initialAnswer?.selected != null),
+  );
 
   if (!checkIn?.question) return null;
 
@@ -18,10 +20,12 @@ export default function LearningGuideCheckIn({ checkIn, onAnswered }) {
     const correct = opt === checkIn.correctAnswer;
     playStudySound(correct ? 'correct' : 'wrong');
     triggerStudyHaptic(correct ? 'correct' : 'wrong');
-    onAnswered?.({ selected: opt, correct });
+    onAnswered?.({ selected: opt, correct, skipped: false });
   };
 
   const handleSkip = () => {
+    if (revealed) return;
+    setRevealed(true);
     onAnswered?.({ selected: null, correct: null, skipped: true });
   };
 

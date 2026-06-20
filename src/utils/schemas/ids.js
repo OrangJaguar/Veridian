@@ -18,6 +18,14 @@ export function generateCardId() {
   return generateId('crd');
 }
 
+export function generateQuestionId() {
+  return generateId('q');
+}
+
+export function generateConceptId() {
+  return generateId('con');
+}
+
 export function generateSessionId() {
   return generateId('ses');
 }
