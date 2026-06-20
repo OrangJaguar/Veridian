@@ -1,22 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-  arrayMove,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Plus } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { getJourney } from '@/api/entities/journeys';
 import { listModulesByJourney, createModules, updateModule } from '@/api/entities/modules';
@@ -24,15 +8,29 @@ import { validateAdminJourney, publishAdminJourney, unpublishAdminJourney } from
 import { generateModuleId } from '@/utils/schemas/ids';
 import { scaffoldJourneyActivities } from '@/api/entities/journeyScaffold';
 
-function SortableModuleRow({ mod, journeyId }) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: mod.moduleId });
-  const style = { transform: CSS.Transform.toString(transform), transition };
-
+function ModuleRow({ mod, journeyId, index, total, onMoveUp, onMoveDown, reordering }) {
   return (
-    <li ref={setNodeRef} style={style} className="admin-module-row">
-      <button type="button" className="admin-drag-handle" {...attributes} {...listeners} aria-label="Reorder">
-        <GripVertical size={16} />
-      </button>
+    <li className="admin-module-row">
+      <div className="admin-module-reorder">
+        <button
+          type="button"
+          className="admin-reorder-btn"
+          onClick={onMoveUp}
+          disabled={index === 0 || reordering}
+          aria-label={`Move ${mod.name} up`}
+        >
+          <ChevronUp size={16} />
+        </button>
+        <button
+          type="button"
+          className="admin-reorder-btn"
+          onClick={onMoveDown}
+          disabled={index === total - 1 || reordering}
+          aria-label={`Move ${mod.name} down`}
+        >
+          <ChevronDown size={16} />
+        </button>
+      </div>
       <div className="admin-module-row-main">
         <strong>{mod.name}</strong>
         <span className={`admin-journey-badge admin-journey-badge--${mod.moduleStatus ?? 'draft'}`}>
@@ -66,11 +64,6 @@ export default function AdminJourneyEditorPage() {
     enabled: !!journeyId,
   });
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
   const publishMut = useMutation({
     mutationFn: () => publishAdminJourney(journeyId),
     onSuccess: () => {
@@ -89,17 +82,18 @@ export default function AdminJourneyEditorPage() {
     onError: (e) => toast.error(e.message),
   });
 
-  const handleDragEnd = async (event) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = modules.findIndex((m) => m.moduleId === active.id);
-    const newIndex = modules.findIndex((m) => m.moduleId === over.id);
-    const reordered = arrayMove(modules, oldIndex, newIndex);
-    await Promise.all(reordered.map((mod, order) =>
-      updateModule(mod.moduleId, { order }),
-    ));
-    qc.invalidateQueries({ queryKey: ['modules', journeyId] });
-  };
+  const reorderMut = useMutation({
+    mutationFn: async ({ fromIndex, toIndex }) => {
+      const sorted = [...modules].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      const [moved] = sorted.splice(fromIndex, 1);
+      sorted.splice(toIndex, 0, moved);
+      await Promise.all(sorted.map((mod, order) => updateModule(mod.moduleId, { order })));
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['modules', journeyId] });
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   const addModule = async () => {
     const order = modules.length;
@@ -124,6 +118,10 @@ export default function AdminJourneyEditorPage() {
   if (!journey) return <p className="journeys-status">Journey not found.</p>;
 
   const sorted = [...modules].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  const moveModule = (fromIndex, toIndex) => {
+    reorderMut.mutate({ fromIndex, toIndex });
+  };
 
   return (
     <div className="admin-journeys-page">
@@ -173,15 +171,20 @@ export default function AdminJourneyEditorPage() {
             <Plus size={14} /> Add module
           </button>
         </div>
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={sorted.map((m) => m.moduleId)} strategy={verticalListSortingStrategy}>
-            <ul className="admin-module-list">
-              {sorted.map((mod) => (
-                <SortableModuleRow key={mod.moduleId} mod={mod} journeyId={journeyId} />
-              ))}
-            </ul>
-          </SortableContext>
-        </DndContext>
+        <ul className="admin-module-list">
+          {sorted.map((mod, index) => (
+            <ModuleRow
+              key={mod.moduleId}
+              mod={mod}
+              journeyId={journeyId}
+              index={index}
+              total={sorted.length}
+              reordering={reorderMut.isPending}
+              onMoveUp={() => moveModule(index, index - 1)}
+              onMoveDown={() => moveModule(index, index + 1)}
+            />
+          ))}
+        </ul>
       </section>
     </div>
   );

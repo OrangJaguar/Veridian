@@ -1,5 +1,3 @@
-import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -26,27 +24,6 @@ function emptySection(index) {
     externalSearchSuggestions: ['', ''],
     transitionText: '',
   };
-}
-
-function RichTextField({ content, onChange, label }) {
-  const editor = useEditor({
-    extensions: [StarterKit],
-    content: content || '',
-    onUpdate: ({ editor: ed }) => onChange(ed.getHTML()),
-  });
-
-  return (
-    <div className="admin-rich-field">
-      <span className="settings-label">{label}</span>
-      <div className="admin-rich-toolbar">
-        <button type="button" onClick={() => editor?.chain().focus().toggleBold().run()}>Bold</button>
-        <button type="button" onClick={() => editor?.chain().focus().toggleItalic().run()}>Italic</button>
-        <button type="button" onClick={() => editor?.chain().focus().toggleBulletList().run()}>List</button>
-        <button type="button" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>H2</button>
-      </div>
-      <EditorContent editor={editor} className="admin-rich-editor" />
-    </div>
-  );
 }
 
 export default function AdminGuideSectionBuilder({ journeyId, moduleId, activity }) {
@@ -85,11 +62,16 @@ export default function AdminGuideSectionBuilder({ journeyId, moduleId, activity
               onChange={(e) => updateSection(index, { title: e.target.value })}
             />
           </label>
-          <RichTextField
-            label="Explanation"
-            content={section.explanation}
-            onChange={(html) => updateSection(index, { explanation: html })}
-          />
+          <label className="settings-field">
+            <span className="settings-label">Explanation</span>
+            <textarea
+              className="settings-input admin-rich-editor"
+              rows={8}
+              value={section.explanation ?? ''}
+              onChange={(e) => updateSection(index, { explanation: e.target.value })}
+              placeholder="Write the section explanation. Markdown and LaTeX ($...$) are supported."
+            />
+          </label>
           <label className="settings-field">
             <span className="settings-label">Worked example scenario</span>
             <textarea

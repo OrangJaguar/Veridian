@@ -12004,6 +12004,34 @@
       font-size: 1.1rem;
     }
 
+    .admin-module-reorder {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+
+    .admin-reorder-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.15rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .admin-reorder-btn:hover:not(:disabled) {
+      color: var(--text);
+      border-color: var(--text-muted);
+    }
+
+    .admin-reorder-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
     .admin-module-tabs {
       display: flex;
       flex-wrap: wrap;
