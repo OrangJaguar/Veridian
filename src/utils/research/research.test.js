@@ -61,9 +61,11 @@ describe('masterySnapshots', () => {
 });
 
 describe('anonymizeUser', () => {
+  const testSalt = 'test-salt-only';
+
   it('returns stable ids', () => {
-    expect(hashEmailToAnonId('a@b.com')).toBe(hashEmailToAnonId('a@b.com'));
-    expect(hashEmailToAnonId('a@b.com')).not.toBe(hashEmailToAnonId('c@d.com'));
+    expect(hashEmailToAnonId('a@b.com', testSalt)).toBe(hashEmailToAnonId('a@b.com', testSalt));
+    expect(hashEmailToAnonId('a@b.com', testSalt)).not.toBe(hashEmailToAnonId('c@d.com', testSalt));
   });
 });
 

@@ -1,5 +1,6 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 import { requireAdmin } from "../_shared/requireAdmin.ts";
+import { getResearchSalt, hashEmailToAnonId } from "../_shared/researchSalt.ts";
 
 const QUIZ_TYPES = new Set([
   "practiceQuiz",
@@ -8,17 +9,6 @@ const QUIZ_TYPES = new Set([
   "journeyChallenge",
   "cramSession",
 ]);
-const RESEARCH_SALT = Deno.env.get("RESEARCH_SALT") ?? "veridian-research-v1";
-
-function hashEmailToAnonId(email: string) {
-  const str = `${RESEARCH_SALT}:${String(email ?? "").toLowerCase()}`;
-  let hash = 2166136261;
-  for (let i = 0; i < str.length; i += 1) {
-    hash ^= str.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return Math.abs(hash) || 1;
-}
 
 function csvEscape(val: unknown) {
   const s = val == null ? "" : String(val);
@@ -83,7 +73,8 @@ Deno.serve(async (req) => {
       ].filter(Boolean)),
     ];
     const anonMap: Record<string, number> = {};
-    for (const e of emails) anonMap[e] = hashEmailToAnonId(e);
+    const salt = getResearchSalt();
+    for (const e of emails) anonMap[e] = hashEmailToAnonId(e, salt);
 
     let csv = "";
     let filename = "research_export.csv";
@@ -256,9 +247,8 @@ Deno.serve(async (req) => {
 
     return Response.json({ data: { csv, filename } });
   } catch (err) {
-    return Response.json(
-      { error: { message: err instanceof Error ? err.message : String(err) } },
-      { status: 500 },
-    );
+    const message = err instanceof Error ? err.message : String(err);
+    const status = message.includes("RESEARCH_SALT") ? 503 : 500;
+    return Response.json({ error: { message } }, { status });
   }
 });

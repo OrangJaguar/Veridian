@@ -1,5 +1,6 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 import { requireAdmin } from "../_shared/requireAdmin.ts";
+import { getResearchSalt, hashEmailToAnonId } from "../_shared/researchSalt.ts";
 
 const QUIZ_TYPES = new Set([
   "practiceQuiz",
@@ -9,22 +10,12 @@ const QUIZ_TYPES = new Set([
   "cramSession",
 ]);
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const RESEARCH_SALT = Deno.env.get("RESEARCH_SALT") ?? "veridian-research-v1";
-
-function hashEmailToAnonId(email: string) {
-  const str = `${RESEARCH_SALT}:${String(email ?? "").toLowerCase()}`;
-  let hash = 2166136261;
-  for (let i = 0; i < str.length; i += 1) {
-    hash ^= str.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return Math.abs(hash) || 1;
-}
 
 function buildAnonMap(emails: string[]) {
+  const salt = getResearchSalt();
   const map: Record<string, number> = {};
   for (const e of emails) {
-    if (e && !map[e]) map[e] = hashEmailToAnonId(e);
+    if (e && !map[e]) map[e] = hashEmailToAnonId(e, salt);
   }
   return map;
 }
@@ -282,9 +273,8 @@ Deno.serve(async (req) => {
 
     return Response.json({ error: { message: `Unknown action: ${action}` } }, { status: 400 });
   } catch (err) {
-    return Response.json(
-      { error: { message: err instanceof Error ? err.message : String(err) } },
-      { status: 500 },
-    );
+    const message = err instanceof Error ? err.message : String(err);
+    const status = message.includes("RESEARCH_SALT") ? 503 : 500;
+    return Response.json({ error: { message } }, { status });
   }
 });
