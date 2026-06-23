@@ -6,12 +6,7 @@ export const LIBRARY_CATEGORIES = [
 ];
 
 export const LIBRARY_TAGS = [
-  'AP Chemistry',
-  'AP Biology',
-  'AP Physics',
-  'AP Calculus',
-  'AP History',
-  'AP English',
+  'AP',
   'MCAT',
   'Organic Chemistry',
   'Biochemistry',
@@ -27,12 +22,7 @@ export const LIBRARY_TAGS = [
 
 /** Map tags to category for filter chips */
 export const TAG_TO_CATEGORY = {
-  'AP Chemistry': 'AP',
-  'AP Biology': 'AP',
-  'AP Physics': 'AP',
-  'AP Calculus': 'AP',
-  'AP History': 'AP',
-  'AP English': 'AP',
+  AP: 'AP',
   MCAT: 'Pre-Med',
   'Organic Chemistry': 'Pre-Med',
   Biochemistry: 'Pre-Med',

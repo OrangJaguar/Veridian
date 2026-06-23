@@ -84,6 +84,12 @@ function ErrorDetailPanel({ groupId, onClose }) {
                 <span>{formatTs(occ.createdAt)}</span>
                 {occ.userEmail ? <span>{occ.userEmail}</span> : <span>anonymous</span>}
               </div>
+              {occ.stack ? (
+                <pre className="error-occurrence-stack">{occ.stack}</pre>
+              ) : null}
+              {occ.clientInfo && Object.keys(occ.clientInfo).length > 0 ? (
+                <pre className="error-occurrence-context">{JSON.stringify(occ.clientInfo, null, 2)}</pre>
+              ) : null}
               {occ.context && Object.keys(occ.context).length > 0 ? (
                 <pre className="error-occurrence-context">{JSON.stringify(occ.context, null, 2)}</pre>
               ) : null}

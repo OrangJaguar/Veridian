@@ -1,5 +1,3 @@
-import { useState } from 'react';
-import { toast } from 'sonner';
 import LatexRenderer from '@/components/shared/LatexRenderer';
 import { useJourneyCreateStore } from '@/store/journeyCreateStore';
 import { useConfirmJourney } from '@/hooks/mutations/useConfirmJourney';
@@ -9,33 +7,12 @@ export default function StepReviewModules({ onBack }) {
   const proposal = useJourneyCreateStore((s) => s.proposal);
   const updateModule = useJourneyCreateStore((s) => s.updateModule);
   const deleteModule = useJourneyCreateStore((s) => s.deleteModule);
-  const addModule = useJourneyCreateStore((s) => s.addModule);
   const moveModule = useJourneyCreateStore((s) => s.moveModule);
-  const runRegenerate = useJourneyCreateStore((s) => s.runRegenerate);
   const isProcessing = useJourneyCreateStore((s) => s.isProcessing);
 
   const confirmMutation = useConfirmJourney();
-  const [regenerating, setRegenerating] = useState(false);
 
   if (!proposal) return null;
-
-  const handleRegenerate = async () => {
-    if (regenerating || isProcessing) return;
-    const ok = window.confirm('Regenerate module structure using AI? This uses your cached concepts only.');
-    if (!ok) return;
-
-    setRegenerating(true);
-    try {
-      await runRegenerate();
-      toast.success('Module structure regenerated');
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        toast.error(err.message || 'Regenerate failed');
-      }
-    } finally {
-      setRegenerating(false);
-    }
-  };
 
   const handleConfirm = () => {
     confirmMutation.mutate({
@@ -81,11 +58,24 @@ export default function StepReviewModules({ onBack }) {
                 value={mod.description}
                 onChange={(e) => updateModule(index, { description: e.target.value })}
               />
-              <p className="create-module-concepts">
-                {mod.concepts.length} concept{mod.concepts.length === 1 ? '' : 's'}
-                {' · '}
-                <LatexRenderer text={mod.description} />
-              </p>
+              <div className="create-module-concepts">
+                <p className="create-module-concepts-label">
+                  {mod.concepts.length} concept{mod.concepts.length === 1 ? '' : 's'}
+                </p>
+                <ul className="create-module-concept-list">
+                  {mod.concepts.map((concept) => (
+                    <li key={concept.id ?? concept.term}>
+                      <strong>{concept.term}</strong>
+                      {concept.definition && (
+                        <>
+                          {' — '}
+                          <LatexRenderer text={concept.definition} />
+                        </>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
             <div className="create-module-actions">
               <button type="button" className="btn btn-secondary btn-sm" onClick={() => moveModule(index, -1)} disabled={index === 0}>
@@ -102,20 +92,6 @@ export default function StepReviewModules({ onBack }) {
         ))}
       </ul>
 
-      <div className="create-review-toolbar">
-        <button type="button" className="btn btn-secondary btn-sm" onClick={addModule} disabled={proposal.modules.length >= 8}>
-          + Add module
-        </button>
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={handleRegenerate}
-          disabled={regenerating || isProcessing || confirmMutation.isPending}
-        >
-          {regenerating ? 'Regenerating…' : 'Regenerate structure'}
-        </button>
-      </div>
-
       <div className="create-step-actions">
         <button type="button" className="btn btn-secondary" onClick={onBack} disabled={confirmMutation.isPending}>
           Back
@@ -124,7 +100,7 @@ export default function StepReviewModules({ onBack }) {
           type="button"
           className="btn btn-primary"
           onClick={handleConfirm}
-          disabled={confirmMutation.isPending || regenerating}
+          disabled={confirmMutation.isPending || isProcessing}
         >
           {confirmMutation.isPending ? 'Creating…' : 'Looks good — continue'}
         </button>

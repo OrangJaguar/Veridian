@@ -33,3 +33,11 @@ export function generateSessionId() {
 export function generateSourceId() {
   return generateId('src');
 }
+
+export function generateSnapshotId() {
+  return generateId('snap');
+}
+
+export function generateSurveyResponseId() {
+  return generateId('srv');
+}

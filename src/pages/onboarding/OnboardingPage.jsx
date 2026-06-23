@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import VeridianLogo from '@/components/layout/VeridianLogo';
 import { completeOnboarding, saveOnboardingProgress } from '@/api/entities/preferences';
 import { markOnboardingDoneLocally } from '@/lib/onboardingStorage';
+import { trackProductEvent } from '@/lib/analytics';
 import { queryKeys } from '@/api/query-keys';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -62,6 +63,7 @@ export default function OnboardingPage() {
       queryClient.setQueryData(queryKeys.preferences(user?.email), (prev) => (
         prev ? { ...prev, onboardingCompletedAt: prev.onboardingCompletedAt ?? completedAt } : prev
       ));
+      trackProductEvent('onboarding_complete');
       navigate('/home', { replace: true });
     } catch (err) {
       console.error('Onboarding completion failed:', err);

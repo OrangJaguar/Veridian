@@ -14,6 +14,8 @@ import FreeRecallSession from '@/pages/study/modes/FreeRecallSession';
 import InterleavedSession from '@/pages/study/modes/InterleavedSession';
 import JourneyChallengeSession from '@/pages/study/modes/JourneyChallengeSession';
 import CramSession from '@/pages/study/modes/CramSession';
+import BaselineCheckSession from '@/pages/study/modes/BaselineCheckSession';
+import { useJourney } from '@/hooks/queries/useJourneys';
 
 export default function StudyShell() {
   const { sessionId } = useParams();
@@ -22,10 +24,14 @@ export default function StudyShell() {
   const { data: activities = [] } = useActivitiesByJourney(journeyId);
   const { data: modules = [] } = useModules(journeyId);
   const { data: cards = [] } = useCardsByJourney(journeyId);
+  const { data: journey } = useJourney(journeyId);
   const hydrate = useStudySessionStore((s) => s.hydrate);
 
   const activity = activities.find((a) => a.activityId === session?.activityId);
   const module = modules.find((m) => m.moduleId === session?.moduleId);
+  const practiceQuizActivity = activities.find(
+    (a) => a.moduleId === session?.moduleId && a.type === 'practiceQuiz',
+  );
   const activityCards = cards.filter((c) => c.activityId === session?.activityId);
 
   useEffect(() => {
@@ -80,6 +86,14 @@ export default function StudyShell() {
       return <JourneyChallengeSession {...props} modules={modules} />;
     case 'cramSession':
       return <CramSession {...props} modules={modules} cards={cards} />;
+    case 'baselineCheck':
+      return (
+        <BaselineCheckSession
+          {...props}
+          journey={journey}
+          practiceQuizActivity={practiceQuizActivity}
+        />
+      );
     default:
       return (
         <div className="stub-page">

@@ -5,6 +5,7 @@ import { staggerNewCardDueDates } from '@/utils/fsrs/dueTodaySchedule';
 
 const MODULE_ACTIVITY_DEFS = [
   { type: 'learningGuide', status: 'notGenerated', title: 'Learning Guide' },
+  { type: 'baselineCheck', status: 'ready', title: 'Starting Point Check' },
   { type: 'practiceQuiz', status: 'ready', title: 'Practice Quiz' },
   { type: 'feynman', status: 'ready', title: 'Feynman Technique' },
   { type: 'freeRecall', status: 'ready', title: 'Free Recall' },

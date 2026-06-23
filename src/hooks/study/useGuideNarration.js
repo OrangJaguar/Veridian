@@ -11,6 +11,7 @@ export function useGuideNarration(segments, { rate = 0.96, voiceURI = '' } = {})
   const currentIndexRef = useRef(0);
   const segmentsRef = useRef(segments);
   const prefsRef = useRef({ rate, voiceURI });
+  const speakAtRef = useRef(null);
 
   useEffect(() => {
     segmentsRef.current = segments;
@@ -20,40 +21,47 @@ export function useGuideNarration(segments, { rate = 0.96, voiceURI = '' } = {})
     prefsRef.current = { rate, voiceURI };
   }, [rate, voiceURI]);
 
-  // Apply voice/speed changes on the next segment without stopping narration.
-  useEffect(() => {
-    if (status !== 'speaking' && status !== 'paused') return;
-    const idx = currentIndexRef.current;
-    cancelledRef.current = false;
-    window.speechSynthesis?.cancel();
-    if (status === 'paused') {
-      setStatus('speaking');
+  const speakAt = useCallback((i) => {
+    const segs = segmentsRef.current;
+    if (cancelledRef.current || !segs?.length || i >= segs.length) {
+      setStatus('idle');
+      setActiveKey(null);
+      return;
     }
-    const list = segmentsRef.current;
-    if (!list?.length || idx < 0 || idx >= list.length) return;
 
-    const speakAt = (i) => {
-      const segs = segmentsRef.current;
-      if (cancelledRef.current || !segs?.length || i >= segs.length) {
-        setStatus('idle');
-        setActiveKey(null);
-        return;
-      }
-      currentIndexRef.current = i;
-      const seg = segs[i];
-      setActiveKey(seg.key);
-      const utter = new SpeechSynthesisUtterance(seg.text);
-      const { rate: utterRate, voiceURI: utterVoiceURI } = prefsRef.current;
-      utter.rate = utterRate;
-      const voice = resolveSpeechVoice(utterVoiceURI, window.speechSynthesis.getVoices());
-      if (voice) utter.voice = voice;
-      utter.onend = () => { if (!cancelledRef.current) speakAt(i + 1); };
-      utter.onerror = () => { if (!cancelledRef.current) speakAt(i + 1); };
-      window.speechSynthesis.speak(utter);
+    currentIndexRef.current = i;
+    const seg = segs[i];
+    setActiveKey(seg.key);
+    setStatus('speaking');
+
+    const utter = new SpeechSynthesisUtterance(seg.text);
+    const { rate: utterRate, voiceURI: utterVoiceURI } = prefsRef.current;
+    utter.rate = utterRate;
+    const voice = resolveSpeechVoice(utterVoiceURI, window.speechSynthesis.getVoices());
+    if (voice) utter.voice = voice;
+
+    utter.onstart = () => {
+      if (!cancelledRef.current) setStatus('speaking');
     };
-    speakAt(idx);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- restart current segment when prefs change
-  }, [rate, voiceURI]);
+    utter.onpause = () => {
+      if (!cancelledRef.current) setStatus('paused');
+    };
+    utter.onresume = () => {
+      if (!cancelledRef.current) setStatus('speaking');
+    };
+    utter.onend = () => {
+      if (!cancelledRef.current) speakAtRef.current?.(i + 1);
+    };
+    utter.onerror = () => {
+      if (!cancelledRef.current) speakAtRef.current?.(i + 1);
+    };
+
+    window.speechSynthesis.speak(utter);
+  }, []);
+
+  useEffect(() => {
+    speakAtRef.current = speakAt;
+  }, [speakAt]);
 
   const stop = useCallback(() => {
     cancelledRef.current = true;
@@ -68,52 +76,28 @@ export function useGuideNarration(segments, { rate = 0.96, voiceURI = '' } = {})
 
     cancelledRef.current = false;
     currentIndexRef.current = index;
-    setStatus('speaking');
     window.speechSynthesis?.cancel();
 
-    const speakAt = (i) => {
-      const segs = segmentsRef.current;
-      if (cancelledRef.current || !segs?.length || i >= segs.length) {
-        setStatus('idle');
-        setActiveKey(null);
-        return;
-      }
-
-      currentIndexRef.current = i;
-      const seg = segs[i];
-      setActiveKey(seg.key);
-
-      const utter = new SpeechSynthesisUtterance(seg.text);
-      const { rate: utterRate, voiceURI: utterVoiceURI } = prefsRef.current;
-      utter.rate = utterRate;
-      const voice = resolveSpeechVoice(utterVoiceURI, window.speechSynthesis.getVoices());
-      if (voice) utter.voice = voice;
-
-      utter.onend = () => {
-        if (cancelledRef.current) return;
-        speakAt(i + 1);
-      };
-      utter.onerror = () => {
-        if (!cancelledRef.current) speakAt(i + 1);
-      };
-
-      window.speechSynthesis.speak(utter);
-    };
-
-    speakAt(index);
-  }, []);
+    // Let the browser finish cancel before starting the next utterance (Safari/Chrome).
+    window.setTimeout(() => {
+      if (cancelledRef.current) return;
+      speakAt(index);
+    }, 0);
+  }, [speakAt]);
 
   const pause = useCallback(() => {
-    if (status !== 'speaking') return;
-    window.speechSynthesis?.pause();
+    const synth = window.speechSynthesis;
+    if (!synth?.speaking || synth.paused) return;
+    synth.pause();
     setStatus('paused');
-  }, [status]);
+  }, []);
 
   const resume = useCallback(() => {
-    if (status !== 'paused') return;
-    window.speechSynthesis?.resume();
+    const synth = window.speechSynthesis;
+    if (!synth?.paused) return;
+    synth.resume();
     setStatus('speaking');
-  }, [status]);
+  }, []);
 
   const speakSegmentByKey = useCallback((key) => {
     const idx = segmentsRef.current?.findIndex((s) => s.key === key) ?? -1;
@@ -121,14 +105,17 @@ export function useGuideNarration(segments, { rate = 0.96, voiceURI = '' } = {})
   }, [speakFrom]);
 
   const togglePlayPause = useCallback(() => {
-    if (status === 'speaking') {
+    const synth = window.speechSynthesis;
+    if (synth?.speaking && !synth.paused) {
       pause();
-    } else if (status === 'paused') {
-      resume();
-    } else {
-      speakFrom(0);
+      return;
     }
-  }, [pause, resume, speakFrom, status]);
+    if (synth?.paused) {
+      resume();
+      return;
+    }
+    speakFrom(0);
+  }, [pause, resume, speakFrom]);
 
   useEffect(() => () => stop(), [stop]);
 

@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { usePageMeta } from '@/hooks/usePageMeta';
+import { trackProductEvent } from '@/lib/analytics';
 import LandingScrollProgress from '@/components/landing/LandingScrollProgress';
 import LandingCursorGlow from '@/components/landing/LandingCursorGlow';
 import LandingGapCompare from '@/components/landing/LandingGapCompare';
@@ -14,20 +15,28 @@ import {
   LandingJourneyTree,
 } from '@/components/landing/LandingVisuals';
 
-const STATS = [
-  { value: 'Plan', label: 'Built in, not DIY' },
-  { value: 'SR', label: 'Scheduled for you' },
-  { value: 'Library', label: 'Start without notes' },
-];
-
 export default function LandingPage() {
   const { user, isLoading, signOut } = useAuth();
   const navigate = useNavigate();
 
   usePageMeta({
-    title: 'Study smarter with spaced repetition',
-    description: 'Veridian turns your study material into structured journeys with AI guides, quizzes, and a Due Today plan.',
+    description: 'Veridian turns your notes into structured study Journeys with AI learning guides, practice quizzes, flashcards, and a Due Today plan. Free for AP, college, pre-med, and self-study.',
+    canonicalPath: '/',
   });
+
+  const appJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'Veridian',
+    applicationCategory: 'EducationalApplication',
+    operatingSystem: 'Web',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+    },
+    description: 'AI-powered study planner with spaced repetition, learning guides, and structured Journeys.',
+  };
 
   const handleLogout = async () => {
     await signOut();
@@ -36,6 +45,7 @@ export default function LandingPage() {
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(appJsonLd) }} />
       <LandingScrollProgress />
       <div className="landing-page">
         <LandingCursorGlow />
@@ -44,10 +54,10 @@ export default function LandingPage() {
             <div className="landing-hero-copy">
               <p className="landing-eyebrow">The missing piece in study apps</p>
               <h1 className="landing-headline">
-                Tools are everywhere.<br />A real study plan isn&apos;t.
+                The free study app with a real plan built in.
               </h1>
               <p className="landing-lead">
-                Most apps give you flashcards, quizzes, and notes — then leave the hard part to you: figuring out <em>what</em> to study, <em>when</em>, and <em>in what order</em>. Veridian builds the Journey, calculates the schedule, and tells you exactly what is Due Today.
+                Veridian turns your notes into structured Journeys — AI learning guides, practice quizzes, flashcards, and spaced repetition scheduled for you. Open the app and see exactly what is Due Today.
               </p>
               <div className="landing-cta-row">
                 {!isLoading && user ? (
@@ -57,7 +67,13 @@ export default function LandingPage() {
                   </>
                 ) : (
                   <>
-                    <Link to="/signup" className="btn btn-primary">Get Started</Link>
+                    <Link
+                      to="/signup"
+                      className="btn btn-primary"
+                      onClick={() => trackProductEvent('signup_click')}
+                    >
+                      Get Started
+                    </Link>
                     <Link to="/signin" className="btn">Sign in</Link>
                   </>
                 )}
@@ -76,15 +92,6 @@ export default function LandingPage() {
             </p>
             <LandingGapCompare />
           </div>
-        </section>
-
-        <section className="landing-stats">
-          {STATS.map(({ value, label }) => (
-            <div key={label} className="landing-stat">
-              <span className="landing-stat-value">{value}</span>
-              <span className="landing-stat-label">{label}</span>
-            </div>
-          ))}
         </section>
 
         <section className="landing-section landing-section-pipeline">

@@ -9,9 +9,10 @@ import { requireAuth } from '@/api/requireAuth';
  */
 export async function syncLibraryVisibility(journeyId, visible) {
   await requireAuth();
-  const [modules, activities] = await Promise.all([
+  const [modules, activities, cards] = await Promise.all([
     listModulesByJourney(journeyId),
     listActivitiesByJourney(journeyId),
+    base44.entities.Card.filter({ journeyId }),
   ]);
 
   await Promise.all([
@@ -24,6 +25,10 @@ export async function syncLibraryVisibility(journeyId, visible) {
       if (!act.id) return Promise.resolve();
       return base44.entities.Activity.update(act.id, { libraryVisible: visible });
     }),
+    ...cards.map((card) => {
+      if (!card.id) return Promise.resolve();
+      return base44.entities.Card.update(card.id, { libraryVisible: visible });
+    }),
   ]);
 }
 
@@ -35,5 +40,12 @@ export async function setModulesLibraryVisible(journeyId, visible) {
   const activities = await listActivitiesByJourney(journeyId);
   await Promise.all(
     activities.map((act) => updateActivity(act.activityId, { libraryVisible: visible })),
+  );
+  const cards = await base44.entities.Card.filter({ journeyId });
+  await Promise.all(
+    cards.map((card) => {
+      if (!card.id) return Promise.resolve();
+      return base44.entities.Card.update(card.id, { libraryVisible: visible });
+    }),
   );
 }

@@ -1,5 +1,4 @@
-import { ChevronUp } from 'lucide-react';
-import ApClassroomLogo from './ApClassroomLogo';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function ApClassroomFooter({
   variant = 'question',
@@ -17,20 +16,20 @@ export default function ApClassroomFooter({
     return (
       <footer className="ap-classroom-footer review">
         <div className="ap-classroom-footer-left">
-          <ApClassroomLogo light />
+          <span className="ap-classroom-brand">Veridian</span>
         </div>
         <div className="ap-classroom-footer-center" />
         <div className="ap-classroom-footer-right">
           <button
             type="button"
-            className="ap-classroom-btn ap-classroom-btn-outline-light"
+            className="ap-classroom-btn ap-classroom-btn-outline-light ap-classroom-btn-pill"
             onClick={onBack}
           >
             Back
           </button>
           <button
             type="button"
-            className="ap-classroom-btn ap-classroom-btn-primary"
+            className="ap-classroom-btn ap-classroom-btn-primary ap-classroom-btn-pill"
             onClick={onSubmit}
           >
             Submit
@@ -40,10 +39,12 @@ export default function ApClassroomFooter({
     );
   }
 
+  const Chevron = navModalOpen ? ChevronUp : ChevronDown;
+
   return (
     <footer className="ap-classroom-footer">
       <div className="ap-classroom-footer-left">
-        <ApClassroomLogo />
+        <span className="ap-classroom-brand">Veridian</span>
       </div>
       <div className="ap-classroom-footer-center">
         <button
@@ -54,16 +55,13 @@ export default function ApClassroomFooter({
           aria-haspopup="dialog"
         >
           Question {currentIndex + 1} of {total}
-          <ChevronUp
-            size={16}
-            className={`ap-classroom-question-pill-chevron${navModalOpen ? ' open' : ''}`}
-          />
+          <Chevron size={16} className="ap-classroom-question-pill-chevron" strokeWidth={2.5} />
         </button>
       </div>
       <div className="ap-classroom-footer-right">
         <button
           type="button"
-          className="ap-classroom-btn ap-classroom-btn-primary"
+          className="ap-classroom-btn ap-classroom-btn-primary ap-classroom-btn-pill"
           onClick={onBack}
           disabled={!canGoBack}
         >
@@ -71,7 +69,7 @@ export default function ApClassroomFooter({
         </button>
         <button
           type="button"
-          className="ap-classroom-btn ap-classroom-btn-primary"
+          className="ap-classroom-btn ap-classroom-btn-primary ap-classroom-btn-pill"
           onClick={onNext}
           disabled={!canGoNext}
         >

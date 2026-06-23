@@ -30,6 +30,10 @@
     },
     "suspended": {
       "type": "boolean"
+    },
+    "libraryVisible": {
+      "type": "boolean",
+      "description": "True when parent journey is public (library read access)"
     }
   },
   "required": [
@@ -44,7 +48,10 @@
       "data.userEmail": "{{user.email}}"
     },
     "read": {
-      "data.userEmail": "{{user.email}}"
+      "$or": [
+        { "data.userEmail": "{{user.email}}" },
+        { "data.libraryVisible": { "$eq": true } }
+      ]
     },
     "update": {
       "data.userEmail": "{{user.email}}"

@@ -1,23 +1,12 @@
 import { addDays } from 'date-fns';
-import {
-  ESTIMATED_MIN,
-  MAX_NON_FSRS_PER_DAY,
-  NORMAL_BUDGET_MIN,
-} from '@/utils/weeklyPlan/constants';
+import { FSRS_DAILY_CARD_CAP, NORMAL_BUDGET_MIN } from '@/utils/weeklyPlan/constants';
 import { getMondayStart, getWeekDayKeys, getWeekKey } from '@/utils/weeklyPlan/weekKey';
 import { assignActivityType } from '@/utils/weeklyPlan/assignActivityType';
 import { buildModuleNumberMap } from '@/utils/weeklyPlan/moduleContext';
 import { sortModulesByUrgency } from '@/utils/weeklyPlan/moduleUrgency';
 import { buildModuleSummaries } from '@/utils/weeklyPlan/modulePriorityText';
+import { packDayAssignments } from '@/utils/weeklyPlan/planPacking';
 import { getDueCards } from '@/utils/fsrs';
-import { endOfTodayMs } from '@/utils/dueToday/endOfToday';
-
-function estimateAssignmentMin(activityType, cardCount = 0) {
-  if (activityType === 'flashcardSet') {
-    return Math.max(5, Math.ceil(cardCount * 0.5));
-  }
-  return ESTIMATED_MIN[activityType] ?? 15;
-}
 
 function countFsrsForDay(cards, dayDate) {
   const end = new Date(dayDate);
@@ -26,7 +15,7 @@ function countFsrsForDay(cards, dayDate) {
 }
 
 /**
- * Build 7-day normal weekly plan with module rotation.
+ * Build 7-day plan with budget-aware packing, weekend weighting, and FSRS load awareness.
  */
 export function buildNormalWeekPlan({
   journey,
@@ -56,7 +45,7 @@ export function buildNormalWeekPlan({
       dateKey,
       estimatedMin: 0,
       assignments: [],
-      fsrsCardCount,
+      fsrsCardCount: Math.min(fsrsCardCount, FSRS_DAILY_CARD_CAP),
       isRestDay: false,
     };
   });
@@ -74,43 +63,16 @@ export function buildNormalWeekPlan({
     };
   }
 
-  let moduleIdx = 0;
-  for (let round = 0; round < activeModules.length * 2; round += 1) {
-    for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
-      const day = days[dayIndex];
-      if (day.assignments.length >= MAX_NON_FSRS_PER_DAY) continue;
-
-      const ctx = activeModules[moduleIdx % activeModules.length];
-      moduleIdx += 1;
-
-      const alreadyAssigned = day.assignments.some((a) => a.moduleId === ctx.module.moduleId);
-      if (alreadyAssigned) continue;
-
-      const pick = assignActivityType(ctx, dayIndex);
-      if (!pick?.activity) continue;
-
-      day.assignments.push({
-        moduleId: ctx.module.moduleId,
-        moduleName: ctx.module.name,
-        moduleNumber: moduleNumberMap[ctx.module.moduleId],
-        activityId: pick.activity.activityId,
-        activityType: pick.activityType,
-        reasonCode: pick.reasonCode,
-      });
-    }
+  for (let dayIndex = 0; dayIndex < 7; dayIndex += 1) {
+    packDayAssignments({
+      day: days[dayIndex],
+      dayIndex,
+      sortedContexts: activeModules,
+      moduleNumberMap,
+      dailyBudgetMin,
+      daysUntilExam,
+    });
   }
-
-  days.forEach((day) => {
-    const assignMin = day.assignments.reduce(
-      (sum, a) => sum + estimateAssignmentMin(a.activityType),
-      0,
-    );
-    const fsrsMin = day.fsrsCardCount > 0
-      ? Math.min(15, Math.ceil(day.fsrsCardCount * 0.5))
-      : 0;
-    day.estimatedMin = assignMin + fsrsMin;
-    day.isRestDay = day.assignments.length === 0 && day.fsrsCardCount === 0;
-  });
 
   const moduleSummaries = buildModuleSummaries(sorted, days);
 

@@ -24,12 +24,12 @@ import {
   computeChallengeDeltas,
 } from '@/utils/study/challengeHistory';
 import { applyChallengePlanBoost } from '@/utils/study/applyChallengePlanBoost';
+import PreQuizConfidenceStep from '@/components/research/PreQuizConfidenceStep';
+import { usePreQuizConfidence } from '@/hooks/research/usePreQuizConfidence';
+import { quizPhaseAfterQuestions, withConfidenceSlider } from '@/utils/research/sessionConfidence';
 
 function initialPhase(session) {
-  if (session.status === 'completed' && session.sessionData?.answers?.length) return 'summary';
-  if (session.sessionData?.questions?.length) return 'active';
-  if (session.sessionData?.challengeConfig) return 'loading';
-  return 'setup';
+  return quizPhaseAfterQuestions(session, session.sessionData?.challengeConfig ? 'loading' : 'setup');
 }
 
 export default function JourneyChallengeSession({ session, activity, journeyId, modules = [] }) {
@@ -55,6 +55,17 @@ export default function JourneyChallengeSession({ session, activity, journeyId, 
   const abandonSession = useAbandonSession();
   const updateSession = useUpdateSession();
   const returnPath = `/journeys/${journeyId}`;
+  const [confidenceSlider, setConfidenceSlider] = useState(
+    () => session.sessionData?.confidenceSlider ?? null,
+  );
+  const { handleSubmit: submitConfidence, submitting: confidenceSubmitting } = usePreQuizConfidence({
+    session,
+    journeyId,
+    onContinue: (slider) => {
+      setConfidenceSlider(slider);
+      setPhase('active');
+    },
+  });
 
   const handleExit = () => {
     abandonSession({ sessionId: session.sessionId, journeyId, returnPath });
@@ -98,9 +109,9 @@ export default function JourneyChallengeSession({ session, activity, journeyId, 
       });
 
       setQuestions(nextQuestions);
-      setPhase('active');
+      setPhase('confidence');
     } catch (err) {
-      setGenError(err?.message || 'Failed to start challenge');
+      setGenError(err instanceof Error ? err : new Error(String(err)));
       setPhase('setup');
     } finally {
       setLoading(false);
@@ -139,7 +150,7 @@ export default function JourneyChallengeSession({ session, activity, journeyId, 
     const previous = getPreviousChallengeSession(sessions, session.sessionId);
     const challengeDeltas = computeChallengeDeltas(modules, perModuleAccuracy, previous);
 
-    const sessionData = {
+    const sessionData = withConfidenceSlider({
       challengeConfig,
       questions,
       answers,
@@ -151,7 +162,7 @@ export default function JourneyChallengeSession({ session, activity, journeyId, 
       totalTimeSec,
       timeRemainingSec,
       overallReadinessSignal: accuracy >= 80 ? 'examReady' : accuracy >= 55 ? 'nearlyReady' : 'notReady',
-    };
+    }, { confidenceSlider: confidenceSlider ?? session.sessionData?.confidenceSlider });
 
     setSummaryState({
       ...sessionData,
@@ -193,7 +204,7 @@ export default function JourneyChallengeSession({ session, activity, journeyId, 
   if (genError && (phase === 'setup' || phase === 'loading')) {
     return (
       <StudyChrome title="Journey Challenge" onExit={handleExit}>
-        <StudyAiError message={genError} onRetry={() => config && startGeneration(config)} onExit={handleExit} />
+        <StudyAiError message={genError?.message} error={genError} onRetry={() => config && startGeneration(config)} onExit={handleExit} />
       </StudyChrome>
     );
   }
@@ -240,6 +251,13 @@ export default function JourneyChallengeSession({ session, activity, journeyId, 
 
   return (
     <StudyChrome title="Journey Challenge" onExit={handleExit}>
+      {phase === 'confidence' && questions.length > 0 && (
+        <PreQuizConfidenceStep
+          onSubmit={submitConfidence}
+          onExit={handleExit}
+          submitting={confidenceSubmitting}
+        />
+      )}
       {phase === 'active' && questions.length > 0 && (
         <QuizRunner
           questions={questions}

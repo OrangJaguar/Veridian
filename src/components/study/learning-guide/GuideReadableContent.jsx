@@ -1,5 +1,6 @@
 import LatexRenderer from '@/components/shared/LatexRenderer';
-import GuideIllustration from '@/components/study/learning-guide/GuideIllustration';
+import GuideSidePanel from '@/components/study/learning-guide/GuideSidePanel';
+import { resolveGuideSidePanels } from '@/utils/study/guideSidePanels';
 import { splitExplanationHalves } from '@/utils/study/splitGuideExplanation';
 
 function highlightClass(activeKey, key) {
@@ -44,13 +45,11 @@ function SentenceBlock({ sentences, startIndex, activeKey, onSegmentClick }) {
 
 export default function GuideReadableContent({
   section,
-  sectionIndex,
   activeKey,
   onSegmentClick,
 }) {
   const { first, second } = splitExplanationHalves(section.explanation);
-  const artA = sectionIndex * 2;
-  const artB = sectionIndex * 2 + 1;
+  const { keyTerms, takeaways } = resolveGuideSidePanels(section);
 
   return (
     <>
@@ -69,15 +68,15 @@ export default function GuideReadableContent({
             activeKey={activeKey}
             onSegmentClick={onSegmentClick}
           />
-          <div className="guide-zigzag-art" aria-hidden="true">
-            <GuideIllustration index={artA} />
+          <div className="guide-zigzag-aside">
+            <GuideSidePanel variant="terms" keyTerms={keyTerms} />
           </div>
         </div>
 
         {second.length > 0 && (
           <div className="guide-zigzag-row guide-zigzag-row--flip">
-            <div className="guide-zigzag-art" aria-hidden="true">
-              <GuideIllustration index={artB} />
+            <div className="guide-zigzag-aside">
+              <GuideSidePanel variant="takeaways" takeaways={takeaways} />
             </div>
             <SentenceBlock
               sentences={second}

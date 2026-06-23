@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import SettingsAccountSection from '@/components/settings/SettingsAccountSection';
 import SettingsAppearanceSection from '@/components/settings/SettingsAppearanceSection';
 import SettingsStudySection from '@/components/settings/SettingsStudySection';
+import SettingsAiQuotaSection from '@/components/settings/SettingsAiQuotaSection';
 import SettingsJourneyDefaultsSection from '@/components/settings/SettingsJourneyDefaultsSection';
 import SettingsNotificationsSection from '@/components/settings/SettingsNotificationsSection';
 import SettingsResearchSection from '@/components/settings/SettingsResearchSection';
@@ -51,6 +52,7 @@ export default function SettingsPage() {
       <SettingsAccountSection />
       <SettingsAppearanceSection />
       <SettingsStudySection />
+      <SettingsAiQuotaSection />
       <SettingsJourneyDefaultsSection />
       <SettingsNotificationsSection />
       <SettingsResearchSection />

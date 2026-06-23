@@ -45,6 +45,22 @@
     },
     "estimatedStudyMinutes": {
       "type": "number"
+    },
+    "baselineScore": {
+      "type": "number",
+      "description": "Demonstrated knowledge at first engagement; set once, never overwritten"
+    },
+    "baselineCapturedAt": {
+      "type": "number",
+      "description": "UTC ms when baselineScore was captured"
+    },
+    "baselineSkipped": {
+      "type": "boolean",
+      "description": "True when user explicitly skipped Starting Point Check"
+    },
+    "firstQuizAt": {
+      "type": "number",
+      "description": "UTC ms of first completed quiz-type session on this module"
     }
   },
   "required": [

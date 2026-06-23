@@ -1,6 +1,15 @@
 import { ensureUniqueQuestionIds } from '@/utils/study/quizDedup';
 import { extractAiList, coerceStudyAiPayload } from '@/utils/study/normalizeStudyAiResponse';
 
+function inferQuestionType(q) {
+  if (q.type === 'trueFalse' || q.type === 'shortAnswer') return q.type;
+  const opts = (q.options ?? []).map((o) => String(o).trim().toLowerCase());
+  if (opts.length === 2 && opts.includes('true') && opts.includes('false')) {
+    return 'trueFalse';
+  }
+  return 'multipleChoice';
+}
+
 function normalizeOptions(options, type) {
   if (type === 'trueFalse') return ['True', 'False'];
   const opts = (options ?? []).map((o) => String(o).trim()).filter(Boolean);
@@ -18,9 +27,7 @@ export function normalizeQuizQuestions(raw, questionCount, { moduleTargets } = {
   if (!list.length) return [];
 
   const normalized = list.slice(0, questionCount).map((q, index) => {
-    const type = q.type === 'trueFalse' || q.type === 'shortAnswer'
-      ? q.type
-      : 'multipleChoice';
+    const type = inferQuestionType(q);
     const options = normalizeOptions(q.options, type);
     const stem = String(q.stem ?? q.question ?? q.prompt ?? '').trim();
     const correctAnswer = q.correctAnswer ?? q.answer ?? q.correct ?? options?.[0];

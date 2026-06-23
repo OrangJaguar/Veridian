@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+export const confidenceSliderSchema = z.object({
+  value: z.number().min(0).max(100),
+  submittedAt: z.string(),
+});
+
 export const quizQuestionSchema = z.object({
   id: z.string(),
   type: z.enum(['multipleChoice', 'trueFalse', 'multiSelect', 'shortAnswer', 'scenario', 'calculation']),
@@ -12,6 +17,7 @@ export const quizQuestionSchema = z.object({
 });
 
 export const practiceQuizSessionDataSchema = z.object({
+  confidenceSlider: confidenceSliderSchema.optional(),
   config: z.object({
     questionCount: z.number(),
     focusPreset: z.enum(['weakSpots', 'newMaterial', 'fullReview']),
@@ -99,6 +105,7 @@ export const freeRecallSessionDataSchema = z.object({
 });
 
 export const interleavedSessionDataSchema = z.object({
+  confidenceSlider: confidenceSliderSchema.optional(),
   selectedModuleIds: z.array(z.string()),
   questions: z.array(quizQuestionSchema),
   answers: z.array(z.object({
@@ -133,6 +140,7 @@ export const journeyChallengeSessionDataSchema = interleavedSessionDataSchema.ex
 });
 
 export const cramSessionDataSchema = z.object({
+  confidenceSlider: confidenceSliderSchema.optional(),
   cramConfig: z.object({
     durationMin: z.number(),
     selectedModuleIds: z.array(z.string()),
@@ -150,4 +158,32 @@ export const cramSessionDataSchema = z.object({
   itemsCompleted: z.number().optional(),
   weakConcepts: z.array(z.string()).optional(),
   totalTimeSec: z.number().optional(),
+});
+
+export const diagnosticSessionDataSchema = z.object({
+  confidenceSlider: confidenceSliderSchema.optional(),
+  diagnostic: z.boolean().optional(),
+  questions: z.array(quizQuestionSchema).optional(),
+  answers: z.array(z.object({
+    questionId: z.string(),
+    response: z.union([z.string(), z.array(z.string())]),
+    correct: z.boolean(),
+  })).optional(),
+  quizConfig: z.record(z.unknown()).optional(),
+  placement: z.record(z.unknown()).optional(),
+});
+
+export const baselineCheckSessionDataSchema = z.object({
+  confidenceSlider: confidenceSliderSchema.optional(),
+  questions: z.array(quizQuestionSchema),
+  answers: z.array(z.object({
+    questionId: z.string(),
+    response: z.union([z.string(), z.array(z.string())]),
+    correct: z.boolean(),
+  })).optional(),
+  baselineResults: z.array(z.object({
+    questionId: z.string(),
+    wasCorrect: z.boolean(),
+    difficultyEstimate: z.string(),
+  })).optional(),
 });

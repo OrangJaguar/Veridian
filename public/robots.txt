@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Disallow: /home
+Disallow: /journeys
+Disallow: /study
+Disallow: /settings
+Disallow: /profile
+Disallow: /onboarding
+Disallow: /admin
+Disallow: /errors
+Disallow: /data
+Disallow: /adminjourneys
+Disallow: /mai-survey
+
+Sitemap: https://veridianstudy.com/sitemap.xml

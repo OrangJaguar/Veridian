@@ -11,8 +11,10 @@ import { Toaster } from '@/components/ui/sonner';
 import '@/css/app.css';
 import '@/index.css';
 import { initStudyAiDebugFromUrl } from '@/utils/study/studyAiTrace';
+import { applyThemeFromStorage } from '@/lib/theme';
 
 initStudyAiDebugFromUrl();
+applyThemeFromStorage();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <ErrorBoundary>

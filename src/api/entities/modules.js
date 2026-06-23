@@ -31,6 +31,10 @@ export async function createModule(journeyId, payload) {
     stage: payload.stage ?? 'A',
     masteryScore: payload.masteryScore ?? 0,
     libraryVisible: payload.libraryVisible ?? false,
+    baselineSkipped: payload.baselineSkipped ?? false,
+    baselineScore: payload.baselineScore ?? null,
+    baselineCapturedAt: payload.baselineCapturedAt ?? null,
+    firstQuizAt: payload.firstQuizAt ?? null,
   });
 }
 
@@ -45,6 +49,10 @@ export async function createModules(journeyId, modules) {
         stage: mod.stage ?? 'A',
         masteryScore: mod.masteryScore ?? 0,
         libraryVisible: mod.libraryVisible ?? false,
+        baselineSkipped: mod.baselineSkipped ?? false,
+        baselineScore: mod.baselineScore ?? null,
+        baselineCapturedAt: mod.baselineCapturedAt ?? null,
+        firstQuizAt: mod.firstQuizAt ?? null,
       }),
     ),
   );

@@ -21,6 +21,7 @@ export const journeySchema = z.object({
   priorKnowledge: priorKnowledgeSchema.optional(),
   isPublic: z.boolean().optional(),
   archived: z.boolean().optional(),
+  archivedManually: z.boolean().optional(),
   diagnosticSkipped: z.boolean().optional(),
   diagnosticSummary: z.string().optional(),
   sources: z.array(journeySourceSchema).optional(),

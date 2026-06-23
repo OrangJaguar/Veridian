@@ -1,4 +1,6 @@
 import { base44 } from '@/api/base44Client';
+import { notifyAiQuotaChanged } from '@/api/ai/quota';
+import { logAiGenerationError } from '@/api/errors/logAiGenerationError';
 import {
   getActiveStudyAiTrace,
   isStudyAiDebugEnabled,
@@ -42,7 +44,7 @@ function storeDebugAndRawFromPayload(payload, source) {
   }
 
   const raw = extractRawGeminiFromPayload(payload);
-  if (raw) {
+  if (raw && isStudyAiDebugEnabled()) {
     captureRawGemini(raw, { source, status: payload?.error?.status });
   }
   return raw;
@@ -73,6 +75,7 @@ function normalizeInvokeError(err) {
     normalized.message = KEY_NOT_CONFIGURED_MSG;
   } else if (status === 429) {
     normalized.message = 'Daily AI limit reached. Try again tomorrow.';
+    notifyAiQuotaChanged();
   } else   if (status === 401) {
     normalized.message = 'Please sign in again to use AI features.';
   } else if (status === 504 || /504|timeout|timed out/i.test(message)) {
@@ -130,6 +133,7 @@ export async function invokeGeminiStudy(action, payload, options = {}) {
     }
 
     storeDebugAndRawFromPayload(result, 'success');
+    notifyAiQuotaChanged();
     if (debug && trace) {
       trace.stepOk('1a_invoke', 'POST geminiStudy', {
         resultKeys: Object.keys(result ?? {}),
@@ -143,6 +147,13 @@ export async function invokeGeminiStudy(action, payload, options = {}) {
 
   const handleFailure = (err) => {
     const normalized = normalizeInvokeError(err);
+    const ticketRef = logAiGenerationError({
+      action,
+      message: normalized.message,
+      error: normalized,
+      route: typeof window !== 'undefined' ? window.location.pathname : '',
+    });
+    normalized.ticketRef = ticketRef;
     if (debug) {
       console.group('[Veridian AI] invoke failed — full server payload');
       console.log('status:', normalized.status);

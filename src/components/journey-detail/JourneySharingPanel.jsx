@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import ShareLinkButton from '@/components/shared/ShareLinkButton';
 import LibraryTagPicker from '@/components/library/LibraryTagPicker';
 import VeridianSwitch from '@/components/shared/form/VeridianSwitch';
 import PublishJourneyModal from '@/components/journey-detail/PublishJourneyModal';
@@ -44,6 +45,10 @@ export default function JourneySharingPanel({ journey }) {
     : null;
 
   if (!isOwner) return null;
+
+  const shareUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/library/${journeyId}`
+    : `/library/${journeyId}`;
 
   const handleToggle = (nextPublic) => {
     if (nextPublic) {
@@ -111,6 +116,9 @@ export default function JourneySharingPanel({ journey }) {
           <Link to={`/library/${journeyId}`} className="btn btn-secondary btn-sm">
             View in library
           </Link>
+        )}
+        {isPublic && (
+          <ShareLinkButton url={shareUrl} label="Copy share link" />
         )}
         {isPublic && (
           <span className="journey-clone-count">

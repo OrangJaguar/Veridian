@@ -1,5 +1,6 @@
 import { base44 } from '@/api/base44Client';
 import { logClientError } from '@/api/errors/logClientError';
+import { notifyAiQuotaChanged } from '@/api/ai/quota';
 
 const FUNCTION_NOT_DEPLOYED_MSG =
   'The AI backend (geminiJourney) is not deployed yet. Push functions/geminiJourney/ to GitHub and Publish on Base44 (CLI deploy only works on Backend Platform apps). Also confirm GEMINI_API_KEY is set in Base44 secrets.';
@@ -35,6 +36,7 @@ function normalizeInvokeError(err) {
     return new Error(KEY_NOT_CONFIGURED_MSG);
   }
   if (status === 429) {
+    notifyAiQuotaChanged();
     return new Error('Daily AI limit reached. Try again tomorrow.');
   }
   if (status === 401) {
@@ -96,7 +98,9 @@ export async function invokeGemini(action, payload, options = {}) {
   }
 
   try {
-    return await invokePromise;
+    const result = await invokePromise;
+    notifyAiQuotaChanged();
+    return result;
   } catch (err) {
     throw normalizeInvokeError(err);
   }

@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { useUiStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useJourney } from '@/hooks/queries/useJourneys';
 import { useModules } from '@/hooks/queries/useModules';
@@ -15,6 +16,9 @@ import AiGenerationLoading from '@/components/shared/AiGenerationLoading';
 import DiagnosticIntro from '@/components/diagnostic/DiagnosticIntro';
 import DiagnosticSummary from '@/components/diagnostic/DiagnosticSummary';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
+import PreQuizConfidenceStep from '@/components/research/PreQuizConfidenceStep';
+import { usePreQuizConfidence } from '@/hooks/research/usePreQuizConfidence';
+import { withConfidenceSlider, assertConfidenceSliderPresent } from '@/utils/research/sessionConfidence';
 import { StudyAiError } from '@/components/study/StudyAiStatus';
 import { generateDiagnosticQuestions } from '@/api/ai/study';
 import { generateDiagnosticQuestionsProgressive } from '@/utils/study/generateDiagnosticQuestionsProgressive';
@@ -24,6 +28,7 @@ import { ensureDiagnosticActivity } from '@/api/entities/ensureDiagnosticActivit
 import { updateJourney } from '@/api/entities/journeys';
 import { queryKeys } from '@/api/query-keys';
 import { normalizeDiagnosticQuestions } from '@/utils/study/normalizeDiagnosticQuestions';
+import { usePreferences } from '@/hooks/queries/usePreferences';
 import {
   DIAGNOSTIC_QUESTIONS_PER_MODULE,
   computeDiagnosticPlacement,
@@ -53,11 +58,15 @@ function findResumableSession(sessions, activityId) {
 
 function initialPhase(journey, resumableSession) {
   if (journey?.diagnosticSummary) return 'done';
-  if (resumableSession) return 'active';
+  if (resumableSession) {
+    if (resumableSession.sessionData?.confidenceSlider?.submittedAt) return 'active';
+    return 'confidence';
+  }
   return 'intro';
 }
 
 export default function DiagnosticPage() {
+  const { data: preferences } = usePreferences();
   const { id: journeyId } = useParams();
   const queryClient = useQueryClient();
   const { isAuthenticated } = useAuth();
@@ -86,9 +95,28 @@ export default function DiagnosticPage() {
   const [activityReady, setActivityReady] = useState(false);
   const [genError, setGenError] = useState(null);
   const [moduleProgress, setModuleProgress] = useState(null);
-  const generatingRef = useRef(false);
+  const [confidenceSlider, setConfidenceSlider] = useState(
+    () => resumableSession?.sessionData?.confidenceSlider ?? null,
+  );
+  const activeSession = session ?? resumableSession;
+  const { handleSubmit: submitConfidence, submitting: confidenceSubmitting } = usePreQuizConfidence({
+    session: activeSession ?? { sessionId: '', sessionData: {} },
+    journeyId,
+    onContinue: (slider) => {
+      setConfidenceSlider(slider);
+      setPhase('active');
+    },
+  });
 
   const resolvedPhase = phase ?? (journey ? initialPhase(journey, resumableSession) : null);
+
+  useEffect(() => {
+    const immersive = generating
+      || resolvedPhase === 'active'
+      || resolvedPhase === 'confidence';
+    useUiStore.getState().setImmersiveChrome(immersive);
+    return () => useUiStore.getState().setImmersiveChrome(false);
+  }, [generating, resolvedPhase]);
 
   useEffect(() => {
     if (!journeyId || !journey) return;
@@ -109,11 +137,16 @@ export default function DiagnosticPage() {
     return () => { cancelled = true; };
   }, [journeyId, activities, journey, queryClient]);
 
+  const generatingRef = useRef(false);
+
   useEffect(() => {
     if (!resumableSession || questions.length) return;
     setSession(resumableSession);
     setQuestions(resumableSession.sessionData.questions);
-    setPhase('active');
+    setConfidenceSlider(resumableSession.sessionData?.confidenceSlider ?? null);
+    setPhase(
+      resumableSession.sessionData?.confidenceSlider?.submittedAt ? 'active' : 'confidence',
+    );
   }, [resumableSession, questions.length]);
 
   const questionCount = modules.length * DIAGNOSTIC_QUESTIONS_PER_MODULE;
@@ -151,7 +184,10 @@ export default function DiagnosticPage() {
       if (resumableSession) {
         setSession(resumableSession);
         setQuestions(resumableSession.sessionData.questions);
-        setPhase('active');
+        setConfidenceSlider(resumableSession.sessionData?.confidenceSlider ?? null);
+        setPhase(
+          resumableSession.sessionData?.confidenceSlider?.submittedAt ? 'active' : 'confidence',
+        );
         return;
       }
 
@@ -221,7 +257,7 @@ export default function DiagnosticPage() {
 
       setSession(newSession);
       setQuestions(interleaved);
-      setPhase('active');
+      setPhase('confidence');
     } catch (err) {
       setGenError(err instanceof Error ? err : new Error(String(err)));
     } finally {
@@ -236,10 +272,18 @@ export default function DiagnosticPage() {
       return;
     }
     try {
+      const mergedSessionData = {
+        ...session.sessionData,
+        ...(answers.length > 0 ? { answers } : {}),
+      };
       await updateSession.mutateAsync({
         sessionId: session.sessionId,
         journeyId,
-        patch: { status: 'abandoned' },
+        patch: {
+          status: 'abandoned',
+          endedAt: Date.now(),
+          sessionData: mergedSessionData,
+        },
       });
       invalidateJourney();
     } catch {
@@ -254,13 +298,20 @@ export default function DiagnosticPage() {
     if (!session) return;
 
     const placement = computeDiagnosticPlacement(questions, answers, modules);
-    const sessionData = {
+    const sessionData = withConfidenceSlider({
       diagnostic: true,
       questions,
       answers,
       quizConfig: DIAGNOSTIC_CONFIG,
       placement,
-    };
+    }, { confidenceSlider: confidenceSlider ?? session.sessionData?.confidenceSlider });
+
+    try {
+      assertConfidenceSliderPresent(sessionData, 'diagnostic');
+    } catch (err) {
+      toast.error(err.message);
+      return;
+    }
 
     setSummaryData({
       answers,
@@ -333,6 +384,23 @@ export default function DiagnosticPage() {
           journeyTitle={journey.title}
           moduleResults={summaryData.moduleResults}
           journeyId={journeyId}
+          continueHref={
+            !preferences?.maiSurveyOnboardingCompletedAt
+              ? `/mai-survey?instance=onboarding&journeyId=${journeyId}`
+              : `/journeys/${journeyId}`
+          }
+        />
+      </div>
+    );
+  }
+
+  if (resolvedPhase === 'confidence' && questions.length && activeSession?.sessionId) {
+    return (
+      <div className="diagnostic-page">
+        <PreQuizConfidenceStep
+          onSubmit={submitConfidence}
+          onExit={handleExit}
+          submitting={confidenceSubmitting}
         />
       </div>
     );

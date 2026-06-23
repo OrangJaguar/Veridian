@@ -11,7 +11,7 @@ import {
 import { getJourneyStatusNote } from '@/utils/journeyStatus';
 import { cloneLineageLabel } from '@/lib/veridianCertified';
 
-export default function JourneyCard({ journey, variant = 'default' }) {
+export default function JourneyCard({ journey, variant = 'default', showManualArchiveStyle = false }) {
   const { data: modules = [] } = useModules(journey.journeyId);
   const { data: cards = [] } = useCardsByJourney(journey.journeyId);
   const mastery = averageMastery(modules);
@@ -19,9 +19,13 @@ export default function JourneyCard({ journey, variant = 'default' }) {
   const statusNote = getJourneyStatusNote(journey, modules, cards);
   const lineage = cloneLineageLabel(journey);
 
+  const manualArchiveClass = showManualArchiveStyle && journey.archivedManually
+    ? ' journey-card--manual-archive'
+    : '';
+
   if (variant === 'compact' || variant === 'list') {
     return (
-      <Link to={`/journeys/${journey.journeyId}`} className="journey-card">
+      <Link to={`/journeys/${journey.journeyId}`} className={`journey-card${manualArchiveClass}`}>
         <div className="journey-card-top">
           <span className="journey-card-subject">{journey.subject}</span>
           <span className="journey-card-deadline">{examLabel(journey.examDate)}</span>

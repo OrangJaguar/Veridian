@@ -19,6 +19,7 @@ export const activityTypeSchema = z.enum([
   'journeyChallenge',
   'cramSession',
   'diagnostic',
+  'baselineCheck',
 ]);
 
 export const activityStatsSchema = z.object({

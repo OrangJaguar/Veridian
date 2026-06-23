@@ -1,0 +1,33 @@
+{
+  "name": "ProductEvent",
+  "type": "object",
+  "properties": {
+    "anonymousId": {
+      "type": "string",
+      "description": "Stable browser session id (localStorage)"
+    },
+    "event": {
+      "type": "string",
+      "description": "Event name e.g. landing_view, signup_complete"
+    },
+    "path": {
+      "type": "string"
+    },
+    "userEmail": {
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "createdAt": {
+      "type": "number"
+    }
+  },
+  "required": ["event", "createdAt"],
+  "rls": {
+    "create": {},
+    "read": {},
+    "update": {},
+    "delete": {}
+  }
+}

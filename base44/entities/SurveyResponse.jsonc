@@ -1,0 +1,61 @@
+{
+  "name": "SurveyResponse",
+  "type": "object",
+  "properties": {
+    "responseId": {
+      "type": "string",
+      "description": "Client-side stable ID"
+    },
+    "userEmail": {
+      "type": "string"
+    },
+    "surveyVersion": {
+      "type": "string",
+      "description": "e.g. MAI_monitoring_v1"
+    },
+    "surveyInstance": {
+      "type": "string",
+      "description": "onboarding | day_60"
+    },
+    "responses": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "totalScore": {
+      "type": "number"
+    },
+    "accountAgeDays": {
+      "type": "number"
+    },
+    "wasSkipped": {
+      "type": "boolean"
+    },
+    "createdAt": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "responseId",
+    "userEmail",
+    "surveyVersion",
+    "surveyInstance",
+    "wasSkipped",
+    "createdAt"
+  ],
+  "rls": {
+    "create": {
+      "data.userEmail": "{{user.email}}"
+    },
+    "read": {
+      "data.userEmail": "{{user.email}}"
+    },
+    "update": {
+      "data.userEmail": "{{user.email}}"
+    },
+    "delete": {
+      "data.userEmail": "{{user.email}}"
+    }
+  }
+}

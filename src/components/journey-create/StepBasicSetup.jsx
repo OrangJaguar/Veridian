@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useJourneyCreateStore } from '@/store/journeyCreateStore';
 import { ChoiceRadio } from '@/components/shared/ChoiceControl';
 import LibraryTagPicker from '@/components/library/LibraryTagPicker';
+import { JOURNEY_SUBJECT_OPTIONS } from '@/lib/journeySubjects';
 import {
   AuthFieldRules,
   buildJourneyTitleRules,
@@ -24,7 +25,7 @@ export default function StepBasicSetup({ onNext }) {
   const showTitleRules = titleFocused || draft.title.length > 0;
 
   const canNext = titleValid
-    && draft.subject.trim().length >= 2
+    && JOURNEY_SUBJECT_OPTIONS.includes(draft.subject)
     && draft.examDate != null;
 
   return (
@@ -52,12 +53,16 @@ export default function StepBasicSetup({ onNext }) {
 
       <label className="create-field">
         <span>Subject</span>
-        <input
-          type="text"
+        <select
+          className="create-field-select"
           value={draft.subject}
-          placeholder="e.g. Chemistry"
           onChange={(e) => updateDraft({ subject: e.target.value })}
-        />
+        >
+          <option value="">Select a subject…</option>
+          {JOURNEY_SUBJECT_OPTIONS.map((subject) => (
+            <option key={subject} value={subject}>{subject}</option>
+          ))}
+        </select>
       </label>
 
       <label className="create-field">
@@ -93,28 +98,22 @@ export default function StepBasicSetup({ onNext }) {
 
       <fieldset className="create-field create-fieldset">
         <legend className="create-fieldset-legend">Visibility</legend>
-        <label className="create-visibility-option">
-          <input
-            type="radio"
+        <div className="create-choice-list">
+          <ChoiceRadio
             name="visibility"
+            value="private"
+            label="Private — only you can see this journey"
             checked={!draft.isPublic}
             onChange={() => updateDraft({ isPublic: false })}
           />
-          <span>
-            <strong>Private</strong> — only you can see this journey
-          </span>
-        </label>
-        <label className="create-visibility-option">
-          <input
-            type="radio"
+          <ChoiceRadio
             name="visibility"
+            value="public"
+            label="Public — share to Community Library after creation (requires tags & 3+ modules)"
             checked={draft.isPublic}
             onChange={() => updateDraft({ isPublic: true })}
           />
-          <span>
-            <strong>Public</strong> — share to Community Library after creation (requires tags &amp; 3+ modules)
-          </span>
-        </label>
+        </div>
       </fieldset>
 
       {draft.isPublic && (

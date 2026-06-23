@@ -19,6 +19,7 @@ export default function DiagnosticSummary({
   journeyTitle,
   moduleResults,
   journeyId,
+  continueHref,
 }) {
   const answerByQuestionId = {};
   for (const a of answers) {
@@ -108,7 +109,7 @@ export default function DiagnosticSummary({
       </div>
 
       <div className="action-row summary-actions">
-        <Link to={`/journeys/${journeyId}`} className="btn btn-primary">
+        <Link to={continueHref ?? `/journeys/${journeyId}`} className="btn btn-primary">
           Continue to journey
         </Link>
       </div>

@@ -5,6 +5,7 @@ import { createUserPreferencesOnSignup } from '@/api/entities/preferences';
 import { queryClient } from '@/lib/query-client';
 import { clearInMemoryUserQueries, clearLegacyPersistedCache } from '@/lib/query-persist';
 import { clearOnboardingDoneLocally } from '@/lib/onboardingStorage';
+import { trackProductEvent } from '@/lib/analytics';
 import { syncAuthUserFullName, refreshAuthUser } from '@/api/auth/userProfile';
 import { useUsernameAvailability } from '@/hooks/useUsernameAvailability';
 import { isValidUsernameFormat, normalizeUsername } from '@/utils/schemas/preferences';
@@ -175,6 +176,9 @@ export default function AuthForm({
       clearInMemoryUserQueries(queryClient);
       clearLegacyPersistedCache();
       const refreshedUser = await refreshAuthUser();
+      if (activeTab === 'signup') {
+        trackProductEvent('signup_complete');
+      }
       onSuccess(refreshedUser ?? user);
     } catch (err) {
       const msg = err?.response?.data?.message || err?.data?.message || err?.message || 'Invalid code. Try again.';

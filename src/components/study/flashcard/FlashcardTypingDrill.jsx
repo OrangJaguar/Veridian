@@ -4,7 +4,7 @@ import {
   evaluateTypingGuess,
   splitAnswerForReveal,
 } from '@/utils/study/typingDrill';
-import { playStudySound, triggerStudyHaptic } from '@/utils/study/feedback';
+import { triggerAnswerFeedback } from '@/utils/study/feedback';
 import { createEmptyMasteryStats } from '@/utils/study/masteryStats';
 
 function MaskedAnswer({ item, revealText, skipped }) {
@@ -47,6 +47,7 @@ export default function FlashcardTypingDrill({
   const [revealText, setRevealText] = useState('');
   const [skipped, setSkipped] = useState(false);
   const [feedback, setFeedback] = useState({ text: '', tone: '' });
+  const [feedbackFlash, setFeedbackFlash] = useState(null);
   const [results, setResults] = useState([]);
   const inputRef = useRef(null);
   const promptStartRef = useRef(Date.now());
@@ -135,8 +136,9 @@ export default function FlashcardTypingDrill({
         tone: 'correct',
       });
       requestAnimationFrame(() => {
-        playStudySound('correct');
-        triggerStudyHaptic('correct');
+        triggerAnswerFeedback(true, { enabled: true });
+        setFeedbackFlash('correct');
+        window.setTimeout(() => setFeedbackFlash(null), 650);
       });
       return;
     }
@@ -144,8 +146,9 @@ export default function FlashcardTypingDrill({
     stats.typingWrongAttempts += 1;
     setFeedback({ text: 'Not quite. Try again.', tone: 'wrong' });
     requestAnimationFrame(() => {
-      playStudySound('wrong');
-      triggerStudyHaptic('wrong');
+      triggerAnswerFeedback(false, { enabled: true });
+      setFeedbackFlash('wrong');
+      window.setTimeout(() => setFeedbackFlash(null), 650);
     });
   };
 
@@ -184,7 +187,7 @@ export default function FlashcardTypingDrill({
   }, [item, onComplete]);
 
   return (
-    <div className="study-mode-view typing-mode-view">
+    <div className={`study-mode-view typing-mode-view${feedbackFlash ? ` study-feedback-flash-${feedbackFlash}` : ''}`}>
       <div className="module-header">
         <div className="progress-container">
           <span className="progress-text">Prompt {index + 1}/{queue.length}</span>

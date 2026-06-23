@@ -5,6 +5,8 @@ import QuizRunner from '@/components/study/quiz/QuizRunner';
 import SessionSummary from '@/components/study/SessionSummary';
 import { StudyAiError } from '@/components/study/StudyAiStatus';
 import AiGenerationLoading from '@/components/shared/AiGenerationLoading';
+import PreQuizConfidenceStep from '@/components/research/PreQuizConfidenceStep';
+import { usePreQuizConfidence } from '@/hooks/research/usePreQuizConfidence';
 import { generateInterleavedQuestions } from '@/api/ai/study';
 import { normalizeQuizQuestions } from '@/utils/study/normalizeQuizQuestions';
 import { requireGeneratedQuestions } from '@/utils/study/requireGeneratedQuestions';
@@ -13,11 +15,12 @@ import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
 import { useUpdateSession } from '@/hooks/mutations/useSessionMutations';
 import { useJourney } from '@/hooks/queries/useJourneys';
+import { quizPhaseAfterQuestions, withConfidenceSlider } from '@/utils/research/sessionConfidence';
 
 export default function InterleavedSession({ session, activity, journeyId, modules = [] }) {
   const { data: journey } = useJourney(journeyId);
-  const [phase, setPhase] = useState('setup');
-  const [questions, setQuestions] = useState([]);
+  const [phase, setPhase] = useState(() => quizPhaseAfterQuestions(session, 'setup'));
+  const [questions, setQuestions] = useState(() => session.sessionData?.questions ?? []);
   const [loading, setLoading] = useState(false);
   const [genError, setGenError] = useState(null);
   const [selectedModuleIds, setSelectedModuleIds] = useState(modules.map((m) => m.moduleId));
@@ -25,6 +28,17 @@ export default function InterleavedSession({ session, activity, journeyId, modul
   const abandonSession = useAbandonSession();
   const updateSession = useUpdateSession();
   const returnPath = `/journeys/${journeyId}`;
+  const [confidenceSlider, setConfidenceSlider] = useState(
+    () => session.sessionData?.confidenceSlider ?? null,
+  );
+  const { handleSubmit: submitConfidence, submitting: confidenceSubmitting } = usePreQuizConfidence({
+    session,
+    journeyId,
+    onContinue: (slider) => {
+      setConfidenceSlider(slider);
+      setPhase('active');
+    },
+  });
 
   const handleExit = () => {
     abandonSession({ sessionId: session.sessionId, journeyId, returnPath });
@@ -65,23 +79,23 @@ export default function InterleavedSession({ session, activity, journeyId, modul
       });
 
       setQuestions(nextQuestions);
-      setPhase('active');
+      setPhase('confidence');
     } catch (err) {
-      setGenError(err?.message || 'Failed to load questions');
+      setGenError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleComplete = async (answers) => {
+  const handleComplete = async (answers, _totalTimeSec, confidenceSlider) => {
     const correct = answers.filter((a) => a.correct).length;
     const accuracy = questions.length ? Math.round((correct / questions.length) * 100) : 0;
-    const sessionData = {
+    const sessionData = withConfidenceSlider({
       selectedModuleIds,
       questions,
       answers,
       perModuleAccuracy: {},
-    };
+    }, { confidenceSlider });
     setPhase('summary');
     completeSessionInBackground({
       sessionId: session.sessionId,
@@ -114,7 +128,8 @@ export default function InterleavedSession({ session, activity, journeyId, modul
     return (
       <StudyChrome title="Interleaved Review" onExit={handleExit}>
         <StudyAiError
-          message={genError}
+          message={genError?.message || 'Failed to load questions'}
+          error={genError}
           onRetry={() => setGenError(null)}
           onExit={handleExit}
         />
@@ -145,8 +160,19 @@ export default function InterleavedSession({ session, activity, journeyId, modul
           <QuizSetupForm onStart={handleStart} loading={loading} />
         </>
       )}
+      {phase === 'confidence' && questions.length > 0 && (
+        <PreQuizConfidenceStep
+          onSubmit={submitConfidence}
+          onExit={handleExit}
+          submitting={confidenceSubmitting}
+        />
+      )}
       {phase === 'active' && questions.length > 0 && (
-        <QuizRunner questions={questions} onComplete={handleComplete} onExit={handleExit} />
+        <QuizRunner
+          questions={questions}
+          onComplete={(answers) => handleComplete(answers, 0, confidenceSlider ?? session.sessionData?.confidenceSlider)}
+          onExit={handleExit}
+        />
       )}
     </StudyChrome>
   );

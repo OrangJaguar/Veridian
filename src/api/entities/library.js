@@ -5,6 +5,7 @@ import { listModulesByJourney } from '@/api/entities/modules';
 import { listActivitiesByJourney } from '@/api/entities/activities';
 import { getPreferences } from '@/api/entities/preferences';
 import { setModulesLibraryVisible } from '@/api/entities/syncLibraryVisibility';
+import { getModuleConcepts } from '@/utils/library/moduleConcepts';
 import {
   MIN_MODULES_TO_PUBLISH,
   MIN_TAGS_TO_PUBLISH,
@@ -29,6 +30,23 @@ function stripJourneyForPublic(journey) {
   };
 }
 
+function mapFlashcardDecks(moduleId, activities, cards) {
+  return activities
+    .filter((a) => a.moduleId === moduleId && a.type === 'flashcardSet' && a.status === 'ready')
+    .map((act) => {
+      const deckCards = cards
+        .filter((c) => c.activityId === act.activityId && !c.suspended)
+        .map((c) => ({ front: c.front, back: c.back }));
+      return {
+        activityId: act.activityId,
+        title: act.title || 'Flashcard deck',
+        cardCount: deckCards.length,
+        cards: deckCards,
+      };
+    })
+    .filter((deck) => deck.cardCount > 0);
+}
+
 /**
  * List public journeys (works logged out if RLS allows).
  */
@@ -50,7 +68,7 @@ export async function listPublicJourneys({
 }
 
 /**
- * Public preview: journey + modules + activity type summary.
+ * Public preview: journey + modules with concepts and flashcard decks.
  */
 export async function getPublicJourneyPreview(journeyId) {
   const journeys = await base44.entities.Journey.filter({ journeyId });
@@ -69,9 +87,10 @@ export async function getPublicJourneyPreview(journeyId) {
     // logged out — not owner
   }
 
-  const [modules, activities] = await Promise.all([
+  const [modules, activities, cards] = await Promise.all([
     base44.entities.Module.filter({ journeyId }),
     base44.entities.Activity.filter({ journeyId }),
+    base44.entities.Card.filter({ journeyId }),
   ]);
 
   const sortedModules = modules
@@ -81,15 +100,22 @@ export async function getPublicJourneyPreview(journeyId) {
       name: mod.name,
       description: mod.description,
       order: mod.order,
-      activityTypes: activities
-        .filter((a) => a.moduleId === mod.moduleId)
-        .map((a) => a.type),
+      concepts: getModuleConcepts(mod),
+      flashcardDecks: mapFlashcardDecks(mod.moduleId, activities, cards),
     }));
+
+  const totalCards = sortedModules.reduce(
+    (sum, mod) => sum + mod.flashcardDecks.reduce((s, d) => s + d.cardCount, 0),
+    0,
+  );
+  const totalConcepts = sortedModules.reduce((sum, mod) => sum + mod.concepts.length, 0);
 
   return {
     journey: stripJourneyForPublic(journey),
     modules: sortedModules,
     moduleCount: sortedModules.length,
+    totalCards,
+    totalConcepts,
     isOwner,
   };
 }

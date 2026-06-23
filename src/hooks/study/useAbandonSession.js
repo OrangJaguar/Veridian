@@ -42,6 +42,7 @@ export function useAbandonSession() {
           patch: {
             status: 'abandoned',
             endedAt,
+            sessionData: mergedSessionData,
             ...researchFields,
           },
         });

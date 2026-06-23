@@ -70,7 +70,7 @@ export default function AdminModuleEditorPage() {
     <div className="admin-journeys-page">
       <header className="admin-dashboard-header">
         <div>
-          <Link to={`/adminjourneys/${journeyId}`} className="admin-back-link">← {journey?.title ?? 'Journey'}</Link>
+          <Link to={`/admin/journeys/${journeyId}`} className="admin-back-link">← {journey?.title ?? 'Journey'}</Link>
           <h1 className="admin-dashboard-title">{mod.name}</h1>
         </div>
       </header>

@@ -15,7 +15,7 @@ export default function AdminJourneysPage() {
           <h1 className="admin-dashboard-title">Admin Journeys</h1>
           <p className="admin-dashboard-lead">Create and publish Veridian Certified journeys manually.</p>
         </div>
-        <Link to="/adminjourneys/new" className="btn btn-primary">New certified journey</Link>
+        <Link to="/admin/journeys/new" className="btn btn-primary">New certified journey</Link>
       </header>
 
       {isLoading ? (
@@ -36,7 +36,7 @@ export default function AdminJourneysPage() {
                   <span className="admin-journey-badge admin-journey-badge--certified">Certified · Live</span>
                 )}
               </div>
-              <Link to={`/adminjourneys/${j.journeyId}`} className="btn btn-secondary btn-sm">
+              <Link to={`/admin/journeys/${j.journeyId}`} className="btn btn-secondary btn-sm">
                 Edit
               </Link>
             </li>

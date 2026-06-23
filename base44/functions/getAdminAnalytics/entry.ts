@@ -45,12 +45,13 @@ function matchQuery(question: string) {
 }
 
 async function loadAll(base44: ReturnType<typeof createClientFromRequest>) {
-  const [prefs, journeys, modules, sessions, activities] = await Promise.all([
+  const [prefs, journeys, modules, sessions, activities, productEvents] = await Promise.all([
     base44.entities.UserPreferences.list(),
     base44.entities.Journey.list(),
     base44.entities.Module.list(),
     base44.entities.Session.list(),
     base44.entities.Activity.list(),
+    base44.entities.ProductEvent.list().catch(() => []),
   ]);
   return {
     prefs: prefs as Array<Record<string, unknown>>,
@@ -58,6 +59,7 @@ async function loadAll(base44: ReturnType<typeof createClientFromRequest>) {
     modules: modules as Array<Record<string, unknown>>,
     sessions: sessions as Array<Record<string, unknown>>,
     activities: activities as Array<Record<string, unknown>>,
+    productEvents: productEvents as Array<Record<string, unknown>>,
   };
 }
 
@@ -120,6 +122,90 @@ function signupTrend(prefs: Array<Record<string, unknown>>) {
     out.push({ date: key, label: key.slice(5), count });
   }
   return out;
+}
+
+function uniqueEventCount(events: Array<Record<string, unknown>>, eventName: string) {
+  const ids = new Set<string>();
+  for (const e of events) {
+    if (e.event !== eventName) continue;
+    ids.add(String(e.anonymousId ?? e.userEmail ?? e.id));
+  }
+  return ids.size;
+}
+
+function computeFunnel(data: Awaited<ReturnType<typeof loadAll>>) {
+  const events = data.productEvents ?? [];
+  const users = uniqueUsers(data.prefs, data.journeys);
+  const registered = users.size;
+
+  const onboardingDone = data.prefs.filter((p) => p.onboardingCompletedAt).length;
+  const journeyUsers = new Set<string>();
+  for (const j of data.journeys) {
+    if (typeof j.userEmail === "string") journeyUsers.add(j.userEmail);
+  }
+
+  const sessionUsers = new Set<string>();
+  for (const s of data.sessions) {
+    if (s.status === "completed" && typeof s.userEmail === "string") {
+      sessionUsers.add(s.userEmail);
+    }
+  }
+
+  const weekAgo = daysAgo(7);
+  const d7Retained = data.prefs.filter((p) => {
+    const created = Number(p.createdAt ?? 0);
+    const last = Number(p.lastActiveAt ?? 0);
+    return created > 0 && created <= weekAgo && last >= weekAgo;
+  }).length;
+
+  const cohortD7Eligible = data.prefs.filter((p) => {
+    const created = Number(p.createdAt ?? 0);
+    return created > 0 && created <= weekAgo;
+  }).length;
+
+  const preSignupSteps = [
+    { key: "landing_view", label: "Landing page views", count: uniqueEventCount(events, "landing_view") },
+    { key: "signup_click", label: "Get Started clicks", count: uniqueEventCount(events, "signup_click") },
+    { key: "signup_start", label: "Signup page visits", count: uniqueEventCount(events, "signup_start") },
+  ];
+
+  const postSignupSteps = [
+    { key: "registered", label: "Accounts created", count: registered },
+    { key: "onboarding", label: "Onboarding completed", count: onboardingDone },
+    { key: "journey", label: "Created a journey", count: journeyUsers.size },
+    { key: "study", label: "Completed a study session", count: sessionUsers.size },
+    { key: "d7", label: "Active 7+ days after signup", count: d7Retained },
+  ];
+
+  function withConversion(steps: Array<{ key: string; label: string; count: number }>) {
+    const top = steps[0]?.count || 0;
+    return steps.map((step, i) => ({
+      ...step,
+      conversionFromTop: top > 0 ? Math.round((step.count / top) * 100) : 0,
+      dropFromPrev: i > 0 && steps[i - 1].count > 0
+        ? Math.round(((steps[i - 1].count - step.count) / steps[i - 1].count) * 100)
+        : 0,
+    }));
+  }
+
+  const onboardingSteps = [0, 1, 2, 3, 4].map((step) => ({
+    step,
+    label: step === 0 ? "Welcome" : step === 4 ? "Research consent" : `Step ${step}`,
+    count: data.prefs.filter((p) => {
+      const completed = Number(p.onboardingCompletedAt ?? 0);
+      const atStep = Number(p.onboardingStep ?? 0);
+      if (completed) return true;
+      return atStep >= step;
+    }).length,
+  }));
+
+  return {
+    preSignup: withConversion(preSignupSteps),
+    postSignup: withConversion(postSignupSteps),
+    onboardingSteps,
+    d7RetentionRate: cohortD7Eligible > 0 ? Math.round((d7Retained / cohortD7Eligible) * 100) : null,
+    eventTrackingActive: events.length > 0,
+  };
 }
 
 function computeSummary(data: Awaited<ReturnType<typeof loadAll>>) {
@@ -242,6 +328,10 @@ Deno.serve(async (req) => {
 
     if (action === "getSignupTrend") {
       return Response.json({ data: signupTrend(data.prefs) });
+    }
+
+    if (action === "getFunnelAnalytics") {
+      return Response.json({ data: computeFunnel(data) });
     }
 
     if (action === "queryConversation") {

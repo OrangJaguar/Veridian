@@ -1,20 +1,30 @@
+import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/useAuth';
 import { usePreferences } from '@/hooks/queries/usePreferences';
-import { useDismissHint } from '@/hooks/useDismissHint';
+import { dismissHomeWelcomeHint } from '@/utils/preferences/dismissHomeWelcomeHint';
 import { HINT_HOME_WELCOME, hasHintShown } from '@/utils/preferences/hintsShown';
 
 export default function HomeWelcomeBanner({ journeyCount = 0 }) {
   const { data: preferences } = usePreferences();
-  const { dismiss } = useDismissHint(HINT_HOME_WELCOME);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [dismissedLocally, setDismissedLocally] = useState(false);
+
+  const dismiss = useCallback(async () => {
+    setDismissedLocally(true);
+    try {
+      await dismissHomeWelcomeHint(queryClient, user?.email);
+    } catch {
+      // Banner stays hidden — dismiss intent is clear
+    }
+  }, [queryClient, user?.email]);
 
   if (!preferences?.onboardingCompletedAt) return null;
-  if (hasHintShown(preferences, HINT_HOME_WELCOME)) return null;
+  if (dismissedLocally || hasHintShown(preferences, HINT_HOME_WELCOME)) return null;
   if (journeyCount > 0) return null;
-
-  function handleCta() {
-    dismiss();
-  }
 
   return (
     <div className="home-welcome-banner" role="region" aria-label="Welcome">
@@ -27,7 +37,7 @@ export default function HomeWelcomeBanner({ journeyCount = 0 }) {
         <Link
           to="/journeys/new"
           className="btn btn-primary home-welcome-banner-cta"
-          onClick={handleCta}
+          onClick={dismiss}
         >
           Create Your First Journey
         </Link>

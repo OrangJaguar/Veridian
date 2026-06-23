@@ -1,10 +1,8 @@
 import { Link } from 'react-router-dom';
 import { BadgeCheck } from 'lucide-react';
-import { getJourneyCategory } from '@/lib/library/libraryTags';
 import { certifiedAuthorLabel, isVeridianCertifiedJourney } from '@/lib/veridianCertified';
 
 export default function LibraryJourneyCard({ journey }) {
-  const category = getJourneyCategory(journey);
   const cloneCount = journey.cloneCount ?? 0;
   const certified = isVeridianCertifiedJourney(journey);
   const author = certifiedAuthorLabel(journey);
@@ -14,16 +12,14 @@ export default function LibraryJourneyCard({ journey }) {
       to={`/library/${journey.journeyId}`}
       className={`library-journey-card${certified ? ' library-journey-card-certified' : ''}`}
     >
-      <div className="library-journey-card-top">
-        <span className="library-journey-subject">{journey.subject}</span>
-        {certified ? (
+      {certified ? (
+        <div className="library-journey-card-badges">
           <span className="veridian-certified-badge">
             <BadgeCheck size={12} aria-hidden />
             Certified
           </span>
-        ) : null}
-        {category && <span className="library-journey-category">{category}</span>}
-      </div>
+        </div>
+      ) : null}
       <h3 className="library-journey-title">{journey.title}</h3>
       {author && (
         <p className="library-journey-author">{author}</p>

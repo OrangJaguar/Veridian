@@ -1,0 +1,65 @@
+{
+  "name": "MasterySnapshot",
+  "type": "object",
+  "properties": {
+    "snapshotId": {
+      "type": "string",
+      "description": "Client-side stable ID"
+    },
+    "userEmail": {
+      "type": "string"
+    },
+    "moduleId": {
+      "type": "string"
+    },
+    "journeyId": {
+      "type": "string"
+    },
+    "snapshotDay": {
+      "type": "number",
+      "description": "7, 30, or 60 days from firstQuizAt"
+    },
+    "masteryScore": {
+      "type": "number"
+    },
+    "sessionCount": {
+      "type": "number"
+    },
+    "totalStudyMinutes": {
+      "type": "number"
+    },
+    "isActiveAtSnapshot": {
+      "type": "boolean"
+    },
+    "daysLate": {
+      "type": "number"
+    },
+    "capturedAt": {
+      "type": "number",
+      "description": "UTC ms when snapshot was written"
+    }
+  },
+  "required": [
+    "snapshotId",
+    "userEmail",
+    "moduleId",
+    "journeyId",
+    "snapshotDay",
+    "masteryScore",
+    "capturedAt"
+  ],
+  "rls": {
+    "create": {
+      "data.userEmail": "{{user.email}}"
+    },
+    "read": {
+      "data.userEmail": "{{user.email}}"
+    },
+    "update": {
+      "data.userEmail": "{{user.email}}"
+    },
+    "delete": {
+      "data.userEmail": "{{user.email}}"
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import { X } from 'lucide-react';
+import { ApFlagIcon } from './ApClassroomIcons';
 import ApClassroomQuestionGrid from './ApClassroomQuestionGrid';
 
 export default function ApClassroomNavModal({
@@ -34,20 +35,25 @@ export default function ApClassroomNavModal({
           </button>
         </div>
 
-        <div className="ap-classroom-legend">
+        <div className="ap-classroom-legend ap-classroom-legend--modal">
           <span className="ap-classroom-legend-item">
-            <MapPinIcon />
-            Current
+            <svg className="ap-classroom-legend-pin" viewBox="0 0 14 18" aria-hidden="true">
+              <path
+                d="M7 0C4.2 0 2 2.2 2 5c0 4.5 5 13 5 13s5-8.5 5-13c0-2.8-2.2-5-5-5zm0 7a2 2 0 110-4 2 2 0 010 4z"
+                fill="currentColor"
+              />
+            </svg>
+            <span>Current</span>
           </span>
+          <span className="ap-classroom-legend-divider" aria-hidden="true" />
           <span className="ap-classroom-legend-item">
             <span className="ap-classroom-legend-dashed" aria-hidden="true" />
-            Unanswered
+            <span>Unanswered</span>
           </span>
+          <span className="ap-classroom-legend-divider" aria-hidden="true" />
           <span className="ap-classroom-legend-item">
-            <svg className="ap-classroom-legend-flag" viewBox="0 0 12 12" aria-hidden="true">
-              <path d="M1 1v10M1 1h7l-1.5 2.5L8 6H1" />
-            </svg>
-            For Review
+            <ApFlagIcon filled className="ap-classroom-legend-flag-icon" />
+            <span>For Review</span>
           </span>
         </div>
 
@@ -63,7 +69,7 @@ export default function ApClassroomNavModal({
         <div className="ap-classroom-nav-modal-footer">
           <button
             type="button"
-            className="ap-classroom-btn ap-classroom-btn-outline"
+            className="ap-classroom-btn ap-classroom-btn-outline ap-classroom-btn-pill-wide"
             onClick={onGoToReview}
           >
             Go to Review Page
@@ -71,13 +77,5 @@ export default function ApClassroomNavModal({
         </div>
       </div>
     </>
-  );
-}
-
-function MapPinIcon() {
-  return (
-    <svg className="ap-classroom-legend-pin" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
-      <path d="M7 1C4.8 1 3 2.8 3 5c0 3 4 7 4 7s4-4 4-7c0-2.2-1.8-4-4-4zm0 5.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" />
-    </svg>
   );
 }

@@ -23,12 +23,12 @@ import {
   computeHardestConcept,
 } from '@/utils/study/challengeAnalysis';
 import { cramEligibleModules } from '@/utils/study/journeyUnlock';
+import PreQuizConfidenceStep from '@/components/research/PreQuizConfidenceStep';
+import { usePreQuizConfidence } from '@/hooks/research/usePreQuizConfidence';
+import { quizPhaseAfterQuestions, withConfidenceSlider } from '@/utils/research/sessionConfidence';
 
 function initialPhase(session) {
-  if (session.status === 'completed' && session.sessionData?.answers?.length) return 'summary';
-  if (session.sessionData?.questions?.length) return 'active';
-  if (session.sessionData?.cramConfig) return 'loading';
-  return 'setup';
+  return quizPhaseAfterQuestions(session, session.sessionData?.cramConfig ? 'loading' : 'setup');
 }
 
 export default function CramSession({
@@ -60,6 +60,17 @@ export default function CramSession({
   const abandonSession = useAbandonSession();
   const updateSession = useUpdateSession();
   const returnPath = `/journeys/${journeyId}`;
+  const [confidenceSlider, setConfidenceSlider] = useState(
+    () => session.sessionData?.confidenceSlider ?? null,
+  );
+  const { handleSubmit: submitConfidence, submitting: confidenceSubmitting } = usePreQuizConfidence({
+    session,
+    journeyId,
+    onContinue: (slider) => {
+      setConfidenceSlider(slider);
+      setPhase('active');
+    },
+  });
 
   const eligibleModules = cramEligibleModules(modules);
 
@@ -121,9 +132,9 @@ export default function CramSession({
       });
 
       setQuestions(nextQuestions);
-      setPhase('active');
+      setPhase('confidence');
     } catch (err) {
-      setGenError(err?.message || 'Failed to start cram session');
+      setGenError(err instanceof Error ? err : new Error(String(err)));
       setPhase('setup');
     } finally {
       setLoading(false);
@@ -150,7 +161,7 @@ export default function CramSession({
     const correct = answers.filter((a) => a.correct).length;
     const accuracy = answers.length ? Math.round((correct / answers.length) * 100) : 0;
 
-    const sessionData = {
+    const sessionData = withConfidenceSlider({
       cramConfig: config,
       questions,
       answers,
@@ -158,7 +169,7 @@ export default function CramSession({
       hardestConceptTag,
       itemsCompleted: answers.length,
       totalTimeSec,
-    };
+    }, { confidenceSlider: confidenceSlider ?? session.sessionData?.confidenceSlider });
 
     setSummaryState(sessionData);
     setPhase('summary');
@@ -203,7 +214,7 @@ export default function CramSession({
   if (genError && (phase === 'setup' || phase === 'loading')) {
     return (
       <StudyChrome title="Cram Session" onExit={handleExit}>
-        <StudyAiError message={genError} onRetry={() => config && startGeneration(config)} onExit={handleExit} />
+        <StudyAiError message={genError?.message} error={genError} onRetry={() => config && startGeneration(config)} onExit={handleExit} />
       </StudyChrome>
     );
   }
@@ -243,6 +254,13 @@ export default function CramSession({
 
   return (
     <StudyChrome title="Cram Session" onExit={handleExit}>
+      {phase === 'confidence' && questions.length > 0 && (
+        <PreQuizConfidenceStep
+          onSubmit={submitConfidence}
+          onExit={handleExit}
+          submitting={confidenceSubmitting}
+        />
+      )}
       {phase === 'active' && questions.length > 0 && config && (
         <CramRunner
           questions={questions}

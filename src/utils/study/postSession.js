@@ -9,6 +9,9 @@ import { listSessionsByJourney } from '@/api/entities/sessions';
 import { listCardsByJourney } from '@/api/entities/cards';
 import { rebuildWeeklyPlan } from '@/api/entities/weeklyPlan';
 import { STAGE_C_PROMOTION_THRESHOLD } from '@/utils/weeklyPlan/constants';
+import { isQuizSessionActivityType } from '@/utils/research/quizSessionTypes';
+import { getPendingMasterySnapshots } from '@/utils/research/masterySnapshots';
+import { listMasterySnapshotsByModule, createMasterySnapshot } from '@/api/entities/masterySnapshots';
 
 function patchActivityStats(existing, session) {
   const stats = { ...(existing.stats ?? {}) };
@@ -64,6 +67,10 @@ export async function runPostSessionEffects(session, activity) {
       const masteryScore = calculateModuleMastery(mod, activities, sessions, cards);
       let stagePatch = { masteryScore };
 
+      if (isQuizSessionActivityType(session.activityType) && !mod.firstQuizAt) {
+        stagePatch.firstQuizAt = session.endedAt ?? now;
+      }
+
       if (activity.type === 'learningGuide' && mod.stage === 'A') {
         const completedIds = session.sessionData?.completedSectionIds
           ?? activity.content?.progress?.completedSectionIds
@@ -80,6 +87,27 @@ export async function runPostSessionEffects(session, activity) {
       if (stagePatch.stage === 'B' || stagePatch.stage === 'C') {
         await rebuildWeeklyPlan(journeyId, { force: true });
       }
+
+      const updatedMod = { ...mod, ...stagePatch };
+      const allSessions = sessions.map((s) => (
+        s.sessionId === session.sessionId
+          ? { ...s, status: 'completed', endedAt: session.endedAt ?? now }
+          : s
+      ));
+      const existingSnapshots = await listMasterySnapshotsByModule(moduleId);
+      const pending = getPendingMasterySnapshots({
+        module: updatedMod,
+        sessions: allSessions,
+        existingSnapshots,
+        now,
+      });
+      await Promise.all(
+        pending.map((snap) => createMasterySnapshot({
+          moduleId,
+          journeyId,
+          ...snap,
+        })),
+      );
     }
   }
 }

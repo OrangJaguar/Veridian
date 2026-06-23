@@ -17,12 +17,17 @@ export function assignActivityType(ctx, dayIndex = 0) {
   if (stage === 'B') {
     const accuracy = quizAccuracy ?? 50;
     const daysSince = daysSinceLastQuiz ?? 99;
-    const preferQuiz = accuracy < 75 || daysSince >= 3;
+    const hasWeakConcepts = (ctx.weakConceptLabels?.length ?? 0) > 0;
+    const preferQuiz = accuracy < 75 || daysSince >= 3 || hasWeakConcepts;
     if (preferQuiz && ctx.practiceQuizActivity) {
       return {
         activity: ctx.practiceQuizActivity,
         activityType: 'practiceQuiz',
-        reasonCode: accuracy < 50 ? 'struggling_quiz' : 'scheduled_quiz',
+        reasonCode: hasWeakConcepts
+          ? 'weak_concepts'
+          : accuracy < 50
+            ? 'struggling_quiz'
+            : 'scheduled_quiz',
       };
     }
     if (ctx.flashcardActivity) {

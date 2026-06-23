@@ -9,6 +9,7 @@ import { queryKeys } from '@/api/query-keys';
 import { useStudySessionStore } from '@/store/studySessionStore';
 import { useAuth } from '@/hooks/useAuth';
 import { readCachedPreferences } from '@/lib/preferencesCache';
+import { assertConfidenceSliderPresent } from '@/utils/research/sessionConfidence';
 
 function getResearchFieldsIfConsented(queryClient, email, params) {
   const prefs = readCachedPreferences(queryClient, email);
@@ -32,7 +33,11 @@ export function useCompleteSession() {
       score,
       outcomeSummary,
       startedAt,
+      activityType: activityTypeOverride,
     }) => {
+      const activity = activityOverride ?? await getActivity(activityId);
+      const activityType = activityTypeOverride ?? activity?.type;
+      assertConfidenceSliderPresent(sessionData, activityType);
       const endedAt = Date.now();
       const durationSec = startedAt ? Math.round((endedAt - startedAt) / 1000) : 0;
       const researchFields = getResearchFieldsIfConsented(queryClient, user?.email, {
@@ -57,7 +62,6 @@ export function useCompleteSession() {
         },
       });
 
-      const activity = activityOverride ?? await getActivity(activityId);
       if (activity) {
         await runPostSessionEffects(
           {

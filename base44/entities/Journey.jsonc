@@ -30,6 +30,10 @@
     "archived": {
       "type": "boolean"
     },
+    "archivedManually": {
+      "type": "boolean",
+      "description": "True when user manually archived (vs auto-completed)"
+    },
     "diagnosticSkipped": {
       "type": "boolean"
     },

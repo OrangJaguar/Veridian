@@ -93,6 +93,23 @@
         "type": "string"
       },
       "description": "journeyId:examDate keys for urgent exam reminders already sent"
+    },
+    "maiScoreOnboarding": {
+      "type": "number",
+      "description": "MAI total score at onboarding (5-25)"
+    },
+    "maiScoreDay60": {
+      "type": "number",
+      "description": "MAI total score at day 60 (5-25)"
+    },
+    "maiSurveyOnboardingCompletedAt": {
+      "type": "number"
+    },
+    "maiSurveyDay60CompletedAt": {
+      "type": "number"
+    },
+    "maiSurveyDay60DismissedAt": {
+      "type": "number"
     }
   },
   "required": [],

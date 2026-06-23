@@ -83,6 +83,7 @@ export default function JourneysPage() {
               key={journey.journeyId ?? journey.id}
               journey={journey}
               variant="list"
+              showManualArchiveStyle={archived}
             />
           ))}
         </div>

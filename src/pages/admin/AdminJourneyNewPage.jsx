@@ -37,7 +37,7 @@ export default function AdminJourneyNewPage() {
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
       });
       toast.success('Journey created');
-      navigate(`/adminjourneys/${journeyId}`);
+      navigate(`/admin/journeys/${journeyId}`);
     } catch (err) {
       toast.error(err.message || 'Failed to create journey');
     } finally {
@@ -49,7 +49,7 @@ export default function AdminJourneyNewPage() {
     <div className="admin-journeys-page">
       <header className="admin-dashboard-header">
         <div>
-          <Link to="/adminjourneys" className="admin-back-link">← Admin journeys</Link>
+          <Link to="/admin/journeys" className="admin-back-link">← Admin journeys</Link>
           <h1 className="admin-dashboard-title">New certified journey</h1>
         </div>
       </header>

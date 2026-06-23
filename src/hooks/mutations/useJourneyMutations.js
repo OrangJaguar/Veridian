@@ -94,7 +94,16 @@ export function useArchiveJourney() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ journeyId, archived }) => updateJourney(journeyId, { archived }),
+    mutationFn: ({ journeyId, archived, archivedManually }) => {
+      const patch = { archived };
+      if (archived && archivedManually) {
+        patch.archivedManually = true;
+      }
+      if (!archived) {
+        patch.archivedManually = false;
+      }
+      return updateJourney(journeyId, patch);
+    },
     onSuccess: (_, { journeyId }) => invalidateJourneyQueries(queryClient, journeyId),
   });
 }

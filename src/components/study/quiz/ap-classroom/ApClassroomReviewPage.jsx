@@ -1,3 +1,4 @@
+import { ApFlagIcon } from './ApClassroomIcons';
 import ApClassroomQuestionGrid from './ApClassroomQuestionGrid';
 
 export default function ApClassroomReviewPage({
@@ -20,16 +21,15 @@ export default function ApClassroomReviewPage({
       <div className="ap-classroom-review-card">
         <div className="ap-classroom-review-card-header">
           <span>{title} Questions</span>
-          <div className="ap-classroom-legend">
+          <div className="ap-classroom-legend ap-classroom-legend--inline">
             <span className="ap-classroom-legend-item">
               <span className="ap-classroom-legend-dashed" aria-hidden="true" />
-              Unanswered
+              <span>Unanswered</span>
             </span>
+            <span className="ap-classroom-legend-divider" aria-hidden="true" />
             <span className="ap-classroom-legend-item">
-              <svg className="ap-classroom-legend-flag" viewBox="0 0 12 12" aria-hidden="true">
-                <path d="M1 1v10M1 1h7l-1.5 2.5L8 6H1" />
-              </svg>
-              For Review
+              <ApFlagIcon filled className="ap-classroom-legend-flag-icon" />
+              <span>For Review</span>
             </span>
           </div>
         </div>

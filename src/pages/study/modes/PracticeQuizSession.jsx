@@ -23,11 +23,12 @@ import { useUpdateSession } from '@/hooks/mutations/useSessionMutations';
 import { useUpdateActivity } from '@/hooks/mutations/useActivityMutations';
 import { useJourney } from '@/hooks/queries/useJourneys';
 import { useSessions } from '@/hooks/queries/useSessions';
+import PreQuizConfidenceStep from '@/components/research/PreQuizConfidenceStep';
+import { usePreQuizConfidence } from '@/hooks/research/usePreQuizConfidence';
+import { quizPhaseAfterQuestions, withConfidenceSlider } from '@/utils/research/sessionConfidence';
 
 function initialPhase(session) {
-  if (session.status === 'completed' && session.sessionData?.answers?.length) return 'summary';
-  if (session.sessionData?.questions?.length) return 'active';
-  return 'setup';
+  return quizPhaseAfterQuestions(session, 'setup');
 }
 
 export default function PracticeQuizSession({ session, activity, module, journeyId }) {
@@ -56,6 +57,17 @@ export default function PracticeQuizSession({ session, activity, module, journey
   const abandonSession = useAbandonSession();
   const updateSession = useUpdateSession();
   const updateActivity = useUpdateActivity();
+  const [confidenceSlider, setConfidenceSlider] = useState(
+    () => session.sessionData?.confidenceSlider ?? null,
+  );
+  const { handleSubmit: submitConfidence, submitting: confidenceSubmitting } = usePreQuizConfidence({
+    session,
+    journeyId,
+    onContinue: (slider) => {
+      setConfidenceSlider(slider);
+      setPhase('active');
+    },
+  });
 
   const concepts = module?.knowledgeMap?.concepts ?? [];
   const weakConceptIds = getWeakConceptIds(sessions, module?.moduleId);
@@ -171,10 +183,9 @@ export default function PracticeQuizSession({ session, activity, module, journey
       const nextQuestions = await generateQuestions(setupConfig);
       setQuestions(nextQuestions);
       setConfig(setupConfig);
-      setPhase('active');
+      setPhase(session.sessionData?.confidenceSlider?.submittedAt ? 'active' : 'confidence');
     } catch (err) {
-      const message = err?.message || 'Failed to generate questions';
-      setGenError(message);
+      setGenError(err instanceof Error ? err : new Error(String(err)));
       setPhase('setup');
     } finally {
       setLoading(false);
@@ -215,7 +226,10 @@ export default function PracticeQuizSession({ session, activity, module, journey
     const graded = answers.filter((a) => !a.skipped);
     const correct = graded.filter((a) => a.correct).length;
     const accuracy = graded.length ? Math.round((correct / graded.length) * 100) : 0;
-    const sessionData = { quizConfig: config, questions, answers, interventions: [] };
+    const sessionData = withConfidenceSlider(
+      { quizConfig: config, questions, answers, interventions: [] },
+      { confidenceSlider: confidenceSlider ?? session.sessionData?.confidenceSlider },
+    );
 
     setSummaryData({ answers, totalTimeSec });
     setPhase('summary');
@@ -278,7 +292,8 @@ export default function PracticeQuizSession({ session, activity, module, journey
   if (genError && phase === 'setup' && !loading) {
     return (
       <StudyAiError
-        message={genError}
+        message={genError?.message || 'Failed to generate questions'}
+        error={genError}
         onRetry={() => handleStart(config?.questionCount ? config : activity.content?.lastConfig ?? config)}
         onExit={handleExit}
       />
@@ -294,6 +309,13 @@ export default function PracticeQuizSession({ session, activity, module, journey
         onStart={handleStart}
         loading={loading}
       />
+      {phase === 'confidence' && questions.length > 0 && (
+        <PreQuizConfidenceStep
+          onSubmit={submitConfidence}
+          onExit={handleExit}
+          submitting={confidenceSubmitting}
+        />
+      )}
       {phase === 'active' && questions.length > 0 && (
         config.uiPreset === 'apClassroom' ? (
           <ApClassroomQuizRunner

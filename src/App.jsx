@@ -1,4 +1,4 @@
-import { Routes, Route, Outlet } from 'react-router-dom';
+import { Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import MarketingLayout from '@/layouts/MarketingLayout';
 import AppShell from '@/layouts/AppShell';
 import LandingPage from '@/pages/landing/LandingPage';
@@ -28,6 +28,9 @@ import OnboardingPage from '@/pages/onboarding/OnboardingPage';
 import OnboardingGate from '@/components/onboarding/OnboardingGate';
 import NotFoundPage from '@/pages/NotFoundPage';
 import RequireAdmin from '@/components/routing/RequireAdmin';
+import BaselineCheckPage from '@/pages/journeys/BaselineCheckPage';
+import MaiSurveyPage from '@/pages/survey/MaiSurveyPage';
+import ResearchDataPage from '@/pages/admin/ResearchDataPage';
 import ErrorsDashboardPage from '@/pages/admin/ErrorsDashboardPage';
 import DataDashboardPage from '@/pages/admin/DataDashboardPage';
 import AdminJourneysPage from '@/pages/admin/AdminJourneysPage';
@@ -35,10 +38,15 @@ import AdminJourneyNewPage from '@/pages/admin/AdminJourneyNewPage';
 import AdminJourneyEditorPage from '@/pages/admin/AdminJourneyEditorPage';
 import AdminModuleEditorPage from '@/pages/admin/AdminModuleEditorPage';
 import FeedbackPage from '@/pages/feedback/FeedbackPage';
+import AiLimitPage from '@/pages/ai/AiLimitPage';
+import { RedirectAdminJourney, RedirectAdminModule } from '@/components/routing/AdminLegacyRedirect';
+import ProductAnalyticsTracker from '@/components/analytics/ProductAnalyticsTracker';
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <ProductAnalyticsTracker />
+      <Routes>
       <Route element={<MarketingLayout />}>
         <Route path="/" element={<LandingPage />} />
         <Route path="/signin" element={<SignInPage />} />
@@ -57,8 +65,15 @@ export default function App() {
         <Route path="/library" element={<LibraryPage />} />
         <Route path="/library/:journeyId" element={<LibraryPreviewPage />} />
         <Route path="/feedback" element={<FeedbackPage />} />
+        <Route path="/ai-limit" element={<AiLimitPage />} />
+        <Route path="/errors" element={<Navigate to="/admin/errors" replace />} />
+        <Route path="/data" element={<Navigate to="/admin/data" replace />} />
+        <Route path="/adminjourneys" element={<Navigate to="/admin/journeys" replace />} />
+        <Route path="/adminjourneys/new" element={<Navigate to="/admin/journeys/new" replace />} />
+        <Route path="/adminjourneys/:journeyId" element={<RedirectAdminJourney />} />
+        <Route path="/adminjourneys/:journeyId/modules/:moduleId" element={<RedirectAdminModule />} />
         <Route
-          path="/errors"
+          path="/admin/errors"
           element={(
             <RequireAdmin>
               <ErrorsDashboardPage />
@@ -66,7 +81,7 @@ export default function App() {
           )}
         />
         <Route
-          path="/data"
+          path="/admin/data"
           element={(
             <RequireAdmin>
               <DataDashboardPage />
@@ -74,7 +89,7 @@ export default function App() {
           )}
         />
         <Route
-          path="/adminjourneys"
+          path="/admin/journeys"
           element={(
             <RequireAdmin>
               <AdminJourneysPage />
@@ -82,7 +97,7 @@ export default function App() {
           )}
         />
         <Route
-          path="/adminjourneys/new"
+          path="/admin/journeys/new"
           element={(
             <RequireAdmin>
               <AdminJourneyNewPage />
@@ -90,7 +105,7 @@ export default function App() {
           )}
         />
         <Route
-          path="/adminjourneys/:journeyId"
+          path="/admin/journeys/:journeyId"
           element={(
             <RequireAdmin>
               <AdminJourneyEditorPage />
@@ -98,10 +113,18 @@ export default function App() {
           )}
         />
         <Route
-          path="/adminjourneys/:journeyId/modules/:moduleId"
+          path="/admin/journeys/:journeyId/modules/:moduleId"
           element={(
             <RequireAdmin>
               <AdminModuleEditorPage />
+            </RequireAdmin>
+          )}
+        />
+        <Route
+          path="/admin/research"
+          element={(
+            <RequireAdmin>
+              <ResearchDataPage />
             </RequireAdmin>
           )}
         />
@@ -110,6 +133,8 @@ export default function App() {
         <Route path="/journeys" element={<JourneysPage />} />
         <Route path="/journeys/new" element={<CreateJourneyPage />} />
         <Route path="/journeys/:id/diagnostic" element={<DiagnosticPage />} />
+        <Route path="/mai-survey" element={<MaiSurveyPage />} />
+        <Route path="/journeys/:id/modules/:moduleId/baseline" element={<BaselineCheckPage />} />
         <Route path="/journeys/:id" element={<JourneyDetailPage />} />
         <Route path="/journeys/:id/modules/:moduleId/decks/new" element={<CreateDeckPage />} />
         <Route path="/journeys/:id/modules/:moduleId/decks/:activityId/edit" element={<EditDeckPage />} />
@@ -124,5 +149,6 @@ export default function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
+    </>
   );
 }

@@ -5,8 +5,7 @@ import QuizQuestionNav from '@/components/study/quiz/QuizQuestionNav';
 import QuizTimeNotice from '@/components/study/quiz/QuizTimeNotice';
 import {
   fuzzyMatchAnswer,
-  playStudySound,
-  triggerStudyHaptic,
+  triggerAnswerFeedback,
   formatStudyTime,
 } from '@/utils/study/feedback';
 
@@ -46,6 +45,7 @@ export default function QuizRunner({
   const [paused, setPaused] = useState(false);
   const [timerHidden, setTimerHidden] = useState(false);
   const [timeNotice, setTimeNotice] = useState('');
+  const [feedbackFlash, setFeedbackFlash] = useState(null);
   const shownUrgency = useRef(new Set());
   const questionStartRef = useRef(Date.now());
   const sessionStartRef = useRef(Date.now());
@@ -151,9 +151,10 @@ export default function QuizRunner({
     const timeSec = (Date.now() - questionStartRef.current) / 1000;
     const correct = isCorrect(response, q);
 
-    if (!diagnosticMode) {
-      playStudySound(correct ? 'correct' : 'wrong');
-      triggerStudyHaptic(correct ? 'correct' : 'wrong');
+    if (!diagnosticMode && instantFeedback) {
+      triggerAnswerFeedback(correct, { enabled: true });
+      setFeedbackFlash(correct ? 'correct' : 'wrong');
+      window.setTimeout(() => setFeedbackFlash(null), 650);
     }
 
     const ans = {
@@ -183,7 +184,7 @@ export default function QuizRunner({
     }
 
     setAnswered(true);
-  }, [q, index, isCorrect, consecutiveMisses, onIntervention, diagnosticMode]);
+  }, [q, index, isCorrect, consecutiveMisses, onIntervention, diagnosticMode, instantFeedback]);
 
   const handleSelect = useCallback((option) => {
     if (paused) return;
@@ -282,7 +283,7 @@ export default function QuizRunner({
   useEffect(() => {
     const onKeyDown = (e) => {
       if (paused || !q) return;
-      const options = q.options ?? (q.type === 'trueFalse' ? ['True', 'False'] : []);
+      const options = q.type === 'trueFalse' ? ['True', 'False'] : (q.options ?? []);
 
       if (e.key === ' ' || e.key === 'Spacebar') {
         e.preventDefault();
@@ -314,7 +315,7 @@ export default function QuizRunner({
 
   if (!q) return null;
 
-  const options = q.options ?? (q.type === 'trueFalse' ? ['True', 'False'] : []);
+  const options = q.type === 'trueFalse' ? ['True', 'False'] : (q.options ?? []);
   const isBroken = questionIsBroken(q);
   const answeredCount = answersByIndex.filter(Boolean).length;
   const progressPct = activeQuestions.length ? (answeredCount / activeQuestions.length) * 100 : 0;
@@ -339,7 +340,7 @@ export default function QuizRunner({
   };
 
   return (
-    <div className="study-mode-view quiz-mode-view">
+    <div className={`study-mode-view quiz-mode-view${feedbackFlash ? ` study-feedback-flash-${feedbackFlash}` : ''}`}>
       <QuizTimeNotice message={timeNotice} />
 
       <div className="module-header">

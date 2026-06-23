@@ -33,9 +33,11 @@ export default function ApClassroomQuizRunner({
     getSelected,
     getCrossedOutForIndex,
     isFlagged,
+    crossoutMode,
     select,
     toggleFlag,
     toggleCrossout,
+    toggleCrossoutMode,
     undoCrossout,
     jump,
     goBack,
@@ -133,8 +135,10 @@ export default function ApClassroomQuizRunner({
                   selected={getSelected()}
                   flagged={isFlagged()}
                   crossedOut={getCrossedOutForIndex(index)}
+                  crossoutMode={crossoutMode}
                   onSelect={handleSelect}
                   onToggleFlag={() => toggleFlag()}
+                  onToggleCrossoutMode={toggleCrossoutMode}
                   onToggleCrossout={(optIdx) => toggleCrossout(optIdx)}
                   onUndoCrossout={() => undoCrossout()}
                 />

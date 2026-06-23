@@ -37,7 +37,7 @@ function ModuleRow({ mod, journeyId, index, total, onMoveUp, onMoveDown, reorder
           {mod.moduleStatus ?? 'draft'}
         </span>
       </div>
-      <Link to={`/adminjourneys/${journeyId}/modules/${mod.moduleId}`} className="btn btn-secondary btn-sm">
+      <Link to={`/admin/journeys/${journeyId}/modules/${mod.moduleId}`} className="btn btn-secondary btn-sm">
         Edit content
       </Link>
     </li>
@@ -127,7 +127,7 @@ export default function AdminJourneyEditorPage() {
     <div className="admin-journeys-page">
       <header className="admin-dashboard-header">
         <div>
-          <Link to="/adminjourneys" className="admin-back-link">← Admin journeys</Link>
+          <Link to="/admin/journeys" className="admin-back-link">← Admin journeys</Link>
           <h1 className="admin-dashboard-title">{journey.title}</h1>
           <p className="admin-dashboard-lead">{journey.subject} · {journey.publishStatus ?? 'draft'}</p>
         </div>

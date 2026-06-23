@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import AdminAnalyticsFunnel from '@/components/admin/AdminAnalyticsFunnel';
 import { useAdminSummaryStats, useAdminSignupTrend, useAdminQuery } from '@/hooks/queries/useAdminAnalytics';
 import { exportAdminCsv } from '@/api/admin/exportAdminData';
 
@@ -57,6 +58,8 @@ export default function DataDashboardPage() {
         <h1 className="admin-dashboard-title">Data Dashboard</h1>
         <p className="admin-dashboard-lead">Ask questions about platform data or export CSV reports.</p>
       </header>
+
+      <AdminAnalyticsFunnel />
 
       <section className="admin-dashboard-section admin-dashboard-chat" aria-label="Analytics chat">
         <div className="admin-chat-thread" ref={threadRef}>

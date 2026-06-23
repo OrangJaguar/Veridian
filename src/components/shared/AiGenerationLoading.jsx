@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Check } from 'lucide-react';
 import VeridianLoading from '@/components/shared/VeridianLoading';
+import { useUiStore } from '@/store/uiStore';
 import { getGenerationLoadingProfile } from '@/utils/ai/generationLoadingProfiles';
 import { STUDY_DID_YOU_KNOW_FACTS } from '@/utils/ai/studyDidYouKnowFacts';
-import { STUDY_MICRO_ACTIVITIES } from '@/utils/ai/studyMicroActivities';
 
 const FACT_ROTATE_MS = 8000;
 
@@ -46,24 +46,6 @@ function DidYouKnowFact({ factIndex }) {
   );
 }
 
-function MicroActivity({ promptIndex }) {
-  const [draft, setDraft] = useState('');
-
-  return (
-    <div className="ai-generation-loading-micro">
-      <p className="ai-generation-loading-micro-prompt">{STUDY_MICRO_ACTIVITIES[promptIndex]}</p>
-      <textarea
-        className="ai-generation-loading-micro-input"
-        rows={3}
-        value={draft}
-        placeholder="Optional — jot a thought here (not saved)"
-        onChange={(e) => setDraft(e.target.value)}
-        aria-label="Optional thinking space"
-      />
-    </div>
-  );
-}
-
 /**
  * Unified loading UI for all AI generation flows.
  *
@@ -90,10 +72,16 @@ export default function AiGenerationLoading({
   const isLong = profile.mode === 'long' && variant !== 'inline';
 
   const [factIndex, setFactIndex] = useState(() => pickRandomIndex(STUDY_DID_YOU_KNOW_FACTS.length));
-  const microIndex = useMemo(
-    () => pickRandomIndex(STUDY_MICRO_ACTIVITIES.length),
-    [],
-  );
+
+  useEffect(() => {
+    setFactIndex(pickRandomIndex(STUDY_DID_YOU_KNOW_FACTS.length, Date.now()));
+  }, [action]);
+
+  useEffect(() => {
+    if (variant === 'inline') return undefined;
+    useUiStore.getState().setImmersiveChrome(true);
+    return () => useUiStore.getState().setImmersiveChrome(false);
+  }, [variant]);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -123,7 +111,7 @@ export default function AiGenerationLoading({
     return (
       <div className={rootClass} role="status" aria-live="polite">
         <div className="ai-generation-loading-header">
-          <VeridianLoading fullPage={false} />
+          <VeridianLoading size="lg" fullPage={false} />
           <p className="ai-generation-loading-label">{label}</p>
           {progressDetail && (
             <p className="ai-generation-loading-detail">{progressDetail}</p>
@@ -131,14 +119,13 @@ export default function AiGenerationLoading({
         </div>
         <LoadingSteps steps={profile.steps} activeStepIndex={activeStepIndex} />
         <DidYouKnowFact factIndex={factIndex} />
-        <MicroActivity promptIndex={microIndex} />
       </div>
     );
   }
 
   const content = (
     <>
-      <VeridianLoading label={label} />
+      <VeridianLoading size="lg" label={label} />
       <DidYouKnowFact factIndex={factIndex} />
     </>
   );

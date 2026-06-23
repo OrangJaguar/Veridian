@@ -6,7 +6,6 @@ import { useModules } from '@/hooks/queries/useModules';
 import { useActivitiesByJourney } from '@/hooks/queries/useActivities';
 import { useSessions } from '@/hooks/queries/useSessions';
 import { useStudyPlan } from '@/hooks/queries/useStudyPlan';
-import { useReplanJourney } from '@/hooks/mutations/useReplanJourney';
 import { useCardsByJourney } from '@/hooks/queries/useCards';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
 import JourneyDetailSkeleton from '@/components/journeys/JourneyDetailSkeleton';
@@ -18,6 +17,7 @@ import JourneySharingPanel from '@/components/journey-detail/JourneySharingPanel
 import RecommendedStudyPlan from '@/components/journey-detail/RecommendedStudyPlan';
 import ModuleListItem from '@/components/journey-detail/ModuleListItem';
 import JourneyLevelActions from '@/components/journey-detail/JourneyLevelActions';
+import JourneyDetailActions from '@/components/journey-detail/JourneyDetailActions';
 import JourneyInsightsPanel from '@/components/journey-detail/JourneyInsightsPanel';
 import { useRecoverStaleGeneratingActivities } from '@/hooks/useRecoverStaleGeneratingActivities';
 
@@ -31,7 +31,6 @@ export default function JourneyDetailPage() {
   const { data: sessions = [] } = useSessions(journeyId);
   const { data: cards = [] } = useCardsByJourney(journeyId);
   const { data: plan, isLoading: planLoading } = useStudyPlan(journeyId);
-  const replan = useReplanJourney();
 
   useRecoverStaleGeneratingActivities(journeyId, activities, sessions);
 
@@ -94,12 +93,9 @@ export default function JourneyDetailPage() {
         </ul>
       </section>
 
-      <RecommendedStudyPlan
-        plan={plan}
-        loading={planLoading}
-        onReplan={() => replan.mutate(journeyId)}
-        replanning={replan.isPending}
-      />
+      <RecommendedStudyPlan plan={plan} loading={planLoading} />
+
+      <JourneyDetailActions journey={journey} />
 
       <JourneyLevelActions
         activities={activities}

@@ -1,0 +1,4 @@
+{
+  "name": "getAiQuotaStatus",
+  "entry": "entry.ts"
+}

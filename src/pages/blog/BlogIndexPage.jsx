@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usePageMeta } from '@/hooks/usePageMeta';
-import { BLOG_POSTS, searchBlogPosts, sortBlogPosts } from '@/content/blog';
+import { BLOG_POSTS, BLOG_UPCOMING, searchBlogPosts, sortBlogPosts, isBlogPostPublished } from '@/content/blog';
 import { format } from 'date-fns';
 
 export default function BlogIndexPage() {
@@ -9,8 +9,9 @@ export default function BlogIndexPage() {
   const [sort, setSort] = useState('newest');
 
   usePageMeta({
-    title: 'Blog',
-    description: 'Study science, exam prep strategies, and how to learn better with Veridian.',
+    title: 'Study tips & exam prep guides',
+    description: 'Evidence-based study advice for AP, college, pre-med, and MCAT prep — spaced repetition, active recall, and structured learning plans.',
+    canonicalPath: '/blog',
   });
 
   const posts = useMemo(() => {
@@ -50,19 +51,37 @@ export default function BlogIndexPage() {
       </div>
 
       <div className="blog-grid">
-        {posts.map((post) => (
-          <Link key={post.slug} to={`/blog/${post.slug}`} className="blog-card">
-            <h2 className="blog-card-title">{post.title}</h2>
-            <p className="blog-card-description">{post.description}</p>
-            <p className="blog-card-meta">
-              {format(new Date(post.publishedAt), 'MMM d, yyyy')} · {post.readTimeMinutes} min read
-            </p>
-          </Link>
-        ))}
+        {posts.map((post) => {
+          if (!isBlogPostPublished(post)) {
+            return (
+              <article key={post.slug} className="blog-card blog-card--upcoming" aria-label={`${post.title} — coming soon`}>
+                <span className="blog-card-badge">Coming soon</span>
+                <h2 className="blog-card-title">{post.title}</h2>
+                <p className="blog-card-description">{post.description}</p>
+              </article>
+            );
+          }
+
+          return (
+            <Link key={post.slug} to={`/blog/${post.slug}`} className="blog-card">
+              <h2 className="blog-card-title">{post.title}</h2>
+              <p className="blog-card-description">{post.description}</p>
+              <p className="blog-card-meta">
+                {format(new Date(post.publishedAt), 'MMM d, yyyy')} · {post.readTimeMinutes} min read
+              </p>
+            </Link>
+          );
+        })}
       </div>
 
       {posts.length === 0 && (
         <p className="blog-empty">No articles match your search.</p>
+      )}
+
+      {!search && BLOG_UPCOMING.length > 0 && BLOG_POSTS.length > 0 && (
+        <p className="blog-upcoming-note">
+          {BLOG_UPCOMING.length} more guide{BLOG_UPCOMING.length === 1 ? '' : 's'} in progress — titles shown above.
+        </p>
       )}
     </div>
   );

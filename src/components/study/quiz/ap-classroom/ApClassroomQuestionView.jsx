@@ -1,5 +1,6 @@
 import LatexRenderer from '@/components/shared/LatexRenderer';
 import { optionLetter } from '@/hooks/study/useQuizSessionState';
+import { ApAbcCrossoutIcon, ApFlagIcon } from './ApClassroomIcons';
 import ApClassroomChoiceRow from './ApClassroomChoiceRow';
 
 export default function ApClassroomQuestionView({
@@ -8,8 +9,10 @@ export default function ApClassroomQuestionView({
   selected,
   flagged,
   crossedOut,
+  crossoutMode,
   onSelect,
   onToggleFlag,
+  onToggleCrossoutMode,
   onToggleCrossout,
   onUndoCrossout,
 }) {
@@ -18,7 +21,7 @@ export default function ApClassroomQuestionView({
 
   return (
     <div className="ap-classroom-question-card">
-      <div className="ap-classroom-question-header">
+      <div className="ap-classroom-question-toolbar">
         <div className="ap-classroom-question-header-left">
           <span className="ap-classroom-number-badge">{questionNumber}</span>
           <button
@@ -27,39 +30,49 @@ export default function ApClassroomQuestionView({
             onClick={onToggleFlag}
             aria-pressed={flagged}
           >
-            <svg className="ap-classroom-flag-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M4 4v16M4 4h12l-2 4 2 4H4" />
-            </svg>
+            <ApFlagIcon filled={flagged} />
             Mark for Review
           </button>
         </div>
-        <span className="ap-classroom-abc-tool" aria-hidden="true">ABC</span>
+        <button
+          type="button"
+          className={`ap-classroom-abc-toggle${crossoutMode ? ' active' : ''}`}
+          onClick={onToggleCrossoutMode}
+          aria-pressed={crossoutMode}
+          aria-label="Cross out answer choices you think are wrong"
+          title="Cross out answer choices you think are wrong"
+        >
+          <ApAbcCrossoutIcon />
+        </button>
       </div>
 
-      <div className="ap-classroom-stem">
-        <LatexRenderer text={question?.stem} />
-      </div>
-
-      {hasCrossouts && (
-        <div className="ap-classroom-undo-row">
-          <button type="button" className="ap-classroom-undo-link" onClick={onUndoCrossout}>
-            Undo
-          </button>
+      <div className="ap-classroom-question-body">
+        <div className="ap-classroom-stem">
+          <LatexRenderer text={question?.stem} />
         </div>
-      )}
 
-      <div className="ap-classroom-choices">
-        {options.map((opt, i) => (
-          <ApClassroomChoiceRow
-            key={`${question?.id}-${i}`}
-            option={opt}
-            optionIndex={i}
-            selected={selected === opt}
-            crossedOut={crossedOut.has(optionLetter(i))}
-            onSelect={onSelect}
-            onToggleCrossout={onToggleCrossout}
-          />
-        ))}
+        {crossoutMode && hasCrossouts && (
+          <div className="ap-classroom-undo-row">
+            <button type="button" className="ap-classroom-undo-link" onClick={onUndoCrossout}>
+              Undo
+            </button>
+          </div>
+        )}
+
+        <div className="ap-classroom-choices">
+          {options.map((opt, i) => (
+            <ApClassroomChoiceRow
+              key={`${question?.id}-${i}`}
+              option={opt}
+              optionIndex={i}
+              selected={selected === opt}
+              crossedOut={crossedOut.has(optionLetter(i))}
+              crossoutMode={crossoutMode}
+              onSelect={onSelect}
+              onToggleCrossout={onToggleCrossout}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

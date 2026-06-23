@@ -1,30 +1,24 @@
-# Veridian Admin Guide
+# Admin dashboard
 
-Admin-only surfaces are hidden from navigation. Access requires `role: admin` on the user account in Base44.
+Admin-only routes live under `/admin/*`. Legacy URLs redirect automatically.
 
-## Assigning admin role
-
-1. Open the [Base44 dashboard](https://base44.com) for this project.
-2. Go to **Authentication → Users**.
-3. Select the team account and set **role** to `admin`.
-4. Save. The user must sign out and back in for the role to apply.
-
-Non-admin users hitting admin routes are redirected to `/home` by `RequireAdmin`.
-
-## Admin routes
+## Routes
 
 | Route | Purpose |
 |-------|---------|
-| `/data` | Analytics dashboard: conversational queries, live stats, signup chart, CSV exports |
-| `/adminjourneys` | List certified journeys |
-| `/adminjourneys/new` | Create a new certified journey |
-| `/adminjourneys/:journeyId` | Edit journey metadata, reorder modules, publish/unpublish |
-| `/adminjourneys/:journeyId/modules/:moduleId` | Edit module content (guide, flashcards, question bank, concepts) |
-| `/errors` | Error monitoring dashboard (existing) |
+| `/admin/data` | Analytics dashboard: conversational queries, live stats, signup chart, CSV exports |
+| `/admin/journeys` | List certified journeys |
+| `/admin/journeys/new` | Create a new certified journey |
+| `/admin/journeys/:journeyId` | Edit journey metadata, reorder modules, publish/unpublish |
+| `/admin/journeys/:journeyId/modules/:moduleId` | Edit module content (guide, flashcards, question bank, concepts) |
+| `/admin/errors` | Error monitoring dashboard |
+| `/admin/research` | Research data exports and analytics |
 
-## Publishing certified journeys
+Legacy redirects: `/data` → `/admin/data`, `/errors` → `/admin/errors`, `/adminjourneys/*` → `/admin/journeys/*`.
 
-1. Create a journey at `/adminjourneys/new`.
+## Certified journey workflow
+
+1. Create a journey at `/admin/journeys/new`.
 2. Add modules and set each module to **ready** after content is complete.
 3. Use **Publish** on the journey editor — blocked until all modules are ready.
 4. Publishing sets `isVeridianCertified`, `isPublic`, and `libraryVisible` via the `adminPublishCertifiedJourney` server function.

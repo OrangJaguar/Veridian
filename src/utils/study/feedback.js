@@ -64,6 +64,14 @@ export function playStudySound(type) {
   }
 }
 
+export function triggerAnswerFeedback(correct, { enabled = true } = {}) {
+  if (!enabled) return null;
+  initStudyAudio();
+  playStudySound(correct ? 'correct' : 'wrong');
+  triggerStudyHaptic(correct ? 'correct' : 'wrong');
+  return correct ? 'correct' : 'wrong';
+}
+
 export function triggerStudyHaptic(type) {
   if (!feedbackPrefs.haptics) return;
   if (!navigator.vibrate) return;

@@ -26,6 +26,7 @@ export default function useQuizSessionState(questions, { onComplete, sessionStar
   const [answersByIndex, setAnswersByIndex] = useState(() => questions.map(() => null));
   const [flagged, setFlagged] = useState(() => new Set());
   const [crossedOut, setCrossedOut] = useState(() => new Map());
+  const [crossoutMode, setCrossoutMode] = useState(false);
   const [navModalOpen, setNavModalOpen] = useState(false);
   const [reviewScreen, setReviewScreen] = useState(false);
   const [lastQuestionIndex, setLastQuestionIndex] = useState(0);
@@ -44,6 +45,7 @@ export default function useQuizSessionState(questions, { onComplete, sessionStar
     setIndex(0);
     setFlagged(new Set());
     setCrossedOut(new Map());
+    setCrossoutMode(false);
     setNavModalOpen(false);
     setReviewScreen(false);
     setLastQuestionIndex(0);
@@ -131,6 +133,10 @@ export default function useQuizSessionState(questions, { onComplete, sessionStar
     });
   }, [index]);
 
+  const toggleCrossoutMode = useCallback(() => {
+    setCrossoutMode((on) => !on);
+  }, []);
+
   const jump = useCallback((i) => {
     setLastQuestionIndex(index);
     setIndex(i);
@@ -198,6 +204,7 @@ export default function useQuizSessionState(questions, { onComplete, sessionStar
     answersByIndex,
     flagged,
     crossedOut,
+    crossoutMode,
     navModalOpen,
     reviewScreen,
     lastQuestionIndex,
@@ -208,6 +215,7 @@ export default function useQuizSessionState(questions, { onComplete, sessionStar
     select,
     toggleFlag,
     toggleCrossout,
+    toggleCrossoutMode,
     undoCrossout,
     jump,
     goBack,

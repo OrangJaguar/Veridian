@@ -14,6 +14,11 @@ export async function fetchAdminSignupTrend() {
   return res?.data ?? res;
 }
 
+export async function fetchAdminFunnelAnalytics() {
+  const res = await invoke('getFunnelAnalytics');
+  return res?.data ?? res;
+}
+
 export async function queryAdminConversation(question) {
   const res = await invoke('queryConversation', { question });
   return res?.data ?? res;

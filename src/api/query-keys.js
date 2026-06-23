@@ -30,6 +30,7 @@ export const queryKeys = {
     stats: ['profile', 'stats'],
   },
   dueToday: ['dueToday'],
+  aiQuota: ['aiQuota'],
   catalog: {
     allModules: ['catalog', 'modules'],
     allActivities: ['catalog', 'activities'],

@@ -2,12 +2,7 @@ import WeeklyPlanGrid from '@/components/journey-detail/WeeklyPlanGrid';
 import ModulePriorityList from '@/components/journey-detail/ModulePriorityList';
 import VeridianLoading from '@/components/shared/VeridianLoading';
 
-export default function RecommendedStudyPlan({
-  plan,
-  loading,
-  onReplan,
-  replanning,
-}) {
+export default function RecommendedStudyPlan({ plan, loading }) {
   if (loading) {
     return (
       <section className="journey-study-plan detail-section-box">
@@ -25,21 +20,9 @@ export default function RecommendedStudyPlan({
     <section className="journey-study-plan detail-section-box">
       <div className="journey-study-plan-header">
         <h3 className="journey-study-plan-week-title">Weekly plan</h3>
-        <div className="journey-study-plan-header-actions">
-          {isCram && (
-            <span className="cram-mode-badge">Cram mode</span>
-          )}
-          {onReplan && (
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={onReplan}
-              disabled={replanning}
-            >
-              {replanning ? 'Updating…' : 'Replan'}
-            </button>
-          )}
-        </div>
+        {isCram && (
+          <span className="cram-mode-badge">Cram mode</span>
+        )}
       </div>
 
       <WeeklyPlanGrid snapshot={snapshot} />

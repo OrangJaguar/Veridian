@@ -138,7 +138,6 @@ export default function LearningGuideViewer({
       <main className="guide-scroll">
         <GuideReadableContent
           section={section}
-          sectionIndex={sectionIndex}
           activeKey={activeKey}
           onSegmentClick={speakSegmentByKey}
         />

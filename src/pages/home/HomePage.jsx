@@ -10,6 +10,7 @@ import LoginPrompt from '@/components/stubs/LoginPrompt';
 import VeridianLoading from '@/components/shared/VeridianLoading';
 import HomeWelcomeHeader from '@/components/home/HomeWelcomeHeader';
 import HomeWelcomeBanner from '@/components/home/HomeWelcomeBanner';
+import MaiDay60Banner from '@/components/home/MaiDay60Banner';
 import HomeContextNotice from '@/components/home/HomeContextNotice';
 import DueTodayZone from '@/components/home/DueTodayZone';
 import HomeUpcomingSection from '@/components/home/HomeUpcomingSection';
@@ -58,6 +59,7 @@ export default function HomePage() {
       <HomeContextNotice dueItems={dueItems} journeys={journeys} />
       <HomeWelcomeBanner journeyCount={journeys.length} />
       <HomeWelcomeHeader />
+      <MaiDay60Banner />
       {cramJourneys.length > 0 && <HomeExamCramZone journeys={cramJourneys} />}
       <DueTodayZone
         items={dueItems}

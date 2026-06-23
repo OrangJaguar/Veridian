@@ -16,6 +16,10 @@ export const moduleSchema = z.object({
   libraryVisible: z.boolean().optional(),
   moduleStatus: z.enum(['draft', 'ready']).optional(),
   estimatedStudyMinutes: z.number().optional(),
+  baselineScore: z.number().min(0).max(100).nullable().optional(),
+  baselineCapturedAt: z.number().nullable().optional(),
+  baselineSkipped: z.boolean().optional(),
+  firstQuizAt: z.number().nullable().optional(),
 });
 
 export const createModuleSchema = moduleSchema.pick({

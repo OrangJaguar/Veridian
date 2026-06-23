@@ -40,9 +40,9 @@ export const GENERATION_LOADING_PROFILES = {
     steps: ['Reading sources', 'Mapping concepts', 'Building modules'],
   },
   generateDiagnosticQuestions: {
-    mode: 'short',
+    mode: 'long',
     label: 'Building your diagnostic…',
-    steps: ['Analyzing modules', 'Writing questions', 'Finalizing'],
+    steps: ['Analyzing modules', 'Writing questions', 'Balancing difficulty', 'Finalizing'],
   },
   generateInterleavedQuestions: {
     mode: 'short',

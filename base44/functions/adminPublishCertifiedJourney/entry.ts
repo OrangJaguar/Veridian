@@ -112,6 +112,11 @@ Deno.serve(async (req) => {
           await base44.entities.Activity.update(act.id, { libraryVisible: true, status: "ready" });
         }
       }
+      for (const card of cards) {
+        if (card.id) {
+          await base44.entities.Card.update(card.id, { libraryVisible: true });
+        }
+      }
 
       try {
         await base44.entities.AdminAuditLog.create({
@@ -138,6 +143,11 @@ Deno.serve(async (req) => {
       for (const act of activities) {
         if (act.moduleId) {
           await base44.entities.Activity.update(act.id, { libraryVisible: false });
+        }
+      }
+      for (const card of cards) {
+        if (card.id) {
+          await base44.entities.Card.update(card.id, { libraryVisible: false });
         }
       }
       return Response.json({ data: { ok: true } });

@@ -1,0 +1,5 @@
+{
+  "name": "logProductEvent",
+  "description": "Log anonymous product analytics events for funnel tracking",
+  "entry": "entry.ts"
+}

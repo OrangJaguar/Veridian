@@ -6,6 +6,7 @@ export default function ApClassroomChoiceRow({
   optionIndex,
   selected,
   crossedOut,
+  crossoutMode,
   onSelect,
   onToggleCrossout,
 }) {
@@ -25,15 +26,17 @@ export default function ApClassroomChoiceRow({
           <LatexRenderer text={option} />
         </span>
       </button>
-      <button
-        type="button"
-        className={`ap-classroom-crossout-btn${crossedOut ? ' active' : ''}`}
-        onClick={() => onToggleCrossout(optionIndex)}
-        aria-label={`Cross out option ${letter}`}
-        aria-pressed={crossedOut}
-      >
-        <span className="ap-classroom-crossout-circle">{letter}</span>
-      </button>
+      {crossoutMode && (
+        <button
+          type="button"
+          className={`ap-classroom-crossout-btn${crossedOut ? ' active' : ''}`}
+          onClick={() => onToggleCrossout(optionIndex)}
+          aria-label={`Cross out option ${letter}`}
+          aria-pressed={crossedOut}
+        >
+          <span className="ap-classroom-crossout-circle">{letter}</span>
+        </button>
+      )}
     </div>
   );
 }
