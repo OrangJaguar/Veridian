@@ -1,4 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
+import { serviceEntities } from "../_shared/serviceRole.ts";
 
 type Base44Client = ReturnType<typeof createClientFromRequest>;
 
@@ -24,7 +25,7 @@ Deno.serve(async (req) => {
     const action = body.action ?? "listGroups";
 
     if (action === "listGroups") {
-      const rows = await base44.entities.ErrorGroup.list();
+      const rows = await serviceEntities(base44).ErrorGroup.list();
       let groups = rows as Array<Record<string, unknown>>;
 
       if (body.status) {
@@ -54,13 +55,13 @@ Deno.serve(async (req) => {
         return Response.json({ error: { message: "groupId required" } }, { status: 400 });
       }
 
-      const groupRows = await base44.entities.ErrorGroup.filter({ groupId });
+      const groupRows = await serviceEntities(base44).ErrorGroup.filter({ groupId });
       const group = groupRows[0];
       if (!group) {
         return Response.json({ error: { message: "Group not found" } }, { status: 404 });
       }
 
-      const occurrences = await base44.entities.ErrorOccurrence.filter({ groupId });
+      const occurrences = await serviceEntities(base44).ErrorOccurrence.filter({ groupId });
       const sorted = (occurrences as Array<{ createdAt?: number }>)
         .sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0))
         .slice(0, 50);
@@ -74,13 +75,13 @@ Deno.serve(async (req) => {
         return Response.json({ error: { message: "Invalid groupId or status" } }, { status: 400 });
       }
 
-      const groupRows = await base44.entities.ErrorGroup.filter({ groupId });
+      const groupRows = await serviceEntities(base44).ErrorGroup.filter({ groupId });
       const group = groupRows[0];
       if (!group?.id) {
         return Response.json({ error: { message: "Group not found" } }, { status: 404 });
       }
 
-      const updated = await base44.entities.ErrorGroup.update(group.id, { status });
+      const updated = await serviceEntities(base44).ErrorGroup.update(group.id, { status });
       return Response.json({ group: updated });
     }
 

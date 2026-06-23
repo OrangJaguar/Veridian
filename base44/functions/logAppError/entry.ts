@@ -1,9 +1,18 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 import { upsertErrorLog, clipString } from "../_shared/errorLog.ts";
+import { checkRequestRateLimit, rateLimitKey } from "../_shared/requestRateLimit.ts";
+
+const HOUR_MS = 60 * 60 * 1000;
+const MAX_ERRORS_PER_IP_HOUR = 40;
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+
+    if (!checkRequestRateLimit(rateLimitKey("logAppError", req), MAX_ERRORS_PER_IP_HOUR, HOUR_MS)) {
+      return Response.json({ ok: true, rateLimited: true });
+    }
+
     let user: { email?: string; id?: string } | null = null;
     try {
       user = await base44.auth.me();

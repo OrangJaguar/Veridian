@@ -25,7 +25,7 @@
   },
   "required": ["event", "createdAt"],
   "rls": {
-    "create": {},
+    "create": { "user.role": "admin" },
     "read": { "user.role": "admin" },
     "update": { "user.role": "admin" },
     "delete": { "user.role": "admin" }

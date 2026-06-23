@@ -1,4 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
+import { serviceEntities } from "../_shared/serviceRole.ts";
 
 async function requireAdmin(base44: ReturnType<typeof createClientFromRequest>) {
   const user = await base44.auth.me();
@@ -51,7 +52,7 @@ async function loadAll(base44: ReturnType<typeof createClientFromRequest>) {
     base44.entities.Module.list(),
     base44.entities.Session.list(),
     base44.entities.Activity.list(),
-    base44.entities.ProductEvent.list().catch(() => []),
+    serviceEntities(base44).ProductEvent.list().catch(() => []),
   ]);
   return {
     prefs: prefs as Array<Record<string, unknown>>,

@@ -1,3 +1,5 @@
+import { serviceEntities } from "./serviceRole.ts";
+
 function normalizeMessage(message = "") {
   return String(message)
     .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, "<id>")
@@ -110,8 +112,9 @@ export async function upsertErrorLog(
 
   const now = Date.now();
   const occurrenceId = crypto.randomUUID();
+  const entities = serviceEntities(base44);
 
-  const existingRows = await base44.entities.ErrorGroup.filter({ groupId });
+  const existingRows = await entities.ErrorGroup.filter({ groupId });
   const existing = existingRows[0] as ErrorGroupRow | undefined;
 
   let group: ErrorGroupRow;
@@ -131,7 +134,7 @@ export async function upsertErrorLog(
       route: payload.route ?? existing.route,
     };
 
-    await base44.entities.ErrorGroup.update(existing.id, group);
+    await entities.ErrorGroup.update(existing.id, group);
   } else {
     isNewGroup = true;
     const emails = payload.userEmail ? [payload.userEmail] : [];
@@ -150,10 +153,10 @@ export async function upsertErrorLog(
       alertThresholdsSent: [],
       status: "open",
     };
-    await base44.entities.ErrorGroup.create(group);
+    await entities.ErrorGroup.create(group);
   }
 
-  await base44.entities.ErrorOccurrence.create({
+  await entities.ErrorOccurrence.create({
     occurrenceId,
     groupId,
     message,
@@ -191,15 +194,15 @@ export async function upsertErrorLog(
 
   if (shouldAlert && adminEmail && existing?.id) {
     const updatedSent = [...sent, thresholdKey || "new"];
-    await base44.entities.ErrorGroup.update(existing.id, {
+    await entities.ErrorGroup.update(existing.id, {
       lastAlertedAt: now,
       alertThresholdsSent: updatedSent,
     });
   } else if (shouldAlert && adminEmail && !existing?.id) {
-    const rows = await base44.entities.ErrorGroup.filter({ groupId });
+    const rows = await entities.ErrorGroup.filter({ groupId });
     const row = rows[0];
     if (row?.id) {
-      await base44.entities.ErrorGroup.update(row.id, {
+      await entities.ErrorGroup.update(row.id, {
         lastAlertedAt: now,
         alertThresholdsSent: ["new"],
       });

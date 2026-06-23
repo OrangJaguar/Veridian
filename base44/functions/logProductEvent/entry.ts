@@ -1,4 +1,6 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
+import { serviceEntities } from "../_shared/serviceRole.ts";
+import { checkRequestRateLimit, rateLimitKey } from "../_shared/requestRateLimit.ts";
 
 const ALLOWED_EVENTS = new Set([
   "landing_view",
@@ -17,22 +19,18 @@ const ALLOWED_EVENTS = new Set([
   "library_clone_click",
 ]);
 
-const rateByAnon = new Map<string, number[]>();
-const RATE_LIMIT = 60;
-const RATE_WINDOW_MS = 60_000;
-
-function rateLimit(anonymousId: string) {
-  const now = Date.now();
-  const prev = (rateByAnon.get(anonymousId) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
-  if (prev.length >= RATE_LIMIT) return false;
-  prev.push(now);
-  rateByAnon.set(anonymousId, prev);
-  return true;
-}
+const MINUTE_MS = 60_000;
+const MAX_EVENTS_PER_IP_MINUTE = 30;
+const MAX_EVENTS_PER_ANON_MINUTE = 20;
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+
+    if (!checkRequestRateLimit(rateLimitKey("productEvent:ip", req), MAX_EVENTS_PER_IP_MINUTE, MINUTE_MS)) {
+      return Response.json({ data: { ok: true, throttled: true } });
+    }
+
     let user: { email?: string } | null = null;
     try {
       user = await base44.auth.me();
@@ -47,11 +45,15 @@ Deno.serve(async (req) => {
     }
 
     const anonymousId = String(body.anonymousId ?? "unknown").slice(0, 64);
-    if (!rateLimit(anonymousId)) {
+    if (!checkRequestRateLimit(
+      rateLimitKey("productEvent:anon", req, anonymousId),
+      MAX_EVENTS_PER_ANON_MINUTE,
+      MINUTE_MS,
+    )) {
       return Response.json({ data: { ok: true, throttled: true } });
     }
 
-    await base44.entities.ProductEvent.create({
+    await serviceEntities(base44).ProductEvent.create({
       anonymousId,
       event,
       path: String(body.path ?? "").slice(0, 300),
