@@ -1,7 +1,7 @@
 import { base44 } from '@/api/base44Client';
 import { requireAuth } from '@/api/requireAuth';
 import { normalizeUsername, isValidUsernameFormat } from '@/utils/schemas/preferences';
-import { markOnboardingDoneLocally } from '@/lib/onboardingStorage';
+import { getDefaultPinnedToolIds } from '@/lib/tools/pinned-tools';
 
 function pickBestPreferencesRow(rows) {
   if (!rows?.length) return null;
@@ -31,6 +31,7 @@ export async function updatePreferences(patch) {
     ...patch,
     userEmail: user.email,
     hintsShown: patch.hintsShown ?? [],
+    pinnedToolIds: patch.pinnedToolIds ?? getDefaultPinnedToolIds(),
     notificationPref: patch.notificationPref ?? 'off',
     defaultPrivacy: patch.defaultPrivacy ?? 'private',
     researchConsent: patch.researchConsent ?? false,

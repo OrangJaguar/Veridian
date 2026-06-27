@@ -5,7 +5,7 @@ import App from '@/App.jsx';
 import QueryProvider from '@/providers/QueryProvider';
 import AuthProvider from '@/providers/AuthProvider';
 import QueryPersistManager from '@/components/providers/QueryPersistManager';
-import ErrorBoundary from '@/components/errors/ErrorBoundary';
+import RouteErrorBoundary from '@/components/errors/RouteErrorBoundary';
 import GlobalErrorHandlers from '@/components/errors/GlobalErrorHandlers';
 import { Toaster } from '@/components/ui/sonner';
 import '@/css/app.css';
@@ -17,21 +17,21 @@ initStudyAiDebugFromUrl();
 applyThemeFromStorage();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <ErrorBoundary>
-    <QueryProvider>
-      <AuthProvider>
-        <QueryPersistManager>
-        <GlobalErrorHandlers />
-        <div className="app-root-shell">
-          <BrowserRouter>
+  <QueryProvider>
+    <AuthProvider>
+      <QueryPersistManager>
+      <GlobalErrorHandlers />
+      <div className="app-root-shell">
+        <BrowserRouter>
+          <RouteErrorBoundary>
             <div className="app-router-outlet">
               <App />
             </div>
-          </BrowserRouter>
-          <Toaster />
-        </div>
-        </QueryPersistManager>
-      </AuthProvider>
-    </QueryProvider>
-  </ErrorBoundary>,
+          </RouteErrorBoundary>
+        </BrowserRouter>
+        <Toaster />
+      </div>
+      </QueryPersistManager>
+    </AuthProvider>
+  </QueryProvider>,
 );

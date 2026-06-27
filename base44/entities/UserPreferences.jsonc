@@ -110,6 +110,66 @@
     },
     "maiSurveyDay60DismissedAt": {
       "type": "number"
+    },
+    "pinnedToolIds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Tool registry ids starred for /tools sidebar"
+    },
+    "toolsSleepBufferMin": {
+      "type": "number",
+      "description": "Default 480 (8h)"
+    },
+    "toolsTravelBufferMin": {
+      "type": "number",
+      "description": "Default 30"
+    },
+    "toolsDashboardWidgets": {
+      "type": "object",
+      "description": "weather, quote, habits, stocks toggles"
+    },
+    "toolsDashboardWidgetLayout": {
+      "type": "array",
+      "items": { "type": "object" },
+      "description": "Dashboard widget order, size, enabled state"
+    },
+    "toolsJournalTags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Editable journal hashtag presets"
+    },
+    "toolsCustomCategories": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "toolsHabitChecks": {
+      "type": "object",
+      "description": "habitId -> checked for today"
+    },
+    "toolsHabitDefinitions": {
+      "type": "array",
+      "items": { "type": "object" },
+      "description": "id, label"
+    },
+    "journalMinWords": { "type": "number" },
+    "journalDailyPromptEnabled": { "type": "boolean" },
+    "journalPinHash": { "type": "string" },
+    "journalGraceUsedAt": { "type": "number" },
+    "journalStreakSavedShownAt": { "type": "number" },
+    "focusLastPreset": { "type": "string" },
+    "focusCustomWorkMin": { "type": "number" },
+    "focusCustomBreakMin": { "type": "number" },
+    "focusAmbientSound": { "type": "string" },
+    "focusAmbientVolume": { "type": "number" },
+    "toolsWeatherCity": { "type": "string" },
+    "toolsWeatherLocation": {
+      "type": "object",
+      "description": "Open-Meteo geocoded city with lat/lon"
+    },
+    "toolsWeatherUnit": { "type": "string", "description": "fahrenheit or celsius" },
+    "toolsStockSymbols": {
+      "type": "array",
+      "items": { "type": "string" }
     }
   },
   "required": [],

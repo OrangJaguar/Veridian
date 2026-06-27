@@ -6,6 +6,7 @@ export default function SidebarNavLink({
   icon: Icon,
   end = false,
   className = 'app-sidebar-link',
+  rawIcon = false,
 }) {
   return (
     <NavLink
@@ -15,11 +16,15 @@ export default function SidebarNavLink({
       className={({ isActive }) => `${className}${isActive ? ' active' : ''}`}
     >
       {({ isActive }) => (
-        <Icon
-          size={20}
-          strokeWidth={isActive ? 2 : 1.75}
-          fill={isActive ? 'currentColor' : 'none'}
-        />
+        rawIcon ? (
+          <Icon />
+        ) : (
+          <Icon
+            size={20}
+            strokeWidth={isActive ? 2 : 1.75}
+            fill={isActive ? 'currentColor' : 'none'}
+          />
+        )
       )}
     </NavLink>
   );
