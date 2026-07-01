@@ -15,7 +15,7 @@ export async function proposeJourney(input, options = {}) {
 
   const raw = await invokeGemini('proposeJourney', {
     title: sanitizeShortLabel(input.title, 120),
-    subject: sanitizeShortLabel(input.subject, 120),
+    subject: sanitizeShortLabel(input.subject, 80),
     priorKnowledge: input.priorKnowledge ?? 'some',
     material,
   }, options);

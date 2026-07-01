@@ -20,7 +20,6 @@ import PreQuizConfidenceStep from '@/components/research/PreQuizConfidenceStep';
 import { usePreQuizConfidence } from '@/hooks/research/usePreQuizConfidence';
 import { withConfidenceSlider, assertConfidenceSliderPresent } from '@/utils/research/sessionConfidence';
 import { StudyAiError } from '@/components/study/StudyAiStatus';
-import { generateDiagnosticQuestions } from '@/api/ai/study';
 import { generateDiagnosticQuestionsProgressive } from '@/utils/study/generateDiagnosticQuestionsProgressive';
 import { runStudyAiGeneration } from '@/hooks/ai/runStudyAiGeneration';
 import { applyDiagnosticResults } from '@/api/entities/applyDiagnosticResults';

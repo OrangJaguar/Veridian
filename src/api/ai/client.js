@@ -1,4 +1,5 @@
 import { base44 } from '@/api/base44Client';
+import { requireAuth } from '@/api/requireAuth';
 import { logClientError } from '@/api/errors/logClientError';
 import { notifyAiQuotaChanged } from '@/api/ai/quota';
 
@@ -68,7 +69,7 @@ function normalizeInvokeError(err) {
 export async function invokeGemini(action, payload, options = {}) {
   const { signal } = options;
 
-  const user = await base44.auth.me();
+  const user = await requireAuth();
   if (!user?.email) {
     throw new Error('Please sign in to use AI features.');
   }

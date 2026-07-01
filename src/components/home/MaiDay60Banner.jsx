@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom';
 import { usePreferences } from '@/hooks/queries/usePreferences';
 import { dismissMaiDay60Survey } from '@/api/entities/maiSurvey';
 import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/api/query-keys';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 

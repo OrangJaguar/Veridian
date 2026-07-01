@@ -34,10 +34,6 @@ export default function OnboardingGate({ children }) {
     return children;
   }
 
-  if (location.pathname.startsWith('/tools')) {
-    return children;
-  }
-
   if (!onboardingDone) {
     return <Navigate to="/onboarding" replace state={{ from: location.pathname }} />;
   }

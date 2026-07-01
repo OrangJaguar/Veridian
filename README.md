@@ -34,11 +34,22 @@ For AI features (journey creation), set `GEMINI_API_KEY` server-side via Base44 
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VITE_BASE44_APP_ID` | Yes | Your Base44 app ID for the Veridian project |
-| `VITE_BASE44_APP_BASE_URL` | Yes | Base URL of your Base44 app (e.g. `https://veridianstudy.base44.app`) |
-| `GEMINI_API_KEY` | For AI | Google Gemini API key — set via Base44 secrets, not in the frontend |
+You only need **one file for day-to-day local dev**: `.env.local` (copy from [`.env.example`](.env.example)). Vite loads it automatically.
+
+| File | Committed? | Purpose |
+|------|------------|---------|
+| `.env.example` | Yes (template) | Documents the `VITE_*` vars the frontend needs |
+| `.env.local` | No (gitignored) | Your real Base44 app ID + URL for `npm run dev` |
+| `.env.secrets.example` | Yes (template) | Documents server secrets for the Base44 CLI |
+| `.env.secrets` | No (gitignored) | Your real API keys — used once with `base44 secrets set --env-file .env.secrets` |
+
+Server-side secrets (`GEMINI_API_KEY`, etc.) live on **Base44**, not in the frontend bundle. Never prefix secrets with `VITE_`.
+
+| Variable | Required | Where |
+|----------|----------|-------|
+| `VITE_BASE44_APP_ID` | Yes | `.env.local` |
+| `VITE_BASE44_APP_BASE_URL` | Yes | `.env.local` |
+| `GEMINI_API_KEY` | For AI | Base44 secrets (via `.env.secrets` + CLI) |
 
 ## Project Structure
 

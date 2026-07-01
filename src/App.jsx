@@ -41,24 +41,6 @@ import FeedbackPage from '@/pages/feedback/FeedbackPage';
 import AiLimitPage from '@/pages/ai/AiLimitPage';
 import { RedirectAdminJourney, RedirectAdminModule } from '@/components/routing/AdminLegacyRedirect';
 import ProductAnalyticsTracker from '@/components/analytics/ProductAnalyticsTracker';
-import ToolsDashboardPage from '@/pages/tools/ToolsDashboardPage';
-import ToolsTasksPage from '@/pages/tools/ToolsTasksPage';
-import ToolsCalendarPage from '@/pages/tools/ToolsCalendarPage';
-import ToolsFocusPage from '@/pages/tools/ToolsFocusPage';
-import ToolsGradesPage from '@/pages/tools/ToolsGradesPage';
-import ToolsPdfToolsPage from '@/pages/tools/ToolsPdfToolsPage';
-import ToolsStocksPage from '@/pages/tools/ToolsStocksPage';
-import ToolsTypingPage from '@/pages/tools/ToolsTypingPage';
-import ToolsCollegePage from '@/pages/tools/ToolsCollegePage';
-import ToolsUnitsPage from '@/pages/tools/ToolsUnitsPage';
-import ToolsJournalPage from '@/pages/tools/ToolsJournalPage';
-import ToolsGoalsPage from '@/pages/tools/ToolsGoalsPage';
-import ToolsProfileToolPage from '@/pages/tools/ToolsProfileToolPage';
-import ToolsListsPage from '@/pages/tools/ToolsListsPage';
-import ToolsPasswordsPage from '@/pages/tools/ToolsPasswordsPage';
-import ToolsCalculatorPage from '@/pages/tools/ToolsCalculatorPage';
-import ToolsCatalogPage from '@/pages/tools/ToolsCatalogPage';
-import ToolsSettingsPage from '@/pages/tools/ToolsSettingsPage';
 
 export default function App() {
   return (
@@ -84,26 +66,7 @@ export default function App() {
         <Route path="/library/:journeyId" element={<LibraryPreviewPage />} />
         <Route path="/feedback" element={<FeedbackPage />} />
         <Route path="/ai-limit" element={<AiLimitPage />} />
-        <Route path="/tools" element={<Navigate to="/tools/dashboard" replace />} />
-        <Route path="/tools/dashboard" element={<ToolsDashboardPage />} />
-        <Route path="/tools/tasks" element={<ToolsTasksPage />} />
-        <Route path="/tools/calendar" element={<ToolsCalendarPage />} />
-        <Route path="/tools/focus" element={<ToolsFocusPage />} />
-        <Route path="/tools/grades" element={<ToolsGradesPage />} />
-        <Route path="/tools/pdf/*" element={<ToolsPdfToolsPage />} />
-        <Route path="/tools/pdftools/*" element={<Navigate to="/tools/pdf" replace />} />
-        <Route path="/tools/stocks/*" element={<ToolsStocksPage />} />
-        <Route path="/tools/typing" element={<ToolsTypingPage />} />
-        <Route path="/tools/college" element={<ToolsCollegePage />} />
-        <Route path="/tools/units" element={<ToolsUnitsPage />} />
-        <Route path="/tools/journal" element={<ToolsJournalPage />} />
-        <Route path="/tools/goals" element={<ToolsGoalsPage />} />
-        <Route path="/tools/profile" element={<ToolsProfileToolPage />} />
-        <Route path="/tools/lists" element={<ToolsListsPage />} />
-        <Route path="/tools/passwords" element={<ToolsPasswordsPage />} />
-        <Route path="/tools/calculator" element={<ToolsCalculatorPage />} />
-        <Route path="/tools/catalog" element={<ToolsCatalogPage />} />
-        <Route path="/tools/settings" element={<ToolsSettingsPage />} />
+        <Route path="/tools/*" element={<Navigate to="/home" replace />} />
         <Route path="/errors" element={<Navigate to="/admin/errors" replace />} />
         <Route path="/data" element={<Navigate to="/admin/data" replace />} />
         <Route path="/adminjourneys" element={<Navigate to="/admin/journeys" replace />} />
