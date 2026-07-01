@@ -29,7 +29,7 @@ export default function ActivityRow({ activity, cardCount = 0, journeyId, module
   };
 
   return (
-    <div className={`module-activity-row${compact ? ' compact' : ''}`}>
+    <div className={`module-activity-row${compact ? ' compact' : ''}${activity.status === 'failed' ? ' module-activity-row--failed' : ''}`}>
       <div className="module-activity-main">
         <strong>
           <ActivityLabelWithTooltip

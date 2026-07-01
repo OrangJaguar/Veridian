@@ -2479,6 +2479,35 @@
       background: var(--bg);
     }
 
+    .module-activity-row--failed {
+      border-color: color-mix(in srgb, var(--warning, #d97706) 45%, var(--border));
+      background: color-mix(in srgb, var(--warning, #d97706) 6%, var(--bg));
+    }
+
+    .study-ai-error-progress {
+      margin: 0.35rem 0 0;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+    }
+
+    .study-ai-inline-error {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin: 0 1rem 0.75rem;
+      padding: 0.65rem 0.85rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-elevated, var(--bg));
+      font-size: 0.875rem;
+    }
+
+    .study-ai-inline-error p {
+      margin: 0;
+      flex: 1;
+    }
+
     .module-activity-main {
       display: flex;
       flex-direction: column;
@@ -6484,6 +6513,23 @@
       color: var(--text-muted);
     }
 
+    .ai-generation-loading-patience {
+      margin: 0.35rem 0 0;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.45;
+      max-width: 22rem;
+    }
+
+    .ai-generation-loading-elapsed {
+      margin: 0.25rem 0 0;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      opacity: 0.85;
+      text-align: center;
+    }
+
     .ai-generation-loading-steps {
       list-style: none;
       margin: 0;
@@ -7532,15 +7578,6 @@
 
     .guide-youtube-chip:hover {
       border-color: var(--text-main);
-    }
-
-    .guide-transition {
-      margin: 1.5rem 0 0;
-      padding-top: 1rem;
-      border-top: 1px solid var(--border);
-      font-size: 0.88rem;
-      color: var(--text-muted);
-      font-style: italic;
     }
 
     .guide-end-actions {

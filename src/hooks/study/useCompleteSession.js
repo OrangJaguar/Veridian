@@ -92,8 +92,16 @@ export function useCompleteSession() {
 
   const completeSessionInBackground = useCallback(
     (params) => {
-      completeSession(params).catch(() => {
-        toast.error('Could not save session results. Your progress may not sync until you retry.');
+      completeSession(params).catch((err) => {
+        toast.error(err?.message || 'Could not save session results.', {
+          duration: Infinity,
+          action: {
+            label: 'Save again',
+            onClick: () => completeSession(params).catch(() => {
+              toast.error('Still could not save. Check your connection and try again.');
+            }),
+          },
+        });
       });
     },
     [completeSession],

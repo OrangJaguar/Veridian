@@ -94,6 +94,8 @@ export default function DiagnosticPage() {
   const [activityReady, setActivityReady] = useState(false);
   const [genError, setGenError] = useState(null);
   const [moduleProgress, setModuleProgress] = useState(null);
+  const [partialDiagnostic, setPartialDiagnostic] = useState(null);
+  const [saveError, setSaveError] = useState(null);
   const [confidenceSlider, setConfidenceSlider] = useState(
     () => resumableSession?.sessionData?.confidenceSlider ?? null,
   );
@@ -180,7 +182,7 @@ export default function DiagnosticPage() {
     setModuleProgress(null);
 
     try {
-      if (resumableSession) {
+      if (resumableSession && !partialDiagnostic) {
         setSession(resumableSession);
         setQuestions(resumableSession.sessionData.questions);
         setConfidenceSlider(resumableSession.sessionData?.confidenceSlider ?? null);
@@ -209,6 +211,9 @@ export default function DiagnosticPage() {
         concepts: mod.knowledgeMap?.concepts ?? [],
       }));
 
+      const startModuleIndex = partialDiagnostic?.moduleIndex ?? 0;
+      const existingQuestions = partialDiagnostic?.questions ?? [];
+
       const interleaved = await runStudyAiGeneration({
         action: 'generateDiagnosticQuestions',
         generate: () => generateDiagnosticQuestionsProgressive({
@@ -219,8 +224,11 @@ export default function DiagnosticPage() {
           questionsPerModule: DIAGNOSTIC_QUESTIONS_PER_MODULE,
           modules: modulePayload,
         }, {
-          onModule: (_mod, index, total) => {
+          existingQuestions,
+          startModuleIndex,
+          onModule: (_mod, index, total, allQuestions) => {
             setModuleProgress({ index: index + 1, total });
+            setPartialDiagnostic({ moduleIndex: index + 1, questions: allQuestions });
           },
         }),
         normalize: (data) => {
@@ -256,9 +264,18 @@ export default function DiagnosticPage() {
 
       setSession(newSession);
       setQuestions(interleaved);
+      setPartialDiagnostic(null);
       setPhase('confidence');
     } catch (err) {
-      setGenError(err instanceof Error ? err : new Error(String(err)));
+      const error = err instanceof Error ? err : new Error(String(err));
+      if (error.partialResults?.length) {
+        const flat = error.partialResults.flat();
+        setPartialDiagnostic({
+          moduleIndex: error.failedChunkIndex ?? flat.length,
+          questions: flat,
+        });
+      }
+      setGenError(error);
     } finally {
       generatingRef.current = false;
       setGenerating(false);
@@ -317,7 +334,6 @@ export default function DiagnosticPage() {
       totalTimeSec,
       moduleResults: placement.moduleResults,
     });
-    setPhase('summary');
 
     try {
       await applyDiagnosticResults(journeyId, placement, session.sessionId);
@@ -338,8 +354,10 @@ export default function DiagnosticPage() {
         },
       });
       invalidateJourney();
+      setSaveError(null);
+      setPhase('summary');
     } catch (err) {
-      toast.error(err.message || 'Could not save diagnostic results');
+      setSaveError(err instanceof Error ? err : new Error(String(err)));
     }
   };
 
@@ -376,6 +394,19 @@ export default function DiagnosticPage() {
   if (resolvedPhase === 'summary' && summaryData) {
     return (
       <div className="diagnostic-page">
+        {saveError && (
+          <StudyAiError
+            message={saveError.message || 'Could not save diagnostic results.'}
+            error={saveError}
+            onRetry={async () => {
+              setSaveError(null);
+              await handleComplete(summaryData.answers, summaryData.totalTimeSec);
+            }}
+            retryLabel="Save results"
+            onExit={() => setSaveError(null)}
+            exitLabel="Dismiss"
+          />
+        )}
         <DiagnosticSummary
           questions={questions}
           answers={summaryData.answers}
@@ -423,7 +454,9 @@ export default function DiagnosticPage() {
       ? Math.min(2, Math.floor(((moduleProgress.index - 1) / moduleProgress.total) * 3))
       : 0;
     const diagnosticProgressDetail = moduleProgress
-      ? `Module ${moduleProgress.index} of ${moduleProgress.total}`
+      ? partialDiagnostic?.moduleIndex
+        ? `Resuming — module ${moduleProgress.index} of ${moduleProgress.total}`
+        : `Module ${moduleProgress.index} of ${moduleProgress.total}`
       : null;
 
     return (
@@ -449,8 +482,12 @@ export default function DiagnosticPage() {
         <StudyAiError
           message={genError?.message || 'Failed to generate diagnostic questions'}
           error={genError}
+          progress={partialDiagnostic?.moduleIndex && modules.length
+            ? { completed: partialDiagnostic.moduleIndex, total: modules.length, label: 'modules' }
+            : null}
           onRetry={handleStart}
-          retryLabel="Try again"
+          retryLabel="Continue generating"
+          onExit={handleExit}
         />
       )}
 

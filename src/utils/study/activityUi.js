@@ -12,7 +12,7 @@ export function getActivityDisplayName(activity) {
 
 export function getActivityActionLabel(activity) {
   if (isLegacyGeneratingActivity(activity)) return 'Generating…';
-  if (activity.status === 'failed') return 'Retry';
+  if (activity.status === 'failed') return 'Tap to resume';
   if (activity.type === 'flashcardSet') return 'Review';
 
   if (activity.type === 'learningGuide') {
@@ -34,7 +34,7 @@ export function getActivityActionLabel(activity) {
 
 export function getActivityStatusNote(activity, cardCount = 0) {
   if (isLegacyGeneratingActivity(activity)) return 'Generating…';
-  if (activity.status === 'failed') return 'Generation failed — tap to retry';
+  if (activity.status === 'failed') return 'Tap to resume';
 
   if (activity.type === 'flashcardSet') {
     const due = activity.stats?.dueCount ?? 0;

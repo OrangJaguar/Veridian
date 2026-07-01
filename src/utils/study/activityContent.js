@@ -65,8 +65,9 @@ export function resolveGuideCheckIns(progress = {}, sessionData = {}) {
 
 export function learningGuideNeedsGeneration(activity) {
   if (!activity || activity.type !== 'learningGuide') return false;
-  if (hasLearningGuideContent(activity)) return false;
-  return activity.status === 'notGenerated' || activity.status === 'failed';
+  if (activity.status === 'ready' && hasLearningGuideContent(activity)) return false;
+  if (activity.status === 'generating' || activity.status === 'failed') return true;
+  return activity.status === 'notGenerated';
 }
 
 export function isLegacyGeneratingActivity(activity) {

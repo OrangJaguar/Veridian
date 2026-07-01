@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import StudyChrome from '@/components/study/StudyChrome';
 import QuizSetupForm from '@/components/study/quiz/QuizSetupForm';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
@@ -7,7 +7,7 @@ import { StudyAiError } from '@/components/study/StudyAiStatus';
 import AiGenerationLoading from '@/components/shared/AiGenerationLoading';
 import PreQuizConfidenceStep from '@/components/research/PreQuizConfidenceStep';
 import { usePreQuizConfidence } from '@/hooks/research/usePreQuizConfidence';
-import { generateInterleavedQuestions } from '@/api/ai/study';
+import { generateInterleavedQuestionsProgressive } from '@/utils/study/generatePracticeQuestionsProgressive';
 import { normalizeQuizQuestions } from '@/utils/study/normalizeQuizQuestions';
 import { requireGeneratedQuestions } from '@/utils/study/requireGeneratedQuestions';
 import { runStudyAiGeneration } from '@/hooks/ai/runStudyAiGeneration';
@@ -27,7 +27,7 @@ export default function InterleavedSession({ session, activity, journeyId, modul
   const { completeSessionInBackground } = useCompleteSession();
   const abandonSession = useAbandonSession();
   const updateSession = useUpdateSession();
-  const returnPath = `/journeys/${journeyId}`;
+  const lastConfigRef = useRef(null);
   const [confidenceSlider, setConfidenceSlider] = useState(
     () => session.sessionData?.confidenceSlider ?? null,
   );
@@ -45,12 +45,13 @@ export default function InterleavedSession({ session, activity, journeyId, modul
   };
 
   const handleStart = async (config) => {
+    lastConfigRef.current = config;
     setLoading(true);
     setGenError(null);
     try {
       const selected = modules.filter((m) => selectedModuleIds.includes(m.moduleId));
       const nextQuestions = await runStudyAiGeneration({
-        generate: () => generateInterleavedQuestions({
+        generate: () => generateInterleavedQuestionsProgressive({
           journeyTitle: journey?.title,
           subject: journey?.subject,
           questionCount: config.questionCount,
@@ -130,7 +131,8 @@ export default function InterleavedSession({ session, activity, journeyId, modul
         <StudyAiError
           message={genError?.message || 'Failed to load questions'}
           error={genError}
-          onRetry={() => setGenError(null)}
+          onRetry={() => lastConfigRef.current && handleStart(lastConfigRef.current)}
+          retryLabel="Continue generating"
           onExit={handleExit}
         />
       </StudyChrome>

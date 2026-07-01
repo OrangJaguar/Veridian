@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Check } from 'lucide-react';
 import VeridianLoading from '@/components/shared/VeridianLoading';
 import { useUiStore } from '@/store/uiStore';
@@ -6,6 +6,8 @@ import { getGenerationLoadingProfile } from '@/utils/ai/generationLoadingProfile
 import { STUDY_DID_YOU_KNOW_FACTS } from '@/utils/ai/studyDidYouKnowFacts';
 
 const FACT_ROTATE_MS = 8000;
+/** Advance displayed step on a timer when real progress is slow (engagement). */
+const ENGAGEMENT_STEP_MS = 22_000;
 
 function pickRandomIndex(length, seed = Date.now()) {
   return Math.abs(seed) % length;
@@ -72,10 +74,43 @@ export default function AiGenerationLoading({
   const isLong = profile.mode === 'long' && variant !== 'inline';
 
   const [factIndex, setFactIndex] = useState(() => pickRandomIndex(STUDY_DID_YOU_KNOW_FACTS.length));
+  const [engagementStep, setEngagementStep] = useState(0);
+  const [elapsedLabel, setElapsedLabel] = useState(null);
+  const mountTimeRef = useRef(Date.now());
 
   useEffect(() => {
     setFactIndex(pickRandomIndex(STUDY_DID_YOU_KNOW_FACTS.length, Date.now()));
+    setEngagementStep(0);
+    mountTimeRef.current = Date.now();
+    setElapsedLabel(null);
   }, [action]);
+
+  useEffect(() => {
+    if (!isLong || variant === 'inline') return undefined;
+
+    const stepId = window.setInterval(() => {
+      setEngagementStep((prev) => {
+        const max = Math.max(0, profile.steps.length - 1);
+        return prev >= max ? prev : prev + 1;
+      });
+    }, ENGAGEMENT_STEP_MS);
+
+    const elapsedId = window.setInterval(() => {
+      const minutes = Math.floor((Date.now() - mountTimeRef.current) / 60_000);
+      if (minutes >= 1) {
+        setElapsedLabel(`${minutes} min elapsed`);
+      }
+    }, 15_000);
+
+    return () => {
+      window.clearInterval(stepId);
+      window.clearInterval(elapsedId);
+    };
+  }, [isLong, variant, profile.steps.length, action]);
+
+  const effectiveStepIndex = isLong && profile.steps.length
+    ? Math.min(profile.steps.length - 1, Math.max(activeStepIndex, engagementStep))
+    : activeStepIndex;
 
   useEffect(() => {
     if (variant === 'inline') return undefined;
@@ -113,11 +148,17 @@ export default function AiGenerationLoading({
         <div className="ai-generation-loading-header">
           <VeridianLoading size="lg" fullPage={false} />
           <p className="ai-generation-loading-label">{label}</p>
+          {profile.patienceNote && (
+            <p className="ai-generation-loading-patience">{profile.patienceNote}</p>
+          )}
           {progressDetail && (
             <p className="ai-generation-loading-detail">{progressDetail}</p>
           )}
+          {elapsedLabel && (
+            <p className="ai-generation-loading-elapsed">{elapsedLabel}</p>
+          )}
         </div>
-        <LoadingSteps steps={profile.steps} activeStepIndex={activeStepIndex} />
+        <LoadingSteps steps={profile.steps} activeStepIndex={effectiveStepIndex} />
         <DidYouKnowFact factIndex={factIndex} />
       </div>
     );

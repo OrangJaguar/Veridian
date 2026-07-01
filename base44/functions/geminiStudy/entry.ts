@@ -58,8 +58,6 @@ const guideSectionAiSchema = z.object({
     correctAnswer: coercedAnswerSchema.optional(),
     explanation: z.string().optional(),
   }).optional(),
-  externalSearchSuggestions: z.array(z.string()).optional(),
-  transitionText: z.string().optional(),
   keyTerms: z.array(z.object({
     term: z.string().optional(),
     definition: z.string().optional(),
@@ -149,6 +147,65 @@ function repairTruncatedJson(text: string) {
   return s;
 }
 
+/** Extract complete top-level objects from a truncated JSON array. */
+function salvageJsonArrayItems(text: string, wrapperKey?: string) {
+  const trimmed = String(text ?? "").trim();
+  let arrayBody = trimmed;
+
+  if (wrapperKey) {
+    const keyMatch = trimmed.match(new RegExp(`"${wrapperKey}"\\s*:\\s*\\[`));
+    if (keyMatch && keyMatch.index != null) {
+      const start = trimmed.indexOf("[", keyMatch.index);
+      if (start !== -1) arrayBody = trimmed.slice(start);
+    }
+  }
+
+  const arrStart = arrayBody.indexOf("[");
+  if (arrStart === -1) return null;
+
+  const items: unknown[] = [];
+  let depth = 0;
+  let itemStart = -1;
+  let inString = false;
+  let escape = false;
+
+  for (let i = arrStart; i < arrayBody.length; i += 1) {
+    const c = arrayBody[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (inString) {
+      if (c === "\\") escape = true;
+      else if (c === "\"") inString = false;
+      continue;
+    }
+    if (c === "\"") {
+      inString = true;
+      continue;
+    }
+    if (c === "{") {
+      if (depth === 0) itemStart = i;
+      depth += 1;
+      continue;
+    }
+    if (c === "}") {
+      depth -= 1;
+      if (depth === 0 && itemStart !== -1) {
+        try {
+          items.push(JSON.parse(arrayBody.slice(itemStart, i + 1)));
+        } catch {
+          // skip malformed item
+        }
+        itemStart = -1;
+      }
+    }
+  }
+
+  if (!items.length) return null;
+  return wrapperKey ? { [wrapperKey]: items } : items;
+}
+
 function parseJsonWithRepair(extracted: string, debug?: ReturnType<typeof createAiDebugTrace>) {
   try {
     const parsed = JSON.parse(extracted);
@@ -169,7 +226,22 @@ function parseJsonWithRepair(extracted: string, debug?: ReturnType<typeof create
         });
         return parsed;
       } catch {
-        // fall through to original error
+        // fall through to salvage
+      }
+    }
+    for (const key of ["questions", "sections", "cards"]) {
+      if (!extracted.includes(`"${key}"`)) continue;
+      const salvaged = salvageJsonArrayItems(extracted, key);
+      if (salvaged) {
+        try {
+          debug?.record("json_salvage", true, {
+            key,
+            itemCount: Array.isArray(salvaged) ? salvaged.length : (salvaged as Record<string, unknown[]>)[key]?.length,
+          });
+          return salvaged;
+        } catch {
+          // continue
+        }
       }
     }
     debug?.record("json_parse", false, {
@@ -236,11 +308,6 @@ function coerceSectionItems(items: unknown[]) {
         correctAnswer: checkIn.correctAnswer ?? checkIn.answer ?? checkIn.correct ?? "",
         explanation: checkIn.explanation ?? checkIn.rationale ?? checkIn.reason ?? "",
       },
-      externalSearchSuggestions: s.externalSearchSuggestions
-        ?? s.youtubeSuggestions
-        ?? s.searchSuggestions
-        ?? [],
-      transitionText: s.transitionText ?? s.transition ?? "",
     };
   });
 }
@@ -423,11 +490,6 @@ function finalizeGuideOutput(raw: unknown) {
 
     const checkInStem = checkIn.question ?? (checkIn as { stem?: string }).stem ?? "";
 
-    const suggestions = (section.externalSearchSuggestions ?? [])
-      .map((s) => clipString(s, 120))
-      .filter(Boolean)
-      .slice(0, 3);
-
     const keyTerms = (section.keyTerms ?? [])
       .map((item) => ({
         term: clipString(item?.term, 80),
@@ -453,21 +515,12 @@ function finalizeGuideOutput(raw: unknown) {
         correctAnswer: clipString(checkIn.correctAnswer, 200) || options[0],
         explanation: clipString(checkIn.explanation, 500) || "Review the section explanation and worked example.",
       },
-      externalSearchSuggestions: suggestions.length >= 2
-        ? suggestions.slice(0, 2)
-        : [
-          `${clipString(section.title, 60) || "topic"} explained for beginners`,
-          `${clipString(section.title, 60) || "topic"} worked examples`,
-        ],
       keyTerms: keyTerms.length >= 2
         ? keyTerms
         : [],
       takeaways: takeaways.length >= 2
         ? takeaways
         : [],
-      transitionText: index < sections.length - 1
-        ? clipString(section.transitionText, 300)
-        : "",
     };
   });
 
@@ -679,11 +732,11 @@ function payloadShapeSummary(value: unknown): Record<string, unknown> {
 
 
 const MODEL = "gemma-4-31b-it";
-const DEPLOY_BUILD = "inline-gemma-v5-json-repair-diag-split";
+const DEPLOY_BUILD = "inline-gemma-v7-slim-guide-reliability";
 const MAX_OUTPUT_TOKENS = 4096;
-const MAX_OUTPUT_TOKENS_SECTION = 3072;
+const MAX_OUTPUT_TOKENS_SECTION = 1536;
 const MAX_OUTPUT_TOKENS_DIAGNOSTIC = 2048;
-const TEMPERATURE = 0.2;
+const TEMPERATURE = 0.1;
 
 const STUDY_LIMITS = {
   quizGenerationsPerDay: 20,
@@ -1003,8 +1056,6 @@ const guideSectionSchema = z.object({
     correctAnswer: z.string(),
     explanation: z.string().min(10),
   }),
-  externalSearchSuggestions: z.array(z.string()).min(2).max(3),
-  transitionText: z.string().optional(),
 });
 
 const guideOutputSchema = z.object({
@@ -1097,7 +1148,7 @@ const refresherOutputSchema = z.object({
 
 const LEARNING_GUIDE_SYSTEM = `You are an expert study guide writer for Veridian, a learning app.
 
-Produce JSON for a sectioned learning guide. Explanation text is the PRIMARY teaching surface — write thoroughly in plain language. Side panels beside the text show keyTerms and takeaways (generated by you — NOT images).
+Produce JSON for a sectioned learning guide. Explanation text is the PRIMARY teaching surface — write clearly in plain language. Side panels beside the text show keyTerms and takeaways (generated by you — NOT images).
 
 ${LATEX_RULE}
 
@@ -1106,28 +1157,24 @@ ${JSON_STRICT_RULE}
 Rules:
 - Output ONLY valid JSON matching the schema. No markdown.
 - Teach from the provided module concepts only — do not invent unsupported facts.
-- Each section must stand alone but flow into the next via transitionText.
+- Each section must stand alone as a coherent lesson.
 
 EXPLANATION (most important):
-- 280–380 words per section, 4–6 paragraphs separated by \\n\\n.
-- Full sentences (UI splits on . ! ? for zigzag layout — aim for 8–14 sentences).
+- 80–120 words per section, 2 short paragraphs separated by \\n\\n.
+- Full sentences (UI splits on . ! ? for zigzag layout).
 - Define key terms inline; use analogies and concrete examples.
 
-SIDE PANELS (displayed beside the explanation — NOT images):
-- keyTerms: 3–5 objects { term, definition } — the most important terms, formulas, or rules from THIS section only. Definitions max 1–2 sentences.
-- takeaways: 2–4 short bullet strings — what the reader should remember after this section (exam-relevant, actionable).
+SIDE PANELS:
+- keyTerms: 2–3 objects { term, definition } — important terms from THIS section only.
+- takeaways: 2 short bullet strings — exam-relevant points to remember.
 
 WORKED EXAMPLE (exactly one per section):
-- scenario: specific realistic problem (1–3 sentences).
-- steps: 3–5 ordered solution steps, one clear action each.
+- scenario: specific realistic problem (1–2 sentences).
+- steps: 3–4 ordered solution steps, one clear action each.
 - answer: final result in plain language.
-- reasoning: 2–3 sentences tying back to concepts — what to learn and why it works.
+- reasoning: 1–2 sentences tying back to concepts.
 
-CHECK-IN: type "multipleChoice" with exactly 4 options. Correct answer must be supported by the explanation and worked example. Distractors = plausible misconceptions. Fair but not trivial.
-
-YOUTUBE: exactly 2 externalSearchSuggestions — short YouTube-friendly queries, not URLs.
-
-TRANSITION: transitionText (1–2 sentences) on all sections except the last.
+CHECK-IN: type "multipleChoice" with exactly 4 options. Correct answer must be supported by the explanation and worked example. Distractors = plausible misconceptions.
 
 Do NOT include narrationText.`;
 
@@ -1142,13 +1189,11 @@ Output shape: { "sections": [ { single section object } ] } — exactly one item
 Rules:
 - Output ONLY valid JSON. No markdown.
 - Teach from the provided concepts for this section only.
-- explanation: 100–160 words, 2–3 short paragraphs separated by \\n\\n. Stay concise — finish the JSON.
-- keyTerms: 2–4 objects { term, definition } for this section only.
-- takeaways: 2–3 short strings — key points to remember.
+- explanation: 80–120 words, 2 short paragraphs separated by \\n\\n. Stay concise — finish the JSON.
+- keyTerms: 2–3 objects { term, definition } for this section only.
+- takeaways: 2 short strings — key points to remember.
 - workedExamples: MUST be an array with exactly one object — [ { scenario, steps, answer, reasoning } ]. Keep each field brief (reasoning: 1–2 sentences).
 - checkInQuestion: use key "stem" for the question text; multipleChoice with exactly 4 short options; explanation max 2 sentences.
-- externalSearchSuggestions: exactly 1 short YouTube search query.
-- transitionText: one short sentence previewing the next section (empty string if isLastSection is true).
 - sectionId: short kebab-case slug unique within the module.
 
 CRITICAL: Always close every string and brace. If running low on space, shorten explanation before truncating JSON.
@@ -1394,7 +1439,7 @@ async function generateOneLearningGuideSection(
     retrySuffix,
     "generateLearningGuide",
     debug,
-    2,
+    1,
     MAX_OUTPUT_TOKENS_SECTION,
   );
 
@@ -1485,7 +1530,7 @@ async function generateDiagnosticQuestionsBatch(
       retrySuffix,
       "generateDiagnosticQuestions",
       debug,
-      2,
+      1,
       MAX_OUTPUT_TOKENS_DIAGNOSTIC,
     );
     const finalized = data.questions
@@ -1601,7 +1646,7 @@ function schemaForAction(action: string) {
 
 function retrySuffixForAction(action: string, payload: Record<string, unknown>) {
   if (action === "generateLearningGuide") {
-    return "\n\nReturn ONLY valid JSON with sections array. Each section needs explanation, keyTerms (3-5), takeaways (2-4), workedExamples, checkInQuestion with 4 options, and 2 externalSearchSuggestions.";
+    return "\n\nReturn ONLY valid JSON with sections array. Each section needs explanation, keyTerms (2-3), takeaways (2), workedExamples, and checkInQuestion with 4 options.";
   }
   const count = Number(payload.questionCount ?? 0);
   if (count > 0 && aiSchemaForAction(action)) {

@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import LearningGuideViewer from '@/components/study/learning-guide/LearningGuideViewer';
 import SessionSummary from '@/components/study/SessionSummary';
 import { StudyAiError } from '@/components/study/StudyAiStatus';
@@ -29,7 +28,7 @@ export default function LearningGuideSession({ session, activity, module, journe
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: journey } = useJourney(journeyId);
-  const guideReady = hasLearningGuideContent(activity);
+  const guideReady = activity?.status === 'ready' && hasLearningGuideContent(activity);
   const [content, setContent] = useState(() => (
     guideReady ? activity.content : {}
   ));
@@ -53,6 +52,8 @@ export default function LearningGuideSession({ session, activity, module, journe
   const { completeSessionInBackground } = useCompleteSession();
   const updateActivity = useUpdateActivity();
   const updateSession = useUpdateSession();
+  const activityRef = useRef(activity);
+  activityRef.current = activity;
 
   const sections = content.sections ?? [];
   const returnPath = `/journeys/${journeyId}/modules/${module?.moduleId}`;
@@ -132,11 +133,39 @@ export default function LearningGuideSession({ session, activity, module, journe
     enabled: Boolean(moduleId && journey && !guideReady) && !rawDumpMode,
     hasContent: guideReady,
     beforeGenerate: markSessionGenerating,
-    generate: async () => generateLearningGuideProgressive(buildPayload(), {
-      onSection: (_section, index, total) => {
-        setSectionProgress({ current: index + 1, total });
-      },
-    }),
+    generate: async () => {
+      const payload = buildPayload();
+      const targetCount = payload.sectionCount;
+      const savedSections = activityRef.current.content?.sections ?? [];
+      const existingSections = savedSections.length > 0 && savedSections.length < targetCount
+        ? savedSections
+        : [];
+
+      if (existingSections.length > 0) {
+        setSectionProgress({ current: existingSections.length, total: targetCount });
+      }
+
+      return generateLearningGuideProgressive(payload, {
+        existingSections,
+        onSection: async (_section, index, total, allSections) => {
+          setSectionProgress({ current: index + 1, total });
+          const partial = normalizeGuideContent({
+            sections: allSections,
+            estimatedMinutes: Math.max(8, allSections.length * 5),
+          });
+          await updateActivity.mutateAsync({
+            activityId: activity.activityId,
+            journeyId,
+            moduleId,
+            patch: {
+              status: 'generating',
+              content: partial,
+              itemCount: allSections.length,
+            },
+          });
+        },
+      });
+    },
     normalize: normalizeGuideContent,
     validate: (normalized) => {
       if (!normalized?.sections?.length) {
@@ -168,7 +197,6 @@ export default function LearningGuideSession({ session, activity, module, journe
     },
     onSuccess: (normalized) => setContent(normalized),
     onError: async (err) => {
-      toast.error(err.message || 'Failed to generate learning guide');
       await updateActivity.mutateAsync({
         activityId: activity.activityId,
         journeyId,
@@ -349,8 +377,12 @@ export default function LearningGuideSession({ session, activity, module, journe
   }
 
   if (isLoading) {
+    const totalSteps = 4;
     const guideStepIndex = sectionProgress
-      ? Math.min(2, Math.floor(((sectionProgress.current - 1) / sectionProgress.total) * 3))
+      ? Math.min(
+        totalSteps - 1,
+        Math.floor((sectionProgress.current / sectionProgress.total) * totalSteps),
+      )
       : 0;
     const guideProgressDetail = sectionProgress
       ? `Section ${sectionProgress.current} of ${sectionProgress.total}`
@@ -367,12 +399,18 @@ export default function LearningGuideSession({ session, activity, module, journe
   }
 
   if (isError) {
+    const savedSections = activityRef.current.content?.sections?.length ?? 0;
+    const targetSections = sectionCountForConcepts(module?.knowledgeMap?.concepts ?? []);
     return (
       <StudyAiError
         message={error?.message || 'Failed to generate learning guide.'}
         error={error}
+        progress={savedSections > 0
+          ? { completed: savedSections, total: targetSections, label: 'sections' }
+          : null}
         onRetry={retry}
         onExit={handleExit}
+        retryLabel="Continue generating"
       />
     );
   }

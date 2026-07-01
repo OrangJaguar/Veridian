@@ -50,8 +50,11 @@ export const guideSectionAiSchema = z.object({
     correctAnswer: z.string().optional(),
     explanation: z.string().optional(),
   }).optional(),
-  externalSearchSuggestions: z.array(z.string()).optional(),
-  transitionText: z.string().optional(),
+  keyTerms: z.array(z.object({
+    term: z.string().optional(),
+    definition: z.string().optional(),
+  })).optional(),
+  takeaways: z.array(z.string()).optional(),
 });
 
 export const guideAiOutputSchema = z.object({
@@ -148,11 +151,6 @@ function coerceSectionItems(items: unknown[]) {
         correctAnswer: checkIn.correctAnswer ?? checkIn.answer ?? checkIn.correct ?? "",
         explanation: checkIn.explanation ?? checkIn.rationale ?? checkIn.reason ?? "",
       },
-      externalSearchSuggestions: s.externalSearchSuggestions
-        ?? s.youtubeSuggestions
-        ?? s.searchSuggestions
-        ?? [],
-      transitionText: s.transitionText ?? s.transition ?? "",
     };
   });
 }
@@ -329,10 +327,18 @@ export function finalizeGuideOutput(raw: unknown) {
     while (options.length < 4) options.push(`Option ${options.length + 1}`);
     options = options.slice(0, 4);
 
-    const suggestions = (section.externalSearchSuggestions ?? [])
-      .map((s) => clipString(s, 120))
+    const keyTerms = (section.keyTerms ?? [])
+      .map((item) => ({
+        term: clipString(item?.term, 80),
+        definition: clipString(item?.definition, 160),
+      }))
+      .filter((item) => item.term && item.definition)
+      .slice(0, 5);
+
+    const takeaways = (section.takeaways ?? [])
+      .map((item) => clipString(item, 180))
       .filter(Boolean)
-      .slice(0, 3);
+      .slice(0, 4);
 
     return {
       sectionId: clipString(section.sectionId, 48) || `section-${index + 1}`,
@@ -346,15 +352,8 @@ export function finalizeGuideOutput(raw: unknown) {
         correctAnswer: clipString(checkIn.correctAnswer, 200) || options[0],
         explanation: clipString(checkIn.explanation, 500) || "Review the section explanation and worked example.",
       },
-      externalSearchSuggestions: suggestions.length >= 2
-        ? suggestions.slice(0, 2)
-        : [
-          `${clipString(section.title, 60) || "topic"} explained for beginners`,
-          `${clipString(section.title, 60) || "topic"} worked examples`,
-        ],
-      transitionText: index < sections.length - 1
-        ? clipString(section.transitionText, 300)
-        : "",
+      keyTerms: keyTerms.length >= 2 ? keyTerms : [],
+      takeaways: takeaways.length >= 2 ? takeaways : [],
     };
   });
 

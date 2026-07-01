@@ -5,7 +5,8 @@ import ApClassroomQuizRunner from '@/components/study/quiz/ap-classroom/ApClassr
 import QuizSummary from '@/components/study/quiz/QuizSummary';
 import { StudyAiError } from '@/components/study/StudyAiStatus';
 import AiGenerationLoading from '@/components/shared/AiGenerationLoading';
-import { generatePracticeQuestions, generateConceptRefresher } from '@/api/ai/study';
+import { generateConceptRefresher } from '@/api/ai/study';
+import { generatePracticeQuestionsBatched } from '@/utils/study/generatePracticeQuestionsProgressive';
 import { focusGuidanceForPreset } from '@/api/ai/prompts/practiceQuiz';
 import { getWeakConceptIds } from '@/utils/study/conceptWeakness';
 import {
@@ -113,7 +114,7 @@ export default function PracticeQuizSession({ session, activity, module, journey
     }
 
     return runStudyAiGeneration({
-      generate: () => generatePracticeQuestions({
+      generate: () => generatePracticeQuestionsBatched({
         journeyTitle: journey?.title,
         subject: journey?.subject,
         moduleName: module?.name,

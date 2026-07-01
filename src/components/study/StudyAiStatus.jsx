@@ -5,40 +5,51 @@ import {
   isStudyAiDebugEnabled,
   getLastRawGemini,
 } from '@/utils/study/studyAiTrace';
+import { classifyAiFailure } from '@/utils/ai/invokeWithRetry';
 
-const FRIENDLY_PARSE_MSG = 'We had trouble formatting the AI response. This usually fixes itself on retry.';
+const FRIENDLY_PARSE_MSG = 'We had trouble formatting the AI response. This usually fixes itself when you continue.';
 
-function friendlyMessage(message, error) {
+function buildRecoveryMessage(message, error, progress) {
   const text = message ?? error?.message ?? '';
-  if (/invalid format|AI returned|Generated \d+\/\d+|validation|parse|JSON/i.test(text)) {
-    return FRIENDLY_PARSE_MSG;
+  const kind = classifyAiFailure(error ?? { message: text });
+
+  if (progress?.completed != null && progress?.total != null && progress.completed > 0) {
+    const label = progress.label ?? 'steps';
+    return `We saved your progress through ${progress.completed} of ${progress.total} ${label}. Tap Continue generating to finish the rest.`;
   }
-  if (/timed out|timeout|504/i.test(text)) {
-    return 'Generation took too long. Please try again.';
+
+  if (kind === 'timeout') {
+    return 'This is taking longer than usual. Your progress may be saved — tap Continue generating to pick up where we left off.';
   }
-  if (/Daily AI limit|token budget/i.test(text)) {
-    return text;
-  }
-  if (/sign in/i.test(text)) {
-    return text;
-  }
-  if (text && text.length < 200 && !/status code|zod|schema/i.test(text)) {
-    return text;
-  }
-  return 'Something went wrong while generating study content. Please try again.';
+  if (kind === 'parse') return FRIENDLY_PARSE_MSG;
+  if (kind === 'quota') return text || 'Daily AI limit reached. Try again tomorrow.';
+  if (/sign in/i.test(text)) return text;
+  if (text && text.length < 200 && !/status code|zod|schema/i.test(text)) return text;
+  return 'Generation paused before finishing. Tap Continue generating to resume.';
 }
 
-export function StudyAiError({
-  message = 'Something went wrong.',
+function friendlyMessage(message, error, progress) {
+  return buildRecoveryMessage(message, error, progress);
+}
+
+/**
+ * Unified AI failure card with recovery-first copy.
+ */
+export function AiFailureCard({
+  title = "Couldn't finish generating",
+  message,
   error,
   ticketRef,
+  variant = 'study',
+  progress = null,
   onRetry,
   onExit,
-  retryLabel = 'Try again',
+  retryLabel = 'Continue generating',
   exitLabel = 'Go back',
+  extraActions = null,
 }) {
   const debugEnabled = isStudyAiDebugEnabled();
-  const displayMessage = friendlyMessage(message, error);
+  const displayMessage = friendlyMessage(message, error, progress);
   const ref = ticketRef ?? error?.ticketRef ?? null;
   const debugSummary = debugEnabled ? formatStudyAiDebugSummary(error) : null;
   const rawText = debugEnabled ? (error?.rawGeminiText ?? getLastRawGemini()) : null;
@@ -46,10 +57,16 @@ export function StudyAiError({
     || /daily ai limit|token budget/i.test(message ?? '');
 
   return (
-    <div className="study-mode-view study-ai-error">
+    <div className={`study-mode-view study-ai-error study-ai-error--${variant}`}>
       <div className="guide-empty study-ai-error-card">
-        <h2 className="study-ai-error-title">Couldn&apos;t generate content</h2>
+        <h2 className="study-ai-error-title">{title}</h2>
         <p className="study-ai-error-message">{displayMessage}</p>
+
+        {progress?.completed > 0 && progress?.total > 0 && (
+          <p className="study-ai-error-progress">
+            Saved: {progress.completed} of {progress.total} {progress.label ?? 'steps'}
+          </p>
+        )}
 
         {ref && (
           <p className="study-ai-error-ticket">
@@ -74,6 +91,7 @@ export function StudyAiError({
               {exitLabel}
             </button>
           )}
+          {extraActions}
         </div>
 
         {debugEnabled && debugSummary && (
@@ -89,4 +107,9 @@ export function StudyAiError({
       </div>
     </div>
   );
+}
+
+/** @deprecated Use AiFailureCard — kept for existing imports */
+export function StudyAiError(props) {
+  return <AiFailureCard {...props} />;
 }

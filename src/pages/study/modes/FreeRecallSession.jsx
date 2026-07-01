@@ -52,6 +52,7 @@ export default function FreeRecallSession({ session, activity, module, journeyId
   const [hintModalOpen, setHintModalOpen] = useState(false);
   const hintsPreloadStarted = useRef(false);
   const [submitting, setSubmitting] = useState(false);
+  const [gradeError, setGradeError] = useState(null);
   const [phase, setPhase] = useState('active');
   const [result, setResult] = useState(null);
   const [summaryMeta, setSummaryMeta] = useState(null);
@@ -103,6 +104,7 @@ export default function FreeRecallSession({ session, activity, module, journeyId
 
   const handleSubmit = async ({ elapsedSec, wasVoice }) => {
     setSubmitting(true);
+    setGradeError(null);
     try {
       const graded = await gradeFreeRecall({
         recallPrompt: moduleName,
@@ -153,7 +155,7 @@ export default function FreeRecallSession({ session, activity, module, journeyId
         startedAt: session.startedAt,
       });
     } catch (err) {
-      toast.error(err.message || 'Grading failed');
+      setGradeError(err.message || 'Grading failed');
     } finally {
       setSubmitting(false);
     }
@@ -184,7 +186,20 @@ export default function FreeRecallSession({ session, activity, module, journeyId
   }
 
   return (
-    <FreeRecallEditor
+    <>
+      {gradeError && (
+        <div className="study-ai-inline-error study-mode-view" role="alert">
+          <p>{gradeError}</p>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setGradeError(null)}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+      <FreeRecallEditor
       moduleName={moduleName}
       concepts={concepts}
       response={response}
@@ -199,5 +214,6 @@ export default function FreeRecallSession({ session, activity, module, journeyId
       submitting={submitting}
       onExit={handleExit}
     />
+    </>
   );
 }

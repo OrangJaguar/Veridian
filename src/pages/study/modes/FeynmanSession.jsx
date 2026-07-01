@@ -51,6 +51,7 @@ export default function FeynmanSession({ session, activity, module, journeyId })
   const [pickerConceptId, setPickerConceptId] = useState('');
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState(null);
   const [summarizing, setSummarizing] = useState(false);
   const [phase, setPhase] = useState('active');
   const [summaryThreads, setSummaryThreads] = useState(null);
@@ -156,6 +157,7 @@ export default function FeynmanSession({ session, activity, module, journeyId })
     }));
     setDraft('');
     setSending(true);
+    setSendError(null);
 
     try {
       const concept = concepts.find((c) => c.id === currentConceptId);
@@ -195,7 +197,7 @@ export default function FeynmanSession({ session, activity, module, journeyId })
         };
       });
     } catch (err) {
-      toast.error(err.message || 'Failed to get a response');
+      setSendError(err.message || 'Failed to get a response');
       setSessionState((prev) => ({
         ...prev,
         conceptThreads: {
@@ -307,7 +309,16 @@ export default function FeynmanSession({ session, activity, module, journeyId })
   }
 
   return (
-    <FeynmanConversation
+    <>
+      {sendError && (
+        <div className="study-ai-inline-error" role="alert">
+          <p>{sendError}</p>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setSendError(null); handleSend(); }}>
+            Resend
+          </button>
+        </div>
+      )}
+      <FeynmanConversation
       concepts={switchableConcepts.length ? switchableConcepts : concepts}
       currentConceptId={currentConceptId}
       messages={messages}
@@ -329,5 +340,6 @@ export default function FeynmanSession({ session, activity, module, journeyId })
       atTurnLimit={atTurnLimit}
       undiscussedCount={undiscussedCount}
     />
+    </>
   );
 }

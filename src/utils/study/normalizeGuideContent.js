@@ -31,10 +31,18 @@ export function normalizeGuideContent(raw) {
       options.push(`Option ${options.length + 1}`);
     }
 
-    const suggestions = (section.externalSearchSuggestions ?? [])
-      .map((s) => String(s).trim())
+    const keyTerms = (section.keyTerms ?? [])
+      .map((item) => ({
+        term: String(item?.term ?? '').trim(),
+        definition: String(item?.definition ?? '').trim(),
+      }))
+      .filter((item) => item.term && item.definition)
+      .slice(0, 5);
+
+    const takeaways = (section.takeaways ?? [])
+      .map((item) => String(item).trim())
       .filter(Boolean)
-      .slice(0, 2);
+      .slice(0, 4);
 
     return {
       sectionId: section.sectionId || `section-${index + 1}`,
@@ -49,15 +57,8 @@ export function normalizeGuideContent(raw) {
         correctAnswer: String(checkIn.correctAnswer ?? checkIn.answer ?? options[0]).trim(),
         explanation: String(checkIn.explanation ?? checkIn.rationale ?? '').trim(),
       },
-      externalSearchSuggestions: suggestions.length >= 2
-        ? suggestions
-        : [
-          `${section.title ?? 'topic'} explained for beginners`,
-          `${section.title ?? 'topic'} worked examples`,
-        ],
-      transitionText: index < coerced.sections.length - 1
-        ? String(section.transitionText ?? '').trim()
-        : '',
+      keyTerms,
+      takeaways,
     };
   });
 

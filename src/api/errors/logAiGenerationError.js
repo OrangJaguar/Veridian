@@ -10,15 +10,27 @@ export function logAiGenerationError({
   message,
   error,
   route,
+  chunkIndex,
+  attempt,
+  partialProgress,
 } = {}) {
   const baseMessage = message || error?.message || 'AI generation failed';
   const stack = error?.stack ?? '';
   const ticketRef = fingerprintError(`ai:${action}:${baseMessage}`, stack).slice(0, 8).toUpperCase();
 
+  const failureKind = error?.status === 429 ? 'quota'
+    : /timeout|timed out|502|504|aborted/i.test(baseMessage) ? 'timeout'
+      : /parse|JSON|validation|invalid format/i.test(baseMessage) ? 'parse'
+        : 'unknown';
+
   const context = {
     ticketRef,
     action: action ?? 'unknown',
     status: error?.status ?? null,
+    failureKind,
+    chunkIndex: chunkIndex ?? error?.failedChunkIndex ?? null,
+    attempt: attempt ?? null,
+    partialProgress: partialProgress ?? error?.partialResults?.length ?? null,
     zodIssues: error?.serverPayload?._debug?.steps
       ?.find((s) => s.step === 'schema_validate')?.detail?.zodIssues
       ?? null,

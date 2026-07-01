@@ -5,8 +5,11 @@ import { logServerError } from "../_shared/logServerError.ts";
 import { INJECTION_GUARD, wrapUserContent } from "../_shared/promptSafety.ts";
 
 const MODEL = "gemma-4-31b-it";
+const DEPLOY_BUILD = "inline-gemma-v7-progressive-propose";
 const MAX_OUTPUT_TOKENS = 4096;
-const TEMPERATURE = 0.2;
+const MAX_OUTPUT_TOKENS_OUTLINE = 1536;
+const MAX_OUTPUT_TOKENS_MODULE = 1024;
+const TEMPERATURE = 0.1;
 
 const LIMITS = {
   journeyProposalsPerDay: 5,
@@ -53,8 +56,41 @@ const regeneratePayloadSchema = z.object({
   }),
 });
 
+const journeyOutlineSchema = z.object({
+  journeySummary: z.string().min(1).max(200),
+  modules: z.array(
+    z.object({
+      name: z.string().min(1).max(80),
+      description: z.string().min(1).max(120),
+    }),
+  ).min(2).max(8),
+});
+
+const moduleConceptsSchema = z.object({
+  concepts: z.array(conceptSchema).min(1).max(10),
+});
+
+const proposeModuleConceptsPayloadSchema = z.object({
+  title: z.string().min(1).max(120),
+  subject: z.string().min(1).max(80),
+  priorKnowledge: z.enum(["scratch", "some", "most"]).default("some"),
+  material: z.string().min(50).max(80_000),
+  journeySummary: z.string().max(200),
+  module: z.object({
+    name: z.string().min(1).max(80),
+    description: z.string().min(1).max(120),
+  }),
+  moduleIndex: z.number().int().min(0),
+  moduleCount: z.number().int().min(1).max(8),
+});
+
 const requestSchema = z.object({
-  action: z.enum(["proposeJourney", "regenerateModules"]),
+  action: z.enum([
+    "proposeJourney",
+    "proposeJourneyOutline",
+    "proposeModuleConcepts",
+    "regenerateModules",
+  ]),
   payload: z.record(z.unknown()),
 });
 
@@ -139,6 +175,27 @@ Rules:
 - Keep every string within its max length.
 - Use short concept ids like c1, c2 per module.
 - 2-8 modules, 1-10 concepts each.${INJECTION_GUARD}`;
+
+const OUTLINE_SYSTEM = `You are a study curriculum architect. Propose a journey OUTLINE only — module names and descriptions, NO concepts yet.
+
+Output ONLY valid JSON:
+{"journeySummary":"string max 200 chars","modules":[{"name":"string max 80","description":"string max 120"}]}
+
+Rules:
+- No markdown, no code fences.
+- 2-8 modules with clear learning progression.
+- Do NOT include concepts.${INJECTION_GUARD}`;
+
+const MODULE_CONCEPTS_SYSTEM = `You are a study curriculum architect. Generate concepts for ONE module only.
+
+Output ONLY valid JSON:
+{"concepts":[{"id":"c1","term":"string max 80","definition":"string max 80"}]}
+
+Rules:
+- No markdown, no code fences.
+- 3-8 concepts for this module only.
+- Use short ids like c1, c2.
+- Teach from the provided material excerpt.${INJECTION_GUARD}`;
 
 const REGENERATE_SYSTEM = `Reorganize modules from existing concepts only. Do not add concepts. Output ONLY valid JSON. Max 8 modules. Same schema as proposeJourney.${INJECTION_GUARD}`;
 
@@ -227,11 +284,13 @@ function extractModelResponseText(response: {
   return response.text();
 }
 
-async function callGemini(
+async function callGeminiParsed<T>(
   apiKey: string,
   system: string,
   user: string,
-  retrySuffix = "",
+  schema: z.ZodType<T>,
+  normalize: (raw: unknown) => unknown,
+  maxOutputTokens = MAX_OUTPUT_TOKENS,
 ) {
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({
@@ -239,34 +298,72 @@ async function callGemini(
     systemInstruction: system,
     generationConfig: {
       temperature: TEMPERATURE,
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
+      maxOutputTokens,
       responseMimeType: "application/json",
     },
   });
 
-  const attempts = retrySuffix ? [user, user + retrySuffix] : [user];
-  let lastError: Error | null = null;
+  const result = await model.generateContent(user);
+  const text = extractModelResponseText(result.response);
+  const parsed = JSON.parse(extractJsonText(text));
+  const data = schema.parse(normalize(parsed));
+  const usage = result.response.usageMetadata;
+  return {
+    data,
+    usage: {
+      inputTokens: usage?.promptTokenCount ?? estimateTokens(user),
+      outputTokens: usage?.candidatesTokenCount ?? estimateTokens(text),
+    },
+  };
+}
 
-  for (const prompt of attempts) {
-    try {
-      const result = await model.generateContent(prompt);
-      const text = extractModelResponseText(result.response);
-      const parsed = JSON.parse(extractJsonText(text));
-      const data = journeyProposalSchema.parse(normalizeProposal(parsed));
-      const usage = result.response.usageMetadata;
-      return {
-        data,
-        usage: {
-          inputTokens: usage?.promptTokenCount ?? estimateTokens(prompt),
-          outputTokens: usage?.candidatesTokenCount ?? estimateTokens(text),
-        },
-      };
-    } catch (err) {
-      lastError = new Error(formatValidationError(err));
-    }
+async function callGemini(
+  apiKey: string,
+  system: string,
+  user: string,
+  _retrySuffix = "",
+) {
+  try {
+    return await callGeminiParsed(
+      apiKey,
+      system,
+      user,
+      journeyProposalSchema,
+      normalizeProposal,
+      MAX_OUTPUT_TOKENS,
+    );
+  } catch (err) {
+    throw new Error(formatValidationError(err));
   }
+}
 
-  throw lastError ?? new Error("AI response validation failed");
+function normalizeOutline(raw: unknown) {
+  if (!raw || typeof raw !== "object") return raw;
+  const obj = raw as { journeySummary?: unknown; modules?: Array<{ name?: unknown; description?: unknown }> };
+  const modules = Array.isArray(obj.modules) ? obj.modules : [];
+  return {
+    journeySummary: clipString(obj.journeySummary, 200),
+    modules: modules.slice(0, 8).map((mod) => ({
+      name: clipString(mod?.name, 80),
+      description: clipString(mod?.description, 120),
+    })).filter((mod) => mod.name && mod.description),
+  };
+}
+
+function normalizeModuleConcepts(raw: unknown, moduleIndex: number) {
+  if (!raw || typeof raw !== "object") return raw;
+  const obj = raw as { concepts?: Array<{ id?: unknown; term?: unknown; definition?: unknown }> };
+  const concepts = Array.isArray(obj.concepts) ? obj.concepts : [];
+  return {
+    concepts: concepts.slice(0, 10).map((concept, conceptIndex) => ({
+      id: clipString(concept?.id, 32) || `c${conceptIndex + 1}`,
+      term: clipString(concept?.term, 80),
+      definition: clipString(concept?.definition, 80),
+    })).filter((c) => c.term && c.definition).map((c, i) => ({
+      ...c,
+      id: `m${moduleIndex + 1}_${c.id || `c${i + 1}`}`,
+    })),
+  };
 }
 
 Deno.serve(async (req) => {
@@ -294,8 +391,62 @@ Deno.serve(async (req) => {
     const body = requestSchema.parse(await req.json());
     const { action, payload } = body;
 
+    if (action === "proposeJourneyOutline") {
+      const p = proposePayloadSchema.parse(payload);
+      const userPrompt = JSON.stringify({
+        task: "proposeJourneyOutline",
+        title: wrapUserContent(p.title),
+        subject: wrapUserContent(p.subject),
+        priorKnowledge: wrapUserContent(p.priorKnowledge),
+        material: wrapUserContent(p.material),
+      });
+      const estInput = estimateTokens(OUTLINE_SYSTEM + userPrompt);
+      const quotaErr = await checkAndIncrementQuota(base44, userKey, "proposeJourney", estInput);
+      if (quotaErr) return quotaErr;
+      const { data, usage } = await callGeminiParsed(
+        apiKey,
+        OUTLINE_SYSTEM,
+        userPrompt,
+        journeyOutlineSchema,
+        normalizeOutline,
+        MAX_OUTPUT_TOKENS_OUTLINE,
+      );
+      return jsonResponse({ data, usage, _meta: { model: MODEL, build: DEPLOY_BUILD } });
+    }
+
+    if (action === "proposeModuleConcepts") {
+      const p = proposeModuleConceptsPayloadSchema.parse(payload);
+      const userPrompt = JSON.stringify({
+        task: "proposeModuleConcepts",
+        title: wrapUserContent(p.title),
+        subject: wrapUserContent(p.subject),
+        priorKnowledge: wrapUserContent(p.priorKnowledge),
+        material: wrapUserContent(p.material.slice(0, 12_000)),
+        journeySummary: wrapUserContent(p.journeySummary),
+        module: p.module,
+        moduleIndex: p.moduleIndex,
+        moduleCount: p.moduleCount,
+      });
+      const estInput = estimateTokens(MODULE_CONCEPTS_SYSTEM + userPrompt);
+      const skipQuota = p.moduleIndex > 0;
+      if (!skipQuota) {
+        const quotaErr = await checkAndIncrementQuota(base44, userKey, "proposeJourney", estInput);
+        if (quotaErr) return quotaErr;
+      }
+      const { data, usage } = await callGeminiParsed(
+        apiKey,
+        MODULE_CONCEPTS_SYSTEM,
+        userPrompt,
+        moduleConceptsSchema,
+        (raw) => normalizeModuleConcepts(raw, p.moduleIndex),
+        MAX_OUTPUT_TOKENS_MODULE,
+      );
+      return jsonResponse({ data, usage, _meta: { model: MODEL, build: DEPLOY_BUILD } });
+    }
+
     let system = PROPOSE_SYSTEM;
     let userPrompt = "";
+    let quotaAction: "proposeJourney" | "regenerateModules" = "proposeJourney";
 
     if (action === "proposeJourney") {
       const p = proposePayloadSchema.parse(payload);
@@ -309,6 +460,7 @@ Deno.serve(async (req) => {
     } else {
       const p = regeneratePayloadSchema.parse(payload);
       system = REGENERATE_SYSTEM;
+      quotaAction = "regenerateModules";
       userPrompt = JSON.stringify({
         task: "regenerateModules",
         title: wrapUserContent(p.title),
@@ -323,15 +475,14 @@ Deno.serve(async (req) => {
     const quotaErr = await checkAndIncrementQuota(
       base44,
       userKey,
-      action,
+      quotaAction,
       estInput,
     );
     if (quotaErr) return quotaErr;
 
-    const retrySuffix = "\n\nReturn ONLY compact valid JSON. No markdown.";
-    const { data, usage } = await callGemini(apiKey, system, userPrompt, retrySuffix);
+    const { data, usage } = await callGemini(apiKey, system, userPrompt);
 
-    return jsonResponse({ data, usage });
+    return jsonResponse({ data, usage, _meta: { model: MODEL, build: DEPLOY_BUILD } });
   } catch (err) {
     if (err instanceof z.ZodError) {
       const details = err.issues

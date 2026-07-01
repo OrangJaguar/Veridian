@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useUpdateActivity } from '@/hooks/mutations/useActivityMutations';
 
 /**
- * Reset learning guides stuck on `generating` after the user leaves mid-generation.
+ * Recover learning guides stuck on `generating` after the user leaves mid-generation.
  */
 export function useRecoverStaleGeneratingActivities(journeyId, activities, sessions) {
   const updateActivity = useUpdateActivity();
@@ -14,8 +14,10 @@ export function useRecoverStaleGeneratingActivities(journeyId, activities, sessi
     for (const activity of activities) {
       if (activity.type !== 'learningGuide') continue;
       if (activity.status !== 'generating') continue;
-      if (activity.content?.sections?.length) continue;
       if (recoveredRef.current.has(activity.activityId)) continue;
+
+      const hasPartial = Boolean(activity.content?.sections?.length);
+      if (hasPartial) continue;
 
       const hasActiveSession = sessions.some(
         (session) => session.activityId === activity.activityId
@@ -30,6 +32,28 @@ export function useRecoverStaleGeneratingActivities(journeyId, activities, sessi
         journeyId,
         moduleId: activity.moduleId,
         patch: { status: 'notGenerated' },
+      });
+    }
+
+    for (const activity of activities) {
+      if (activity.type !== 'learningGuide') continue;
+      if (activity.status !== 'generating') continue;
+      if (!activity.content?.sections?.length) continue;
+      if (recoveredRef.current.has(`failed-${activity.activityId}`)) continue;
+
+      const hasActiveSession = sessions.some(
+        (session) => session.activityId === activity.activityId
+          && session.activityType === 'learningGuide'
+          && session.status === 'in_progress',
+      );
+      if (hasActiveSession) continue;
+
+      recoveredRef.current.add(`failed-${activity.activityId}`);
+      updateActivity.mutate({
+        activityId: activity.activityId,
+        journeyId,
+        moduleId: activity.moduleId,
+        patch: { status: 'failed' },
       });
     }
   }, [journeyId, activities, sessions, updateActivity]);

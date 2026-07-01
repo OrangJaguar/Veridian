@@ -18,6 +18,8 @@ export const useJourneyCreateStore = create((set, get) => ({
   step: 1,
   draft: { ...initialDraft },
   proposal: null,
+  partialProposal: null,
+  proposalProgress: null,
   cachedKnowledgeMap: null,
   isProcessing: false,
   processingError: null,
@@ -36,6 +38,8 @@ export const useJourneyCreateStore = create((set, get) => ({
       step: 1,
       draft: { ...initialDraft },
       proposal: null,
+      partialProposal: null,
+      proposalProgress: null,
       cachedKnowledgeMap: null,
       isProcessing: false,
       processingError: null,
@@ -139,11 +143,22 @@ export const useJourneyCreateStore = create((set, get) => ({
         subject: state.draft.subject.trim(),
         priorKnowledge: state.draft.priorKnowledge,
         material: state.draft.material,
-      }, { signal: controller.signal });
+      }, {
+        signal: controller.signal,
+        partialProposal: state.partialProposal,
+        onProgress: (progress) => {
+          if (get().proposalRunId !== runId) return;
+          set({
+            proposalProgress: progress,
+            partialProposal: progress.partialProposal ?? get().partialProposal,
+          });
+        },
+      });
 
       if (get().proposalRunId !== runId) return;
 
       get().setProposal(proposal);
+      set({ partialProposal: null, proposalProgress: null });
       get().endProcessing();
       onSuccess?.();
     } catch (err) {

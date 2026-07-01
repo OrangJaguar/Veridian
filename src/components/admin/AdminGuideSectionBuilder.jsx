@@ -21,8 +21,6 @@ function emptySection(index) {
       correctAnswer: '',
       explanation: '',
     },
-    externalSearchSuggestions: ['', ''],
-    transitionText: '',
   };
 }
 

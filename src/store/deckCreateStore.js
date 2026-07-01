@@ -9,6 +9,7 @@ import { extractAiList, coerceStudyAiPayload } from '@/utils/study/normalizeStud
 import { buildGenerateFlashcardsPayload } from '@/api/ai/prompts/flashcards';
 import { parseQuizletFormat } from '@/utils/study/parseQuizletFormat';
 import { createFlashcardDeck } from '@/api/entities/journeyScaffold';
+import { invokeWithRetry } from '@/utils/ai/invokeWithRetry';
 
 const initialDraft = {
   title: '',
@@ -112,17 +113,48 @@ export const useDeckCreateStore = create((set, get) => ({
         subject: context?.subject,
       });
 
+      const cardCount = Number(payload.cardCount ?? 20);
+      const existingCards = get().generatedCards ?? [];
+
       const cards = await runStudyAiGeneration({
-        generate: () => generateFlashcards(payload),
-        normalize: (result) => {
-          const coerced = coerceStudyAiPayload('generateFlashcards', result);
-          return extractAiList(coerced, 'cards').map((c, i) => ({
-            id: `draft-${i}`,
-            front: c.front,
-            back: c.back,
-            conceptTag: c.conceptTag,
-          }));
+        generate: async () => {
+          const normalizeCards = (result) => {
+            const coerced = coerceStudyAiPayload('generateFlashcards', result);
+            return extractAiList(coerced, 'cards').map((c, i) => ({
+              id: `draft-${i}`,
+              front: c.front,
+              back: c.back,
+              conceptTag: c.conceptTag,
+            }));
+          };
+
+          if (cardCount <= 15) {
+            const result = await invokeWithRetry(
+              (signal) => generateFlashcards(payload, { signal }),
+            );
+            return normalizeCards(result);
+          }
+
+          const batchSize = 15;
+          const batches = Math.ceil(cardCount / batchSize);
+          const merged = [...existingCards];
+
+          for (let b = 0; b < batches; b += 1) {
+            const remaining = cardCount - merged.length;
+            const count = Math.min(batchSize, remaining);
+            if (count <= 0) break;
+
+            const result = await invokeWithRetry(
+              (signal) => generateFlashcards({ ...payload, cardCount: count }, { signal }),
+            );
+            const batch = normalizeCards(result);
+            merged.push(...batch);
+            set({ generatedCards: merged.slice(0, cardCount) });
+          }
+
+          return merged.slice(0, cardCount);
         },
+        normalize: (list) => list,
         validate: (list) => {
           if (!list.length) throw new Error('No cards were generated.');
         },

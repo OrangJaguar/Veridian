@@ -1,47 +1,49 @@
 import { generateLearningGuide } from '@/api/ai/study';
 import { normalizeGuideContent } from '@/utils/study/normalizeGuideContent';
 import { getActiveStudyAiTrace } from '@/utils/study/studyAiTrace';
+import { runChunkedGeneration } from '@/utils/ai/chunkedGeneration';
+
+async function requestLearningGuideSection(payload, signal) {
+  const raw = await generateLearningGuide(payload, { signal });
+  const section = raw.section ?? raw.sections?.[0];
+  if (!section) {
+    throw new Error(
+      raw.parsedSkipped
+        ? 'Section returned raw dump only (disable raw dump mode: veridianAiDebug.rawOff()).'
+        : 'AI returned no content for this section. Try again.',
+    );
+  }
+  return section;
+}
 
 /**
- * Generate a learning guide one section per API call (fits Base44 ~60s function limit).
+ * Generate a learning guide one section per API call (fits server time limits).
+ * Supports resuming from partially generated sections saved on the activity.
  */
-export async function generateLearningGuideProgressive(basePayload, { onSection } = {}) {
+export async function generateLearningGuideProgressive(basePayload, {
+  onSection,
+  existingSections = [],
+} = {}) {
   const sectionCount = basePayload.sectionCount ?? 3;
-  const sections = [];
+  const trace = getActiveStudyAiTrace();
 
-  for (let i = 0; i < sectionCount; i += 1) {
-    const trace = getActiveStudyAiTrace();
-    const sectionStart = Date.now();
-    trace?.stepStart(`1b_section_${i}`, `Generate section ${i + 1}/${sectionCount}`);
-
-    try {
-      const raw = await generateLearningGuide({
-        ...basePayload,
-        sectionOnly: true,
-        sectionIndex: i,
-        sectionCount,
-        previousSectionTitle: sections[i - 1]?.title ?? null,
-      });
-
-      const section = raw.section ?? raw.sections?.[0];
-      if (!section) {
-        throw new Error(
-          raw.parsedSkipped
-            ? `Section ${i + 1} returned raw dump only (disable raw dump mode: veridianAiDebug.rawOff()).`
-            : `AI returned no content for section ${i + 1}. Try again.`,
-        );
-      }
-
-      sections.push(section);
-      trace?.stepOk(`1b_section_${i}`, `Generate section ${i + 1}/${sectionCount}`, {
-        title: section.title,
-      }, Date.now() - sectionStart);
-      onSection?.(section, i, sectionCount);
-    } catch (err) {
-      trace?.stepFail(`1b_section_${i}`, `Generate section ${i + 1}/${sectionCount}`, err, null, Date.now() - sectionStart);
-      throw err;
-    }
-  }
+  const sections = await runChunkedGeneration({
+    totalChunks: sectionCount,
+    existingResults: existingSections,
+    tracePrefix: '1b_section',
+    trace,
+    runChunk: async (index, priorSections, signal) => requestLearningGuideSection({
+      ...basePayload,
+      sectionOnly: true,
+      sectionIndex: index,
+      sectionCount,
+      previousSectionTitle: priorSections[index - 1]?.title ?? null,
+    }, signal),
+    mapResult: (section) => section,
+    onChunkComplete: (section, index, total, allSections) => {
+      onSection?.(section, index, total, allSections);
+    },
+  });
 
   return normalizeGuideContent({
     sections,

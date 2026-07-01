@@ -46,6 +46,15 @@ function normalizeInvokeError(err) {
   if (status === 401) {
     return new Error('Please sign in again to use AI features.');
   }
+  if (status === 502 || message.includes('status code 502')) {
+    return new Error('The AI service took too long to respond. Tap Continue generating to resume.');
+  }
+  if (status === 504 || /504|timeout|timed out/i.test(message)) {
+    return new Error('AI generation timed out. Tap Continue generating to resume.');
+  }
+  if (err?.name === 'AbortError' || /aborted/i.test(message)) {
+    return new Error('Request timed out. Tap Continue generating to resume.');
+  }
   if (status === 400 && message.includes('status code 400') && serverMessage) {
     return new Error(serverMessage);
   }

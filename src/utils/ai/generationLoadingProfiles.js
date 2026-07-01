@@ -5,6 +5,7 @@
  * @property {GenerationLoadingMode} mode
  * @property {string} label
  * @property {string[]} steps
+ * @property {string} [patienceNote] - Shown on long flows so users know to wait
  */
 
 /** @type {Record<string, GenerationLoadingProfile>} */
@@ -28,21 +29,25 @@ export const GENERATION_LOADING_PROFILES = {
     mode: 'long',
     label: 'Generating your learning guide…',
     steps: ['Planning sections', 'Writing explanations', 'Adding examples', 'Creating check-ins'],
+    patienceNote: 'This can take a few minutes for longer modules — thanks for your patience.',
   },
   proposeJourney: {
     mode: 'long',
     label: 'Building your Journey…',
     steps: ['Reading sources', 'Mapping concepts', 'Building modules'],
+    patienceNote: 'Building a full journey can take a few minutes — hang tight.',
   },
   regenerateModules: {
     mode: 'long',
     label: 'Restructuring your modules…',
     steps: ['Reading sources', 'Mapping concepts', 'Building modules'],
+    patienceNote: 'Restructuring modules can take a few minutes — hang tight.',
   },
   generateDiagnosticQuestions: {
     mode: 'long',
     label: 'Building your diagnostic…',
     steps: ['Analyzing modules', 'Writing questions', 'Balancing difficulty', 'Finalizing'],
+    patienceNote: 'Your diagnostic may take a few minutes to build — hang tight.',
   },
   generateInterleavedQuestions: {
     mode: 'short',

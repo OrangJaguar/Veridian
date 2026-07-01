@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { ExternalLink } from 'lucide-react';
 import VeridianLoading from '@/components/shared/VeridianLoading';
-import LatexRenderer from '@/components/shared/LatexRenderer';
 import GuideSectionPicker from '@/components/study/learning-guide/GuideSectionPicker';
 import GuideReadableContent from '@/components/study/learning-guide/GuideReadableContent';
 import GuideWorkedExample from '@/components/study/learning-guide/GuideWorkedExample';
@@ -9,6 +8,7 @@ import LearningGuideCheckIn from '@/components/study/learning-guide/LearningGuid
 import GuideNarrationControls, { useGuideSpeechPrefs } from '@/components/study/learning-guide/GuideNarrationControls';
 import { buildSectionSpeechPlan } from '@/utils/study/guideSpeech';
 import { useGuideNarration } from '@/hooks/study/useGuideNarration';
+import { youtubeQueriesFromTitle } from '@/utils/study/youtubeQueriesFromTitle';
 
 export default function LearningGuideViewer({
   sections = [],
@@ -31,6 +31,10 @@ export default function LearningGuideViewer({
 
   const section = sections[sectionIndex];
   const total = sections.length;
+  const youtubeQueries = useMemo(
+    () => youtubeQueriesFromTitle(section?.title),
+    [section?.title],
+  );
   const progressPct = total ? ((sectionIndex + 1) / total) * 100 : 0;
   const checkInDone = !section?.checkInQuestion || checkInBySection[section?.sectionId] != null;
   const isLast = sectionIndex + 1 >= total;
@@ -160,7 +164,7 @@ export default function LearningGuideViewer({
           />
         )}
 
-        {section.externalSearchSuggestions?.length > 0 && (
+        {youtubeQueries.length > 0 && (
           <section className="guide-youtube" aria-labelledby="guide-youtube-heading">
             <h3 id="guide-youtube-heading" className="guide-youtube-title">
               Watch on YouTube
@@ -169,7 +173,7 @@ export default function LearningGuideViewer({
               New to this topic? These searches find beginner-friendly explainers.
             </p>
             <div className="guide-youtube-chips">
-              {section.externalSearchSuggestions.map((q) => (
+              {youtubeQueries.map((q) => (
                 <a
                   key={q}
                   className="guide-youtube-chip"
@@ -183,12 +187,6 @@ export default function LearningGuideViewer({
               ))}
             </div>
           </section>
-        )}
-
-        {section.transitionText && (
-          <p className="guide-transition">
-            <LatexRenderer text={section.transitionText} />
-          </p>
         )}
 
         <div className="guide-end-actions">

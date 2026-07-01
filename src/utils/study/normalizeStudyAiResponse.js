@@ -81,11 +81,8 @@ function coerceSectionItem(section, index) {
       correctAnswer: checkIn.correctAnswer ?? checkIn.answer ?? checkIn.correct,
       explanation: String(checkIn.explanation ?? checkIn.rationale ?? checkIn.reason ?? '').trim(),
     },
-    externalSearchSuggestions: section.externalSearchSuggestions
-      ?? section.youtubeSuggestions
-      ?? section.searchSuggestions
-      ?? [],
-    transitionText: String(section.transitionText ?? section.transition ?? '').trim(),
+    keyTerms: section.keyTerms ?? [],
+    takeaways: section.takeaways ?? [],
   };
 }
 

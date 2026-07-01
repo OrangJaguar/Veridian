@@ -1,54 +1,51 @@
 import { generateDiagnosticQuestions } from '@/api/ai/study';
 import { getActiveStudyAiTrace } from '@/utils/study/studyAiTrace';
+import { runChunkedGeneration } from '@/utils/ai/chunkedGeneration';
 
 /**
- * Generate diagnostic questions one module per API call (fits Base44 ~60s function limit).
+ * Generate diagnostic questions one module per API call (fits server time limits).
  */
-export async function generateDiagnosticQuestionsProgressive(basePayload, { onModule } = {}) {
+export async function generateDiagnosticQuestionsProgressive(basePayload, {
+  onModule,
+  existingQuestions = [],
+  startModuleIndex = 0,
+} = {}) {
   const { modules = [], questionsPerModule, ...rest } = basePayload;
   if (!modules.length) {
     throw new Error('Diagnostic requires at least one module.');
   }
 
-  const allQuestions = [];
+  const allQuestions = [...existingQuestions];
+  const completedModules = Math.min(startModuleIndex, modules.length);
 
-  for (let i = 0; i < modules.length; i += 1) {
-    const mod = modules[i];
-    const trace = getActiveStudyAiTrace();
-    const moduleStart = Date.now();
-    trace?.stepStart(`1b_module_${i}`, `Generate diagnostic for module ${i + 1}/${modules.length}`);
-
-    try {
+  await runChunkedGeneration({
+    totalChunks: modules.length,
+    existingResults: Array.from({ length: completedModules }, () => []),
+    startIndex: completedModules,
+    tracePrefix: '1b_module',
+    trace: getActiveStudyAiTrace(),
+    runChunk: async (index, _prior, signal) => {
+      const mod = modules[index];
       const raw = await generateDiagnosticQuestions({
         ...rest,
         questionsPerModule,
-        moduleIndex: i,
+        moduleIndex: index,
         moduleCount: modules.length,
         modules: [mod],
-      });
+      }, { signal });
 
       const questions = raw.questions ?? [];
       if (!questions.length) {
         throw new Error(`AI returned no questions for "${mod.name ?? mod.moduleId}". Try again.`);
       }
-
+      return questions;
+    },
+    mapResult: (questions) => questions,
+    onChunkComplete: (questions, index, total) => {
       allQuestions.push(...questions);
-      trace?.stepOk(`1b_module_${i}`, `Generate diagnostic for module ${i + 1}/${modules.length}`, {
-        moduleId: mod.moduleId,
-        questionCount: questions.length,
-      }, Date.now() - moduleStart);
-      onModule?.(mod, i, modules.length);
-    } catch (err) {
-      trace?.stepFail(
-        `1b_module_${i}`,
-        `Generate diagnostic for module ${i + 1}/${modules.length}`,
-        err,
-        null,
-        Date.now() - moduleStart,
-      );
-      throw err;
-    }
-  }
+      onModule?.(modules[index], index, total, allQuestions);
+    },
+  });
 
   return { questions: allQuestions };
 }

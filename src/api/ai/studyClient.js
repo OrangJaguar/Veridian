@@ -81,10 +81,14 @@ function normalizeInvokeError(err) {
       normalized.message = 'Daily AI limit reached. Try again tomorrow.';
       notifyAiQuotaChanged();
     }
-  } else   if (status === 401) {
+  } else if (status === 401) {
     normalized.message = 'Please sign in again to use AI features.';
+  } else if (status === 502 || message.includes('status code 502')) {
+    normalized.message = 'The AI service took too long to respond. Please try again — we\'ll pick up where we left off if possible.';
   } else if (status === 504 || /504|timeout|timed out/i.test(message)) {
-    normalized.message = 'AI generation timed out. The server has a ~60s limit per request — try again, or publish the latest geminiStudy build if this keeps happening.';
+    normalized.message = 'AI generation timed out. Please try again — partial progress may be saved.';
+  } else if (err?.name === 'AbortError' || /aborted/i.test(message)) {
+    normalized.message = 'This step took too long. Please try again.';
   }
 
   return normalized;
