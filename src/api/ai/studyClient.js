@@ -81,7 +81,7 @@ function normalizeInvokeError(err) {
       normalized.message = 'Daily AI limit reached. Try again tomorrow.';
       notifyAiQuotaChanged();
     }
-  } else if (status === 401) {
+  } else if (status === 401 || /authentication required/i.test(message)) {
     normalized.message = 'Please sign in again to use AI features.';
   } else if (status === 502 || message.includes('status code 502')) {
     normalized.message = 'The AI service took too long to respond. Please try again — we\'ll pick up where we left off if possible.';

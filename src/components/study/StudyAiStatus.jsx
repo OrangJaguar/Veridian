@@ -15,6 +15,9 @@ function buildRecoveryMessage(message, error, progress) {
 
   if (progress?.completed != null && progress?.total != null && progress.completed > 0) {
     const label = progress.label ?? 'steps';
+    if (/authentication required|please sign in/i.test(text)) {
+      return `Your session hiccuped, but we saved batch ${progress.completed} of ${progress.total}. Tap Continue generating to finish.`;
+    }
     return `We saved your progress through ${progress.completed} of ${progress.total} ${label}. Tap Continue generating to finish the rest.`;
   }
 

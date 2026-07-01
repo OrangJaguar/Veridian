@@ -15,15 +15,32 @@ function isRateLimitError(err) {
 
 /**
  * Cached auth check — avoids redundant isAuthenticated + me() calls.
+ * @param {{ fresh?: boolean }} [options]
  */
-export async function requireAuth() {
-  const now = Date.now();
-  if (cachedUser && now < cacheExpiry) return cachedUser;
+export async function requireAuth({ fresh = false } = {}) {
+  if (fresh) {
+    clearAuthCache();
+  } else {
+    const now = Date.now();
+    if (cachedUser && now < cacheExpiry) return cachedUser;
+  }
 
   if (inflight) return inflight;
 
   inflight = (async () => {
     try {
+      // Prefer me() — a valid token can outlive a stale isAuthenticated() flip.
+      try {
+        const directUser = await base44.auth.me();
+        if (directUser?.email || directUser?.id) {
+          cachedUser = directUser;
+          cacheExpiry = Date.now() + CACHE_MS;
+          return directUser;
+        }
+      } catch (meErr) {
+        if (cachedUser && isRateLimitError(meErr)) return cachedUser;
+      }
+
       const authed = await base44.auth.isAuthenticated();
       if (!authed) throw new AuthRequiredError();
       const user = await base44.auth.me();
@@ -49,8 +66,7 @@ export function clearAuthCache() {
   inflight = null;
 }
 
-/** Force a fresh auth read (e.g. after profile update). */
+/** Force a fresh auth read (e.g. before a new AI batch). */
 export async function refreshAuth() {
-  clearAuthCache();
-  return requireAuth();
+  return requireAuth({ fresh: true });
 }

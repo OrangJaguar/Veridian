@@ -16,6 +16,18 @@ export function sleep(ms) {
  * @param {unknown} err
  * @returns {boolean}
  */
+export function isAuthRefreshableError(err) {
+  const status = err?.status ?? err?.response?.status ?? err?.statusCode;
+  const message = err?.message ?? '';
+  return err?.name === 'AuthRequiredError'
+    || status === 401
+    || /authentication required|please sign in/i.test(message);
+}
+
+/**
+ * @param {unknown} err
+ * @returns {boolean}
+ */
 export function isRetryableAiError(err) {
   const status = err?.status;
   const message = err?.message ?? '';
@@ -45,6 +57,7 @@ export async function invokeWithRetry(fn, {
   onAttemptFailed,
 } = {}) {
   let lastError = null;
+  let authRefreshed = false;
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const controller = new AbortController();
@@ -56,6 +69,17 @@ export async function invokeWithRetry(fn, {
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
       onAttemptFailed?.(attempt + 1, lastError);
+
+      if (isAuthRefreshableError(lastError) && !authRefreshed) {
+        authRefreshed = true;
+        try {
+          const { refreshAuth } = await import('@/api/requireAuth');
+          await refreshAuth();
+          continue;
+        } catch {
+          // Fall through to normal retry handling.
+        }
+      }
 
       const retryable = isRetryable(lastError);
       const hasMore = attempt < maxAttempts - 1;

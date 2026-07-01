@@ -16,6 +16,13 @@ import {
 } from '@/utils/study/quizDedup';
 import { normalizeQuizQuestions } from '@/utils/study/normalizeQuizQuestions';
 import { requireGeneratedQuestions } from '@/utils/study/requireGeneratedQuestions';
+import {
+  batchProgressFromChunkError,
+  buildPartialQuizGenerationPatch,
+  getQuizGenerationResume,
+  partialQuestionsFromChunkError,
+  quizBatchCount,
+} from '@/utils/study/quizGenerationCheckpoint';
 import { selectQuestionsFromBank, shouldUseQuestionBank } from '@/utils/study/sampleQuestionBank';
 import { runStudyAiGeneration } from '@/hooks/ai/runStudyAiGeneration';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
@@ -37,6 +44,7 @@ export default function PracticeQuizSession({ session, activity, module, journey
   const { data: journey } = useJourney(journeyId);
   const { data: sessions = [] } = useSessions(journeyId);
   const autoStartedRef = useRef(false);
+  const batchResumeRef = useRef(getQuizGenerationResume(session.sessionData));
 
   const [phase, setPhase] = useState(() => initialPhase(session));
   const [questions, setQuestions] = useState(() => session.sessionData?.questions ?? []);
@@ -45,6 +53,10 @@ export default function PracticeQuizSession({ session, activity, module, journey
     () => !!initialConfig?.questionCount && !session.sessionData?.questions?.length,
   );
   const [genError, setGenError] = useState(null);
+  const [batchProgress, setBatchProgress] = useState(() => {
+    const resume = getQuizGenerationResume(session.sessionData);
+    return resume.batchProgress;
+  });
   const [refresherContent, setRefresherContent] = useState(null);
   const [summaryData, setSummaryData] = useState(() => (
     session.status === 'completed' && session.sessionData?.answers
@@ -113,7 +125,10 @@ export default function PracticeQuizSession({ session, activity, module, journey
       }
     }
 
+    const resume = batchResumeRef.current;
+
     return runStudyAiGeneration({
+      action: 'generatePracticeQuestions',
       generate: () => generatePracticeQuestionsBatched({
         journeyTitle: journey?.title,
         subject: journey?.subject,
@@ -128,6 +143,38 @@ export default function PracticeQuizSession({ session, activity, module, journey
         avoidQuestionIds,
         avoidStemPreviews,
         questionStyle: setupConfig.questionStyle ?? 'standard',
+      }, {
+        existingQuestions: resume.existingQuestions,
+        startBatchIndex: resume.startBatchIndex,
+        onBatch: async (_batchQuestions, batchNum, batchTotal, allQuestions) => {
+          const normalizedPartial = normalizeQuizQuestions(
+            { questions: allQuestions },
+            setupConfig.questionCount,
+          );
+          const progress = { completed: batchNum, total: batchTotal, label: 'batches' };
+          batchResumeRef.current = {
+            existingQuestions: normalizedPartial,
+            startBatchIndex: batchNum,
+            batchProgress: progress,
+          };
+          setBatchProgress(progress);
+          await updateSession.mutateAsync({
+            sessionId: session.sessionId,
+            journeyId,
+            skipInvalidate: true,
+            patch: {
+              sessionData: {
+                ...session.sessionData,
+                ...buildPartialQuizGenerationPatch(
+                  setupConfig,
+                  normalizedPartial,
+                  batchNum,
+                  batchTotal,
+                ),
+              },
+            },
+          });
+        },
       }),
       normalize: (raw) => normalizeQuizQuestions(raw, setupConfig.questionCount),
       validate: (nextQuestions) => {
@@ -145,6 +192,7 @@ export default function PracticeQuizSession({ session, activity, module, journey
             },
           },
         });
+        setBatchProgress(null);
       },
     });
   }, [
@@ -159,6 +207,7 @@ export default function PracticeQuizSession({ session, activity, module, journey
     module?.stage,
     sessions,
     session.sessionId,
+    session.sessionData,
     updateSession,
     weakConceptIds,
     journeyId,
@@ -168,30 +217,85 @@ export default function PracticeQuizSession({ session, activity, module, journey
     setLoading(true);
     setGenError(null);
     try {
-      await updateSession.mutateAsync({
-        sessionId: session.sessionId,
-        journeyId,
-        skipInvalidate: true,
-        patch: {
-          sessionData: {
-            ...session.sessionData,
-            quizConfig: setupConfig,
-            aiGeneration: { status: 'generating', startedAt: Date.now() },
+      const resume = batchResumeRef.current;
+      const isResume = resume.existingQuestions.length > 0
+        && resume.startBatchIndex > 0
+        && session.sessionData?.quizConfig?.questionCount === setupConfig.questionCount;
+
+      if (!isResume) {
+        batchResumeRef.current = { existingQuestions: [], startBatchIndex: 0, batchProgress: null };
+        await updateSession.mutateAsync({
+          sessionId: session.sessionId,
+          journeyId,
+          skipInvalidate: true,
+          patch: {
+            sessionData: {
+              ...session.sessionData,
+              quizConfig: setupConfig,
+              aiGeneration: { status: 'generating', startedAt: Date.now() },
+            },
           },
-        },
-      });
+        });
+        setBatchProgress(null);
+      } else {
+        setBatchProgress(resume.batchProgress);
+      }
 
       const nextQuestions = await generateQuestions(setupConfig);
       setQuestions(nextQuestions);
       setConfig(setupConfig);
+      setBatchProgress(null);
+      batchResumeRef.current = { existingQuestions: [], startBatchIndex: 0, batchProgress: null };
       setPhase(session.sessionData?.confidenceSlider?.submittedAt ? 'active' : 'confidence');
     } catch (err) {
-      setGenError(err instanceof Error ? err : new Error(String(err)));
+      const error = err instanceof Error ? err : new Error(String(err));
+      const partialQuestions = partialQuestionsFromChunkError(error, setupConfig.questionCount);
+      if (partialQuestions?.length) {
+        const normalizedPartial = normalizeQuizQuestions(
+          { questions: partialQuestions },
+          setupConfig.questionCount,
+        );
+        const progress = batchProgressFromChunkError(error, setupConfig.questionCount);
+        batchResumeRef.current = {
+          existingQuestions: normalizedPartial,
+          startBatchIndex: progress?.completed ?? 0,
+          batchProgress: progress,
+        };
+        setBatchProgress(progress);
+        try {
+          await updateSession.mutateAsync({
+            sessionId: session.sessionId,
+            journeyId,
+            skipInvalidate: true,
+            patch: {
+              sessionData: {
+                ...session.sessionData,
+                ...buildPartialQuizGenerationPatch(
+                  setupConfig,
+                  normalizedPartial,
+                  progress?.completed ?? 0,
+                  progress?.total ?? quizBatchCount(setupConfig.questionCount),
+                ),
+              },
+            },
+          });
+        } catch {
+          // Best-effort — in-memory progress still enables retry.
+        }
+      }
+      setGenError(error);
       setPhase('setup');
     } finally {
       setLoading(false);
     }
   }, [generateQuestions, journeyId, session.sessionData, session.sessionId, updateSession]);
+
+  useEffect(() => {
+    batchResumeRef.current = getQuizGenerationResume(session.sessionData);
+    if (batchResumeRef.current.batchProgress) {
+      setBatchProgress(batchResumeRef.current.batchProgress);
+    }
+  }, [session.sessionId, session.sessionData?.aiGeneration?.completedBatches]);
 
   useEffect(() => {
     const pendingConfig = session.sessionData?.quizConfig;
@@ -291,10 +395,13 @@ export default function PracticeQuizSession({ session, activity, module, journey
   }
 
   if (genError && phase === 'setup' && !loading) {
+    const progress = batchProgress
+      ?? getQuizGenerationResume(session.sessionData).batchProgress;
     return (
       <StudyAiError
         message={genError?.message || 'Failed to generate questions'}
         error={genError}
+        progress={progress}
         onRetry={() => handleStart(config?.questionCount ? config : activity.content?.lastConfig ?? config)}
         onExit={handleExit}
       />

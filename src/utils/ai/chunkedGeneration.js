@@ -1,4 +1,5 @@
 import { invokeWithRetry } from '@/utils/ai/invokeWithRetry';
+import { refreshAuth } from '@/api/requireAuth';
 
 /**
  * Run a sequential chunked generation loop with optional resume.
@@ -37,6 +38,7 @@ export async function runChunkedGeneration({
     trace?.stepStart(stepId, `Chunk ${i + 1}/${totalChunks}`);
 
     try {
+      await refreshAuth();
       const chunk = await invokeWithRetry(
         (signal) => runChunk(i, results, signal),
       );
