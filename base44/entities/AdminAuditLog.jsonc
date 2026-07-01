@@ -18,17 +18,9 @@
   },
   "required": ["action", "adminEmail", "createdAt"],
   "rls": {
-    "create": {
-      "user.role": "admin"
-    },
-    "read": {
-      "user.role": "admin"
-    },
-    "update": {
-      "user.role": "admin"
-    },
-    "delete": {
-      "user.role": "admin"
-    }
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "user_condition": { "role": "admin" } },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
   }
 }
