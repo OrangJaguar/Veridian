@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { logClientError } from '@/api/errors/logClientError';
 
 export default class ErrorBoundary extends React.Component {
@@ -28,15 +29,20 @@ export default class ErrorBoundary extends React.Component {
         <div className="error-fallback" role="alert">
           <h1 className="error-fallback-title">Something went wrong</h1>
           <p className="error-fallback-text">
-            We&apos;ve logged this issue. Try refreshing the page.
+            We&apos;ve logged this issue. Try refreshing the page or go back home.
           </p>
-          <button
-            type="button"
-            className="veridian-btn veridian-btn-primary"
-            onClick={() => window.location.reload()}
-          >
-            Refresh
-          </button>
+          <div className="error-fallback-actions">
+            <button
+              type="button"
+              className="veridian-btn veridian-btn-primary"
+              onClick={() => window.location.reload()}
+            >
+              Refresh
+            </button>
+            <Link to="/home" className="btn btn-secondary">
+              Go home
+            </Link>
+          </div>
         </div>
       );
     }

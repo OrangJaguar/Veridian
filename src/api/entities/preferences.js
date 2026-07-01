@@ -87,9 +87,14 @@ export async function createUserPreferencesOnSignup({ username, userEmail }) {
 }
 
 export async function touchLastActive() {
+  const now = Date.now();
+  if (touchLastActive.lastAt && now - touchLastActive.lastAt < 5 * 60_000) {
+    return null;
+  }
+  touchLastActive.lastAt = now;
+
   const user = await requireAuth();
   const rows = await base44.entities.UserPreferences.list();
-  const now = Date.now();
   const pref = pickBestPreferencesRow(rows);
   if (pref) {
     return base44.entities.UserPreferences.update(pref.id, { lastActiveAt: now });

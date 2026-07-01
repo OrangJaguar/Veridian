@@ -1,4 +1,5 @@
 import { base44 } from '@/api/base44Client';
+import { requireAuth } from '@/api/requireAuth';
 import { notifyAiQuotaChanged } from '@/api/ai/quota';
 import { logAiGenerationError } from '@/api/errors/logAiGenerationError';
 import {
@@ -74,8 +75,12 @@ function normalizeInvokeError(err) {
   } else if (status === 503 || message.includes('GEMINI_API_KEY')) {
     normalized.message = KEY_NOT_CONFIGURED_MSG;
   } else if (status === 429) {
-    normalized.message = 'Daily AI limit reached. Try again tomorrow.';
-    notifyAiQuotaChanged();
+    if (/too many requests/i.test(message) && !message.includes('Daily AI')) {
+      normalized.message = 'Too many requests. Wait a moment and try again.';
+    } else {
+      normalized.message = 'Daily AI limit reached. Try again tomorrow.';
+      notifyAiQuotaChanged();
+    }
   } else   if (status === 401) {
     normalized.message = 'Please sign in again to use AI features.';
   } else if (status === 504 || /504|timeout|timed out/i.test(message)) {
@@ -97,7 +102,7 @@ export async function invokeGeminiStudy(action, payload, options = {}) {
     ...(rawDump ? { __rawDump: true } : {}),
   };
 
-  const user = await base44.auth.me();
+  const user = await requireAuth();
   if (!user?.email && !user?.id) {
     throw new Error('Please sign in to use AI features.');
   }

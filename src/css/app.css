@@ -10854,6 +10854,14 @@
       max-width: 28rem;
     }
 
+    .error-fallback-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+      justify-content: center;
+      margin-top: 0.25rem;
+    }
+
     /* Errors dashboard */
     .errors-dashboard {
       padding: 2.5rem 3rem 4rem;

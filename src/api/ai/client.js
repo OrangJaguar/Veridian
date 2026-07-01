@@ -37,6 +37,9 @@ function normalizeInvokeError(err) {
     return new Error(KEY_NOT_CONFIGURED_MSG);
   }
   if (status === 429) {
+    if (/too many requests/i.test(message) && !message.includes('Daily AI')) {
+      return new Error('Too many requests. Wait a moment and try again.');
+    }
     notifyAiQuotaChanged();
     return new Error('Daily AI limit reached. Try again tomorrow.');
   }

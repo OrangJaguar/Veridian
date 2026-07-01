@@ -9,7 +9,7 @@ import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
 import { useUpdateSession } from '@/hooks/mutations/useSessionMutations';
 import { updateModule } from '@/api/entities/modules';
-import { buildBaselineQuestions } from '@/utils/research/buildBaselineQuestions';
+import { buildBaselineQuestions, BASELINE_QUESTION_COUNT } from '@/utils/research/buildBaselineQuestions';
 import { withConfidenceSlider, quizPhaseAfterQuestions } from '@/utils/research/sessionConfidence';
 
 const BASELINE_CONFIG = {

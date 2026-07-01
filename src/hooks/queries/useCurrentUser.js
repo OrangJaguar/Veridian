@@ -1,16 +1,22 @@
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { requireAuth } from '@/api/requireAuth';
+import { AuthRequiredError } from '@/api/auth';
 
 async function fetchCurrentUser() {
-  const authed = await base44.auth.isAuthenticated();
-  if (!authed) return null;
-  return base44.auth.me();
+  try {
+    return await requireAuth();
+  } catch (err) {
+    if (err instanceof AuthRequiredError) return null;
+    throw err;
+  }
 }
 
 export function useCurrentUser() {
   return useQuery({
     queryKey: ['auth', 'me'],
     queryFn: fetchCurrentUser,
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }

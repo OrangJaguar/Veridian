@@ -1,5 +1,6 @@
 import { base44 } from '@/api/base44Client';
 import { normalizeUsername } from '@/utils/schemas/preferences';
+import { refreshAuth } from '@/api/requireAuth';
 
 /**
  * Sync chosen username to Base44 User.full_name (dashboard "Name" column + auth.me).
@@ -11,5 +12,5 @@ export async function syncAuthUserFullName(username) {
 }
 
 export async function refreshAuthUser() {
-  return base44.auth.me();
+  return refreshAuth();
 }
