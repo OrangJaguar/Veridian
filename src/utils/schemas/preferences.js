@@ -43,6 +43,8 @@ export const preferencesSchema = z.object({
   maiSurveyOnboardingCompletedAt: z.number().nullable().optional(),
   maiSurveyDay60CompletedAt: z.number().nullable().optional(),
   maiSurveyDay60DismissedAt: z.number().nullable().optional(),
+  hasSeenCreateWelcome: z.boolean().optional(),
+  maiSurveyPromptDismissedAt: z.number().nullable().optional(),
 });
 
 export const updatePreferencesSchema = preferencesSchema.partial();

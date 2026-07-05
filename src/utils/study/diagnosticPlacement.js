@@ -1,4 +1,8 @@
+import { buildConceptPerformanceFromDiagnostic } from '@/utils/study/conceptPerformance';
+
 export const DIAGNOSTIC_QUESTIONS_PER_MODULE = 3;
+
+const VARIANT_TYPES = ['verbatim', 'application', 'transfer'];
 
 const PRIOR_KNOWLEDGE_DIFFICULTY = {
   scratch: 'foundational but non-trivial — test whether the student truly understands core definitions and simple applications, not obscure trivia',
@@ -8,6 +12,15 @@ const PRIOR_KNOWLEDGE_DIFFICULTY = {
 
 export function difficultyGuidanceForPriorKnowledge(priorKnowledge) {
   return PRIOR_KNOWLEDGE_DIFFICULTY[priorKnowledge] ?? PRIOR_KNOWLEDGE_DIFFICULTY.some;
+}
+
+export function parseDiagnosticSummaryJson(journey) {
+  if (!journey?.diagnosticSummary) return null;
+  try {
+    return JSON.parse(journey.diagnosticSummary);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -57,6 +70,35 @@ export function interleaveDiagnosticQuestions(questions, modules) {
   return interleaved;
 }
 
+function variantAccuracy(questions, answerByQuestionId, variantType) {
+  const subset = questions.filter((q) => q.variantType === variantType);
+  if (!subset.length) return null;
+  const correct = subset.filter((q) => answerByQuestionId[q.id]?.correct).length;
+  return Math.round((correct / subset.length) * 100);
+}
+
+function detectFailureSignals({ verbatimAcc, applicationAcc, transferAcc }) {
+  const signals = [];
+  if (verbatimAcc != null && applicationAcc != null && transferAcc != null) {
+    if (verbatimAcc >= 67 && (applicationAcc < 50 || transferAcc < 50)) {
+      signals.push('verbatimTrap');
+    }
+    if (transferAcc < 50 && verbatimAcc >= 50) {
+      signals.push('transferFailure');
+    }
+    if (verbatimAcc < 50 && applicationAcc < 50 && transferAcc < 50) {
+      signals.push('conceptualGap');
+    }
+  }
+  return signals;
+}
+
+function findWeakestConceptId(moduleQuestions, answerByQuestionId) {
+  const misses = moduleQuestions.filter((q) => !answerByQuestionId[q.id]?.correct && q.conceptId);
+  if (!misses.length) return null;
+  return misses[0].conceptId;
+}
+
 /**
  * Assign module stage and initial mastery from tagged diagnostic answers.
  * All 3 correct → Stage B; otherwise Stage A.
@@ -76,6 +118,14 @@ export function computeDiagnosticPlacement(questions, answers, modules) {
     const accuracy = total ? Math.round((correct / total) * 100) : 0;
     const assignedStage = correct === total && total >= DIAGNOSTIC_QUESTIONS_PER_MODULE ? 'B' : 'A';
 
+    const verbatimAcc = variantAccuracy(moduleQuestions, answerByQuestionId, 'verbatim');
+    const applicationAcc = variantAccuracy(moduleQuestions, answerByQuestionId, 'application');
+    const transferAcc = variantAccuracy(moduleQuestions, answerByQuestionId, 'transfer');
+    const applicationDepth = applicationAcc != null && transferAcc != null
+      ? Math.round((applicationAcc + transferAcc) / 2)
+      : accuracy;
+    const failureSignals = detectFailureSignals({ verbatimAcc, applicationAcc, transferAcc });
+
     return {
       moduleId: mod.moduleId,
       moduleName: moduleNameById[mod.moduleId] ?? mod.name,
@@ -84,6 +134,10 @@ export function computeDiagnosticPlacement(questions, answers, modules) {
       accuracy,
       assignedStage,
       masteryScore: accuracy,
+      variantStats: { verbatim: verbatimAcc, application: applicationAcc, transfer: transferAcc },
+      applicationDepth,
+      failureSignals,
+      weakestConceptId: findWeakestConceptId(moduleQuestions, answerByQuestionId),
     };
   });
 
@@ -91,11 +145,47 @@ export function computeDiagnosticPlacement(questions, answers, modules) {
   const correctCount = answers.filter((a) => a?.correct).length;
   const overallAccuracy = gradedCount ? Math.round((correctCount / gradedCount) * 100) : 0;
 
-  return {
+  const conceptPerformance = buildConceptPerformanceFromDiagnostic(questions, answers);
+
+  const placement = {
     moduleResults,
     overallAccuracy,
     stageBCount: moduleResults.filter((r) => r.assignedStage === 'B').length,
     stageACount: moduleResults.filter((r) => r.assignedStage === 'A').length,
+    conceptPerformance,
+    variantStats: {
+      verbatim: variantAccuracy(questions, answerByQuestionId, 'verbatim'),
+      application: variantAccuracy(questions, answerByQuestionId, 'application'),
+      transfer: variantAccuracy(questions, answerByQuestionId, 'transfer'),
+    },
+  };
+
+  placement.profile = buildDiagnosticProfile(placement, modules);
+
+  return placement;
+}
+
+export function buildDiagnosticProfile(placement, modules) {
+  const totalConcepts = modules.reduce(
+    (sum, mod) => sum + (mod.knowledgeMap?.concepts?.length ?? 0),
+    0,
+  );
+  const testedConcepts = new Set(
+    (placement.conceptPerformance ?? []).map((c) => c.conceptId),
+  );
+  const knowledgeCoverage = totalConcepts
+    ? Math.round((testedConcepts.size / totalConcepts) * 100)
+    : 0;
+
+  const applicationDepth = placement.variantStats?.application != null
+    && placement.variantStats?.transfer != null
+    ? Math.round((placement.variantStats.application + placement.variantStats.transfer) / 2)
+    : placement.overallAccuracy;
+
+  return {
+    knowledgeCoverage,
+    applicationDepth,
+    pressureReadiness: null,
   };
 }
 
@@ -107,5 +197,10 @@ export function buildDiagnosticSummary(placement, sessionId) {
     stageBCount: placement.stageBCount,
     stageACount: placement.stageACount,
     moduleResults: placement.moduleResults,
+    conceptPerformance: placement.conceptPerformance ?? [],
+    variantStats: placement.variantStats ?? {},
+    profile: placement.profile ?? buildDiagnosticProfile(placement, []),
   });
 }
+
+export { VARIANT_TYPES };

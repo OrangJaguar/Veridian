@@ -7,7 +7,9 @@ export default function AppFooter() {
         <p className="site-footer-copy">
           Copyright © 2026 Developed by Sanskar Gupta. All Rights Reserved.
         </p>
-        <nav className="site-footer-links" aria-label="Legal">
+        <nav className="site-footer-links" aria-label="Site">
+          <Link to="/learn">How it works</Link>
+          <span aria-hidden="true">·</span>
           <Link to="/feedback">Feedback</Link>
           <span aria-hidden="true">·</span>
           <Link to="/privacy">Policy</Link>

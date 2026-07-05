@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useJourneys } from '@/hooks/queries/useJourneys';
 import { useDueToday } from '@/hooks/queries/useDueToday';
@@ -9,12 +10,14 @@ import { countCompletedToday } from '@/utils/dueToday/completedToday';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
 import VeridianLoading from '@/components/shared/VeridianLoading';
 import HomeWelcomeHeader from '@/components/home/HomeWelcomeHeader';
-import HomeWelcomeBanner from '@/components/home/HomeWelcomeBanner';
 import MaiDay60Banner from '@/components/home/MaiDay60Banner';
 import HomeContextNotice from '@/components/home/HomeContextNotice';
 import DueTodayZone from '@/components/home/DueTodayZone';
 import HomeUpcomingSection from '@/components/home/HomeUpcomingSection';
 import HomeExamCramZone from '@/components/home/HomeExamCramZone';
+import HomeEmptyState from '@/components/home/HomeEmptyState';
+import MaiSurveyPromptModal from '@/components/survey/MaiSurveyPromptModal';
+import { useMaiSurveyEligibility } from '@/hooks/useMaiSurveyEligibility';
 
 export default function HomePage() {
   const { isAuthenticated } = useAuth();
@@ -26,6 +29,13 @@ export default function HomePage() {
     enabled: isAuthenticated,
     staleTime: 60_000,
   });
+  const { eligible: maiEligible } = useMaiSurveyEligibility();
+  const [maiModalOpen, setMaiModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (maiEligible) setMaiModalOpen(true);
+  }, [maiEligible]);
+
   useRemoveStarterJourney();
 
   if (!isAuthenticated) {
@@ -44,7 +54,11 @@ export default function HomePage() {
     return <VeridianLoading fullPage />;
   }
 
-  const firstJourneyId = journeys[0]?.journeyId;
+  const hasProcessing = journeys.some((j) => j.generationStatus === 'processing');
+  const showEmpty = journeys.length === 0 && !hasProcessing;
+
+  const firstJourneyId = journeys.find((j) => j.generationStatus === 'completed')?.journeyId
+    ?? journeys[0]?.journeyId;
   const dueLoading = duePending && dueItems.length === 0;
   const plannedIds = dueItems.map((i) => i.activityId).filter((id) => !id.startsWith('fsrs-'));
   const completedToday = countCompletedToday(plannedIds, sessions);
@@ -54,11 +68,20 @@ export default function HomePage() {
     return days >= 0 && days <= 7;
   });
 
+  if (showEmpty) {
+    return (
+      <div className="home-page">
+        <MaiSurveyPromptModal open={maiModalOpen && maiEligible} onClose={() => setMaiModalOpen(false)} />
+        <HomeEmptyState />
+      </div>
+    );
+  }
+
   return (
     <div className="home-page">
+      <MaiSurveyPromptModal open={maiModalOpen && maiEligible} onClose={() => setMaiModalOpen(false)} />
       <HomeContextNotice dueItems={dueItems} journeys={journeys} />
-      <HomeWelcomeBanner journeyCount={journeys.length} />
-      <HomeWelcomeHeader />
+      {journeys.length > 0 && <HomeWelcomeHeader />}
       <MaiDay60Banner />
       {cramJourneys.length > 0 && <HomeExamCramZone journeys={cramJourneys} />}
       <DueTodayZone
@@ -66,6 +89,7 @@ export default function HomePage() {
         loading={dueLoading}
         firstJourneyId={firstJourneyId}
         completedToday={completedToday}
+        journeys={journeys}
       />
       <HomeUpcomingSection journeys={journeys} />
     </div>

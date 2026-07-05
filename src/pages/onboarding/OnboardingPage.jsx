@@ -81,6 +81,7 @@ export default function OnboardingPage() {
       return;
     }
     setSaving(true);
+    setError('');
     try {
       await saveOnboardingProgress(step, {
         studyGoals,
@@ -91,6 +92,9 @@ export default function OnboardingPage() {
         researchConsentAt: researchConsent ? Date.now() : undefined,
       });
       setStep(next);
+    } catch (err) {
+      console.error('Onboarding progress save failed:', err);
+      setError('Could not save onboarding. Please try again.');
     } finally {
       setSaving(false);
     }

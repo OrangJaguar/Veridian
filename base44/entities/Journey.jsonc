@@ -149,6 +149,20 @@
     "moduleFocusBoosts": {
       "type": "object",
       "description": "Temporary urgency weights per moduleId from challenge results"
+    },
+    "generationStatus": {
+      "type": "string",
+      "description": "processing | completed | failed"
+    },
+    "generationError": {
+      "type": "string"
+    },
+    "sourceMode": {
+      "type": "string",
+      "description": "upload | paste | topic"
+    },
+    "sourceTopic": {
+      "type": "string"
     }
   },
   "required": [

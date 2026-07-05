@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useUiStore } from '@/store/uiStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useJourney } from '@/hooks/queries/useJourneys';
+import { trackProductEvent } from '@/lib/analytics';
 import { useModules } from '@/hooks/queries/useModules';
 import { useActivitiesByJourney } from '@/hooks/queries/useActivities';
 import { useSessions } from '@/hooks/queries/useSessions';
@@ -15,6 +16,7 @@ import VeridianLoading from '@/components/shared/VeridianLoading';
 import AiGenerationLoading from '@/components/shared/AiGenerationLoading';
 import DiagnosticIntro from '@/components/diagnostic/DiagnosticIntro';
 import DiagnosticSummary from '@/components/diagnostic/DiagnosticSummary';
+import JourneyProcessingCard from '@/components/home/JourneyProcessingCard';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
 import PreQuizConfidenceStep from '@/components/research/PreQuizConfidenceStep';
 import { usePreQuizConfidence } from '@/hooks/research/usePreQuizConfidence';
@@ -56,6 +58,8 @@ function findResumableSession(sessions, activityId) {
 }
 
 function initialPhase(journey, resumableSession) {
+  if (journey?.generationStatus === 'processing') return 'waiting';
+  if (journey?.generationStatus === 'failed') return 'generation_failed';
   if (journey?.diagnosticSummary) return 'done';
   if (resumableSession) {
     if (resumableSession.sessionData?.confidenceSlider?.submittedAt) return 'active';
@@ -69,7 +73,7 @@ export default function DiagnosticPage() {
   const { id: journeyId } = useParams();
   const queryClient = useQueryClient();
   const { isAuthenticated } = useAuth();
-  const { data: journey, isPending: journeyPending } = useJourney(journeyId);
+  const { data: journey, isPending: journeyPending, refetch: refetchJourney } = useJourney(journeyId);
   const { data: modules = [] } = useModules(journeyId);
   const { data: activities = [] } = useActivitiesByJourney(journeyId);
   const { data: sessions = [] } = useSessions(journeyId);
@@ -110,6 +114,20 @@ export default function DiagnosticPage() {
   });
 
   const resolvedPhase = phase ?? (journey ? initialPhase(journey, resumableSession) : null);
+
+  useEffect(() => {
+    if (journey?.generationStatus !== 'processing') return undefined;
+    const id = window.setInterval(() => {
+      refetchJourney();
+    }, 2000);
+    return () => window.clearInterval(id);
+  }, [journey?.generationStatus, refetchJourney]);
+
+  useEffect(() => {
+    if (resolvedPhase === 'waiting' && journey?.generationStatus === 'completed') {
+      setPhase('intro');
+    }
+  }, [resolvedPhase, journey?.generationStatus]);
 
   useEffect(() => {
     const immersive = generating
@@ -165,6 +183,7 @@ export default function DiagnosticPage() {
     setSkipping(true);
     try {
       await updateJourney(journeyId, { diagnosticSkipped: true });
+      trackProductEvent('diagnostic_skip', { journeyId });
       invalidateJourney();
       setPhase('skipped');
     } catch (err) {
@@ -176,6 +195,7 @@ export default function DiagnosticPage() {
 
   const handleStart = async () => {
     if (generatingRef.current || generating || !modules.length || !activityReady) return;
+    trackProductEvent('diagnostic_start', { journeyId, moduleCount: modules.length });
     generatingRef.current = true;
     setGenerating(true);
     setGenError(null);
@@ -283,17 +303,20 @@ export default function DiagnosticPage() {
   };
 
   const handleExit = async () => {
-    if (!session) {
+    const exitingSession = activeSession;
+    if (!exitingSession?.sessionId) {
       setPhase('intro');
       return;
     }
     try {
       const mergedSessionData = {
-        ...session.sessionData,
-        ...(answers.length > 0 ? { answers } : {}),
+        ...exitingSession.sessionData,
+        ...(exitingSession.sessionData?.answers?.length
+          ? { answers: exitingSession.sessionData.answers }
+          : {}),
       };
       await updateSession.mutateAsync({
-        sessionId: session.sessionId,
+        sessionId: exitingSession.sessionId,
         journeyId,
         patch: {
           status: 'abandoned',
@@ -311,7 +334,8 @@ export default function DiagnosticPage() {
   };
 
   const handleComplete = async (answers, totalTimeSec) => {
-    if (!session) return;
+    const completingSession = activeSession;
+    if (!completingSession?.sessionId) return;
 
     const placement = computeDiagnosticPlacement(questions, answers, modules);
     const sessionData = withConfidenceSlider({
@@ -320,7 +344,7 @@ export default function DiagnosticPage() {
       answers,
       quizConfig: DIAGNOSTIC_CONFIG,
       placement,
-    }, { confidenceSlider: confidenceSlider ?? session.sessionData?.confidenceSlider });
+    }, { confidenceSlider: confidenceSlider ?? completingSession.sessionData?.confidenceSlider });
 
     try {
       assertConfidenceSliderPresent(sessionData, 'diagnostic');
@@ -333,12 +357,17 @@ export default function DiagnosticPage() {
       answers,
       totalTimeSec,
       moduleResults: placement.moduleResults,
+      profile: placement.profile,
     });
 
     try {
-      await applyDiagnosticResults(journeyId, placement, session.sessionId);
+      await applyDiagnosticResults(journeyId, placement, completingSession.sessionId);
+      trackProductEvent('diagnostic_complete', {
+        journeyId,
+        overallAccuracy: placement.overallAccuracy,
+      });
       await updateSession.mutateAsync({
-        sessionId: session.sessionId,
+        sessionId: completingSession.sessionId,
         journeyId,
         patch: {
           status: 'completed',
@@ -383,6 +412,28 @@ export default function DiagnosticPage() {
     );
   }
 
+  if (resolvedPhase === 'waiting') {
+    return (
+      <div className="diagnostic-page diagnostic-page--waiting">
+        <JourneyProcessingCard journey={journey} />
+        <p className="diagnostic-waiting-note">
+          Building your modules — diagnostic starts automatically when ready.
+        </p>
+      </div>
+    );
+  }
+
+  if (resolvedPhase === 'generation_failed') {
+    return (
+      <div className="diagnostic-page">
+        <p className="journeys-error">
+          Journey generation failed: {journey.generationError || 'Unknown error'}
+        </p>
+        <Link to="/home" className="btn btn-primary">Back to home</Link>
+      </div>
+    );
+  }
+
   if (resolvedPhase === 'done') {
     return <Navigate to={`/journeys/${journeyId}`} replace />;
   }
@@ -413,12 +464,11 @@ export default function DiagnosticPage() {
           totalTimeSec={summaryData.totalTimeSec}
           journeyTitle={journey.title}
           moduleResults={summaryData.moduleResults}
+          profile={summaryData.profile}
+          modules={modules}
+          journey={journey}
           journeyId={journeyId}
-          continueHref={
-            !preferences?.maiSurveyOnboardingCompletedAt
-              ? `/mai-survey?instance=onboarding&journeyId=${journeyId}`
-              : `/journeys/${journeyId}`
-          }
+          continueHref="/home"
         />
       </div>
     );

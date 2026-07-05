@@ -166,7 +166,11 @@ function computeFunnel(data: Awaited<ReturnType<typeof loadAll>>) {
 
   const preSignupSteps = [
     { key: "landing_view", label: "Landing page views", count: uniqueEventCount(events, "landing_view") },
-    { key: "signup_click", label: "Get Started clicks", count: uniqueEventCount(events, "signup_click") },
+    { key: "baseline_start", label: "Baseline started", count: uniqueEventCount(events, "baseline_start") },
+    { key: "baseline_screen_4_start", label: "Reached recall screen", count: uniqueEventCount(events, "baseline_screen_4_start") },
+    { key: "baseline_complete", label: "Baseline completed", count: uniqueEventCount(events, "baseline_complete_pass") + uniqueEventCount(events, "baseline_complete_fail") },
+    { key: "baseline_unlock", label: "Landing unlocked", count: uniqueEventCount(events, "baseline_unlock") },
+    { key: "signup_click", label: "Signup clicks", count: uniqueEventCount(events, "signup_click") },
     { key: "signup_start", label: "Signup page visits", count: uniqueEventCount(events, "signup_start") },
   ];
 

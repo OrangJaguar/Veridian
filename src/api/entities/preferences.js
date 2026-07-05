@@ -1,5 +1,6 @@
 import { base44 } from '@/api/base44Client';
 import { requireAuth } from '@/api/requireAuth';
+import { markOnboardingDoneLocally } from '@/lib/onboardingStorage';
 import { normalizeUsername, isValidUsernameFormat } from '@/utils/schemas/preferences';
 
 function pickBestPreferencesRow(rows) {
@@ -74,10 +75,12 @@ export async function createUserPreferencesOnSignup({ username, userEmail }) {
     userEmail,
     createdAt: now,
     lastActiveAt: now,
+    onboardingCompletedAt: now,
     hintsShown: [],
     notificationPref: 'off',
     defaultPrivacy: 'private',
     researchConsent: false,
+    hasSeenCreateWelcome: false,
   };
 
   if (rows.length > 0) {

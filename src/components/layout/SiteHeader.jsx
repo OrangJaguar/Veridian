@@ -1,8 +1,32 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useLandingChrome } from '@/contexts/LandingChromeContext';
+import { getBaselineCompleted } from '@/lib/baselineStorage';
+import { trackProductEvent } from '@/lib/analytics';
 
-export default function SiteHeader({ actions }) {
+export default function SiteHeader({ actions, variant = 'default' }) {
   const { user, isLoading } = useAuth();
+  const location = useLocation();
+  const { baselineLocked } = useLandingChrome() ?? {};
+  const isLanding = variant === 'landing' || location.pathname === '/';
+  const showSignup = isLanding && getBaselineCompleted();
+
+  const landingActions = !isLoading && (
+    <>
+      {showSignup && (
+        <Link
+          to="/signup"
+          className="btn btn-primary site-header-signup-compact"
+          onClick={() => trackProductEvent('signup_click', { source: 'header' })}
+        >
+          Sign Up
+        </Link>
+      )}
+      <Link to="/signin" className="site-header-text-link">
+        Sign In
+      </Link>
+    </>
+  );
 
   const defaultActions = !isLoading && (
     user ? (
@@ -27,7 +51,7 @@ export default function SiteHeader({ actions }) {
         Veridian
       </Link>
       <div className="site-header-actions">
-        {actions ?? defaultActions}
+        {actions ?? (isLanding ? landingActions : defaultActions)}
       </div>
     </header>
   );

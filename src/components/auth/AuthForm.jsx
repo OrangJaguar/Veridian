@@ -39,6 +39,7 @@ function UsernameStatus({ status }) {
 export default function AuthForm({
   defaultTab = 'login',
   allowTabSwitch = false,
+  hideAlternateAuthLink = false,
   onSuccess,
 }) {
   const [tab, setTab] = useState(defaultTab);
@@ -389,7 +390,7 @@ export default function AuthForm({
             </button>
           </form>
 
-          {!allowTabSwitch && (
+          {!allowTabSwitch && !hideAlternateAuthLink && (
             <p style={{ marginTop: '1rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
               {activeTab === 'login' ? "Don't have an account? " : 'Already have an account? '}
               <Link to={activeTab === 'login' ? '/signup' : '/signin'} style={{ color: 'var(--text-main)', fontWeight: 600, fontSize: '0.75rem', textDecoration: 'underline' }}>

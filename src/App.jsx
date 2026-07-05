@@ -1,7 +1,7 @@
 import { Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import MarketingLayout from '@/layouts/MarketingLayout';
 import AppShell from '@/layouts/AppShell';
-import LandingPage from '@/pages/landing/LandingPage';
+import LearnPage from '@/pages/landing/LearnPage';
 import SignInPage from '@/pages/auth/SignInPage';
 import SignUpPage from '@/pages/auth/SignUpPage';
 import LibraryPage from '@/pages/library/LibraryPage';
@@ -49,6 +49,7 @@ export default function App() {
       <Routes>
       <Route element={<MarketingLayout />}>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/learn" element={<LearnPage />} />
         <Route path="/signin" element={<SignInPage />} />
         <Route path="/signup" element={<SignUpPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />

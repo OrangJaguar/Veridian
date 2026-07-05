@@ -110,6 +110,13 @@
     },
     "maiSurveyDay60DismissedAt": {
       "type": "number"
+    },
+    "hasSeenCreateWelcome": {
+      "type": "boolean",
+      "description": "True after user dismisses create-journey welcome modal"
+    },
+    "maiSurveyPromptDismissedAt": {
+      "type": "number"
     }
   },
   "required": [],

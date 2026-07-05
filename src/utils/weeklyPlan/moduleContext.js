@@ -1,5 +1,6 @@
 import { differenceInDays } from 'date-fns';
 import { getWeakConceptIds } from '@/utils/study/conceptWeakness';
+import { getDiagnosticWeakConceptLabels } from '@/utils/study/diagnosticWeakness';
 import { learningGuideIncomplete } from '@/utils/study/activityContent';
 
 export { learningGuideIncomplete };
@@ -35,7 +36,12 @@ function resolveConceptLabel(conceptId, module) {
   return conceptId;
 }
 
-export function getWeakConceptLabels(sessions, module, limit = 3) {
+export function getWeakConceptLabels(sessions, module, limit = 3, journey = null) {
+  const diagnosticLabels = journey
+    ? getDiagnosticWeakConceptLabels(journey, module, limit)
+    : [];
+  if (diagnosticLabels.length) return diagnosticLabels;
+
   const ids = getWeakConceptIds(sessions, module.moduleId, limit);
   return ids.map((id) => resolveConceptLabel(id, module));
 }
@@ -76,7 +82,7 @@ export function buildModuleContext(module, activities, sessions, journey) {
     guideInProgress,
     quizAccuracy: getModuleQuizAccuracy(module.moduleId, activities),
     daysSinceLastQuiz: getDaysSinceLastQuiz(module.moduleId, sessions),
-    weakConceptLabels: getWeakConceptLabels(sessions, module),
+    weakConceptLabels: getWeakConceptLabels(sessions, module, 3, journey),
     learningGuideActivity,
     practiceQuizActivity: findActivity(activities, module.moduleId, 'practiceQuiz'),
     flashcardActivity: findActivity(activities, module.moduleId, 'flashcardSet'),

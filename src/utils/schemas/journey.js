@@ -56,6 +56,10 @@ export const journeySchema = z.object({
   coverColor: z.string().optional(),
   coverImageUrl: z.string().optional(),
   isAdminAuthored: z.boolean().optional(),
+  generationStatus: z.enum(['processing', 'completed', 'failed']).optional(),
+  generationError: z.string().nullable().optional(),
+  sourceMode: z.enum(['upload', 'paste', 'topic']).optional(),
+  sourceTopic: z.string().optional(),
 });
 
 export const createJourneySchema = journeySchema.pick({

@@ -3,8 +3,18 @@ import { getTodayPlanDay } from '@/utils/weeklyPlan/buildWeeklyPlan';
 import { daysUntilExam, getDateKey } from '@/utils/weeklyPlan/weekKey';
 import { selectCardsForToday } from '@/utils/fsrs/dueTodaySchedule';
 import { ensureWeeklyPlan } from '@/api/entities/weeklyPlan';
+import {
+  failureModeToActivity,
+  getWeakestConcept,
+  getWeakestDiagnosticModule,
+  isFreshDiagnostic,
+} from '@/utils/study/diagnosticWeakness';
 
 const URGENCY_ORDER = { high: 0, medium: 1, low: 2 };
+
+function journeyDiagnosticReady(journey) {
+  return Boolean(journey.diagnosticSummary || journey.diagnosticSkipped);
+}
 
 function moduleHref(journeyId, moduleId) {
   return moduleId
@@ -35,6 +45,50 @@ function buildAssignmentItem(journey, assignment, urgencyDays, tier = 'primary')
     tier,
     planAssignment: true,
     isCombinedFsrsDeck: false,
+    lastStudiedAt: journey.lastStudiedAt ?? 0,
+  };
+}
+
+function buildDiagnosticFocusItem(journey, modules, activities, urgencyDays) {
+  if (!isFreshDiagnostic(journey)) return null;
+
+  const weakest = getWeakestDiagnosticModule(journey, modules);
+  if (!weakest?.moduleId) return null;
+
+  const mod = modules.find((m) => m.moduleId === weakest.moduleId);
+  const concept = getWeakestConcept(journey, weakest.moduleId, modules);
+  const activityType = failureModeToActivity(
+    weakest.failureSignals?.[0],
+    weakest.assignedStage ?? mod?.stage ?? 'A',
+  );
+  const activity = activities.find(
+    (a) => a.moduleId === weakest.moduleId && a.type === activityType && a.status !== 'failed',
+  );
+  if (!activity) return null;
+
+  const estimatedMin = ESTIMATED_MIN[activityType] ?? 15;
+  const conceptLabel = concept?.label ? ` on ${concept.label}` : '';
+
+  return {
+    id: `${journey.journeyId}-diagnostic-focus`,
+    journeyId: journey.journeyId,
+    journeyTitle: journey.title,
+    subject: journey.subject,
+    moduleId: weakest.moduleId,
+    moduleName: mod?.name ?? weakest.moduleName,
+    activityId: activity.activityId,
+    activityType,
+    activityLabel: ACTIVITY_LABELS[activityType] ?? activityType,
+    reason: 'diagnostic_weakest_signal',
+    actionLabel: `${ACTIVITY_LABELS[activityType] ?? activityType}${conceptLabel} — diagnostic priority`,
+    urgency: 'high',
+    urgencyDays,
+    estimatedMin,
+    href: moduleHref(journey.journeyId, weakest.moduleId),
+    tier: 'focus',
+    planAssignment: false,
+    isCombinedFsrsDeck: false,
+    isDiagnosticFocus: true,
     lastStudiedAt: journey.lastStudiedAt ?? 0,
   };
 }
@@ -77,7 +131,7 @@ function buildFsrsItem(journey, todayCards, urgencyDays) {
 
 function applyBudgetTiers(items, budgetMin) {
   let accumulated = 0;
-  let focusSet = false;
+  let focusSet = items.some((item) => item.tier === 'focus');
 
   return items.map((item) => {
     const next = { ...item };
@@ -109,7 +163,11 @@ export async function getDueTodayItems({
   const allItems = [];
 
   for (const journey of activeJourneys) {
+    if (!journeyDiagnosticReady(journey)) continue;
+
     const journeyId = journey.journeyId;
+    const journeyModules = modules.filter((m) => m.journeyId === journeyId);
+    const journeyActivities = activities.filter((a) => a.journeyId === journeyId);
     let planData = weeklyPlansByJourney[journeyId];
 
     if (!planData?.snapshot) {
@@ -131,8 +189,17 @@ export async function getDueTodayItems({
       dateKey: getDateKey(),
     });
 
+    const diagnosticFocus = buildDiagnosticFocusItem(
+      journey,
+      journeyModules,
+      journeyActivities,
+      urgencyDays,
+    );
+    if (diagnosticFocus) {
+      allItems.push(diagnosticFocus);
+    }
+
     const assignments = todayDay?.assignments ?? [];
-    const isCram = snapshot.mode === 'cram';
 
     for (const assignment of assignments) {
       allItems.push(buildAssignmentItem(journey, assignment, urgencyDays, 'primary'));
@@ -141,13 +208,11 @@ export async function getDueTodayItems({
     if (todayCards.length > 0) {
       allItems.push(buildFsrsItem(journey, todayCards, urgencyDays));
     }
-
-    if (isCram && assignments.length === 0 && todayCards.length === 0) {
-      // cram: still show if modules exist but nothing due
-    }
   }
 
   const sorted = [...allItems].sort((a, b) => {
+    if (a.isDiagnosticFocus && !b.isDiagnosticFocus) return -1;
+    if (!a.isDiagnosticFocus && b.isDiagnosticFocus) return 1;
     const urg = URGENCY_ORDER[a.urgency] - URGENCY_ORDER[b.urgency];
     if (urg !== 0) return urg;
     return (a.urgencyDays ?? 999) - (b.urgencyDays ?? 999);

@@ -2,7 +2,7 @@ import { calculateModuleMastery } from '@/utils/mastery';
 import { getDueCards } from '@/utils/fsrs';
 import { updateModule } from '@/api/entities/modules';
 import { updateActivity } from '@/api/entities/activities';
-import { updateJourney } from '@/api/entities/journeys';
+import { updateJourney, getJourney } from '@/api/entities/journeys';
 import { listActivitiesByJourney } from '@/api/entities/activities';
 import { listModulesByJourney } from '@/api/entities/modules';
 import { listSessionsByJourney } from '@/api/entities/sessions';
@@ -12,6 +12,11 @@ import { STAGE_C_PROMOTION_THRESHOLD } from '@/utils/weeklyPlan/constants';
 import { isQuizSessionActivityType } from '@/utils/research/quizSessionTypes';
 import { getPendingMasterySnapshots } from '@/utils/research/masterySnapshots';
 import { listMasterySnapshotsByModule, createMasterySnapshot } from '@/api/entities/masterySnapshots';
+import {
+  mergeTimedConceptPerformance,
+  parseDiagnosticSummary,
+  computePressureReadiness,
+} from '@/utils/study/conceptPerformance';
 
 function patchActivityStats(existing, session) {
   const stats = { ...(existing.stats ?? {}) };
@@ -84,6 +89,42 @@ export async function runPostSessionEffects(session, activity) {
       }
 
       await updateModule(moduleId, stagePatch);
+
+      const isTimedQuiz = session.activityType === 'practiceQuiz' && (
+        session.sessionData?.config?.timedMode === true
+        || session.sessionData?.quizConfig?.strictMode === true
+        || session.sessionData?.quizConfig?.strictTimedMode === true
+      );
+      if (isTimedQuiz && !mod.timedBaselineCapturedAt) {
+        try {
+          const journeyRecord = await getJourney(journeyId);
+          const summary = parseDiagnosticSummary(journeyRecord);
+          if (summary?.conceptPerformance?.length) {
+            const questions = session.sessionData?.questions ?? [];
+            const answers = session.sessionData?.answers ?? [];
+            const conceptPerformance = mergeTimedConceptPerformance(
+              summary.conceptPerformance,
+              questions,
+              answers,
+            );
+            const nextSummary = {
+              ...summary,
+              conceptPerformance,
+              profile: {
+                ...summary.profile,
+                pressureReadiness: computePressureReadiness(conceptPerformance),
+              },
+            };
+            await updateJourney(journeyId, {
+              diagnosticSummary: JSON.stringify(nextSummary),
+            });
+            await updateModule(moduleId, { timedBaselineCapturedAt: now });
+          }
+        } catch {
+          // best effort pressure capture
+        }
+      }
+
       if (stagePatch.stage === 'B' || stagePatch.stage === 'C') {
         await rebuildWeeklyPlan(journeyId, { force: true });
       }

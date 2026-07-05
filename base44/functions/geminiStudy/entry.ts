@@ -23,6 +23,7 @@ const questionAiSchema = z.object({
   explanation: z.string().optional(),
   conceptId: z.string().optional(),
   moduleId: z.string().optional(),
+  variantType: z.enum(["verbatim", "application", "transfer"]).optional(),
 });
 
 const questionsAiOutputSchema = z.object({
@@ -600,7 +601,11 @@ function finalizeDiagnosticQuestion(
 ) {
   const finalized = finalizeQuestion(q, index, `diag-${moduleId}`);
   if (!finalized) return null;
-  return { ...finalized, moduleId };
+  const variantTypes = ["verbatim", "application", "transfer"] as const;
+  const variantType = q.variantType && variantTypes.includes(q.variantType as typeof variantTypes[number])
+    ? q.variantType
+    : variantTypes[index % 3];
+  return { ...finalized, moduleId, variantType };
 }
 
 
@@ -790,6 +795,7 @@ const questionSchema = z.object({
 
 const diagnosticQuestionSchema = questionSchema.extend({
   moduleId: z.string(),
+  variantType: z.enum(["verbatim", "application", "transfer"]).optional(),
 });
 
 function utcDateKey() {
@@ -1339,6 +1345,7 @@ Rules:
 - Generate EXACTLY the requested number of questions for the ONE module in the input.
 - Every question MUST include moduleId copied EXACTLY from the input (character-for-character).
 - Each question MUST include conceptId from that module's concepts list.
+- Generate exactly 3 questions as a variant triad: one "verbatim" (close to source wording), one "application" (paraphrased scenario), one "transfer" (novel context). Tag each with variantType.
 - Questions must require understanding — plausible distractors, application scenarios, or multi-step reasoning.
 - Avoid yes/no trivia, trick wording, and elimination-only questions.
 - Prefer multipleChoice with exactly 4 options.

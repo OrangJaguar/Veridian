@@ -29,7 +29,7 @@ export default function SignInPage() {
             {resetMessage}
           </div>
         )}
-        <AuthForm defaultTab="login" onSuccess={handleSuccess} />
+        <AuthForm defaultTab="login" hideAlternateAuthLink onSuccess={handleSuccess} />
       </div>
     </PublicOnly>
   );

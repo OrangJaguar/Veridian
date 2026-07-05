@@ -10,6 +10,7 @@ import VeridianLogo from '@/components/layout/VeridianLogo';
 import ThemeSync from '@/components/ThemeSync';
 import SyncUserDisplayName from '@/components/auth/SyncUserDisplayName';
 import { applyThemeFromStorage } from '@/lib/theme';
+import { useJourneyGenerationListener } from '@/hooks/useJourneyGenerationListener';
 
 export default function AppShell() {
   const isMobile = useIsMobile();
@@ -17,6 +18,8 @@ export default function AppShell() {
   const immersiveChrome = useUiStore((s) => s.immersiveChrome);
   const isStudyRoute = location.pathname.startsWith('/study');
   const hideChrome = isStudyRoute || immersiveChrome;
+
+  useJourneyGenerationListener();
 
   useEffect(() => {
     applyThemeFromStorage();

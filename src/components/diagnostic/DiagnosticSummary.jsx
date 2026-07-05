@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import LatexRenderer from '@/components/shared/LatexRenderer';
 import { formatStudyTime } from '@/utils/study/feedback';
+import DiagnosticProfileView from './DiagnosticProfileView';
 
 const STAGE_LABELS = {
   A: 'Stage A — Learn',
@@ -20,7 +22,11 @@ export default function DiagnosticSummary({
   moduleResults,
   journeyId,
   continueHref,
+  profile,
+  modules = [],
+  journey,
 }) {
+  const [showReview, setShowReview] = useState(false);
   const answerByQuestionId = {};
   for (const a of answers) {
     if (a?.questionId) answerByQuestionId[a.questionId] = a;
@@ -39,7 +45,16 @@ export default function DiagnosticSummary({
         )}
       </header>
 
-      <div className="summary-stats">
+      <DiagnosticProfileView
+        journey={journey}
+        modules={modules}
+        moduleResults={moduleResults}
+        profile={profile}
+        journeyId={journeyId}
+        continueHref={continueHref}
+      />
+
+      <div className="summary-stats diagnostic-summary-stats-compact">
         <div className="stat-box">
           <span className="stat-value">{accuracy}%</span>
           <span className="stat-label">Overall accuracy</span>
@@ -50,63 +65,81 @@ export default function DiagnosticSummary({
         </div>
       </div>
 
-      <section className="diagnostic-module-results" aria-label="Module placement">
-        <h3 className="diagnostic-section-title">Module placement</h3>
-        <ul className="diagnostic-module-list">
-          {moduleResults.map((result) => (
-            <li key={result.moduleId} className="diagnostic-module-result">
-              <div className="diagnostic-module-result-head">
-                <span className="diagnostic-module-name">{result.moduleName}</span>
-                <span className={`diagnostic-stage-badge stage-${result.assignedStage.toLowerCase()}`}>
-                  {STAGE_LABELS[result.assignedStage] ?? result.assignedStage}
-                </span>
-              </div>
-              <p className="diagnostic-module-score">
-                {result.correct}/{result.total} correct
-                {' · '}
-                {result.accuracy}% initial mastery
-              </p>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <button
+        type="button"
+        className="diagnostic-review-toggle"
+        onClick={() => setShowReview(!showReview)}
+        aria-expanded={showReview}
+      >
+        {showReview ? 'Hide question review' : 'Review individual questions'}
+      </button>
 
-      <div className="review-list">
-        {questions.map((q, idx) => {
-          const ans = answerByQuestionId[q.id];
-          const isCorrect = ans?.correct === true;
-          const selected = ans?.response != null ? String(ans.response) : 'Skipped';
-          const correct = formatCorrectAnswer(q);
-          const timeLabel = ans?.timeSec != null ? `${ans.timeSec.toFixed(1)}s` : '—';
+      {showReview && (
+        <>
+          <section className="diagnostic-module-results" aria-label="Module placement">
+            <h3 className="diagnostic-section-title">Module placement</h3>
+            <ul className="diagnostic-module-list">
+              {moduleResults.map((result) => (
+                <li key={result.moduleId} className="diagnostic-module-result">
+                  <div className="diagnostic-module-result-head">
+                    <span className="diagnostic-module-name">{result.moduleName}</span>
+                    <span className={`diagnostic-stage-badge stage-${result.assignedStage.toLowerCase()}`}>
+                      {STAGE_LABELS[result.assignedStage] ?? result.assignedStage}
+                    </span>
+                  </div>
+                  <p className="diagnostic-module-score">
+                    {result.correct}/{result.total} correct
+                    {' · '}
+                    {result.applicationDepth ?? result.accuracy}% application depth
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
 
-          return (
-            <div
-              key={q.id}
-              className={`review-item ${isCorrect ? 'review-correct' : 'review-wrong'}`}
-            >
-              <div className="review-meta-bar">
-                <div className="review-q">{idx + 1}. <LatexRenderer text={q.stem} /></div>
-                <div className="review-tta">{timeLabel}</div>
-              </div>
-              <div className="review-a">
-                Selected: <LatexRenderer text={selected} />
-                {!isCorrect && (
-                  <>
-                    <br />
-                    Correct: <LatexRenderer text={correct} />
-                  </>
-                )}
-                {q.explanation && (
-                  <>
-                    <br />
-                    <span className="diagnostic-explanation"><LatexRenderer text={q.explanation} /></span>
-                  </>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+          <div className="review-list">
+            {questions.map((q, idx) => {
+              const ans = answerByQuestionId[q.id];
+              const isCorrect = ans?.correct === true;
+              const selected = ans?.response != null ? String(ans.response) : 'Skipped';
+              const correct = formatCorrectAnswer(q);
+              const timeLabel = ans?.timeSec != null ? `${ans.timeSec.toFixed(1)}s` : '—';
+
+              return (
+                <div
+                  key={q.id}
+                  className={`review-item ${isCorrect ? 'review-correct' : 'review-wrong'}`}
+                >
+                  <div className="review-meta-bar">
+                    <div className="review-q">
+                      {idx + 1}. <LatexRenderer text={q.stem} />
+                      {q.variantType && (
+                        <span className="diagnostic-variant-tag">{q.variantType}</span>
+                      )}
+                    </div>
+                    <div className="review-tta">{timeLabel}</div>
+                  </div>
+                  <div className="review-a">
+                    Selected: <LatexRenderer text={selected} />
+                    {!isCorrect && (
+                      <>
+                        <br />
+                        Correct: <LatexRenderer text={correct} />
+                      </>
+                    )}
+                    {q.explanation && (
+                      <>
+                        <br />
+                        <span className="diagnostic-explanation"><LatexRenderer text={q.explanation} /></span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       <div className="action-row summary-actions">
         <Link to={continueHref ?? `/journeys/${journeyId}`} className="btn btn-primary">

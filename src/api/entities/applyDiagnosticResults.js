@@ -1,5 +1,6 @@
 import { updateJourney } from '@/api/entities/journeys';
 import { updateModule } from '@/api/entities/modules';
+import { rebuildWeeklyPlan } from '@/api/entities/weeklyPlan';
 import { buildDiagnosticSummary } from '@/utils/study/diagnosticPlacement';
 
 /**
@@ -23,8 +24,14 @@ export async function applyDiagnosticResults(journeyId, placement, sessionId) {
     }),
   );
 
-  return updateJourney(journeyId, {
+  await updateJourney(journeyId, {
     diagnosticSkipped: false,
     diagnosticSummary: buildDiagnosticSummary(placement, sessionId),
   });
+
+  try {
+    await rebuildWeeklyPlan(journeyId, { force: true });
+  } catch {
+    // plan rebuild is best-effort
+  }
 }

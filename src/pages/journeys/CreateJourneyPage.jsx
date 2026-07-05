@@ -1,24 +1,35 @@
 import { useEffect } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { usePreferences } from '@/hooks/queries/usePreferences';
+import { useJourneys } from '@/hooks/queries/useJourneys';
+import { updatePreferences } from '@/api/entities/preferences';
+import { startAsyncJourneyGeneration } from '@/api/entities/startAsyncJourneyGeneration';
+import { queryKeys } from '@/api/query-keys';
+import { useIsNewCreateUser } from '@/utils/user/isNewUser';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
+import CreateJourneyWelcomeModal from '@/components/journey-create/CreateJourneyWelcomeModal';
 import StepBasicSetup from '@/components/journey-create/StepBasicSetup';
 import StepSourceMaterial from '@/components/journey-create/StepSourceMaterial';
-import StepProcessing from '@/components/journey-create/StepProcessing';
-import StepReviewModules from '@/components/journey-create/StepReviewModules';
 import { useJourneyCreateStore } from '@/store/journeyCreateStore';
+import { toast } from 'sonner';
+import { trackProductEvent } from '@/lib/analytics';
 
-const STEPS = ['Setup', 'Material', 'Processing', 'Review'];
+const STEPS = ['Setup', 'Material'];
 
 export default function CreateJourneyPage() {
-  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { isAuthenticated, user } = useAuth();
+  const { data: preferences } = usePreferences();
+  const { data: journeys = [] } = useJourneys({ archived: false });
   const step = useJourneyCreateStore((s) => s.step);
   const setStep = useJourneyCreateStore((s) => s.setStep);
   const resetWizard = useJourneyCreateStore((s) => s.resetWizard);
-  const runProposal = useJourneyCreateStore((s) => s.runProposal);
+  const draft = useJourneyCreateStore((s) => s.draft);
   const updateDraft = useJourneyCreateStore((s) => s.updateDraft);
-  const { data: preferences } = usePreferences();
+  const showWelcome = useIsNewCreateUser(journeys, preferences);
 
   useEffect(() => () => resetWizard(), [resetWizard]);
 
@@ -28,13 +39,22 @@ export default function CreateJourneyPage() {
     }
   }, [preferences?.defaultPrivacy, updateDraft]);
 
-  const handleBuild = () => {
-    setStep(3);
-    runProposal({ onSuccess: () => setStep(4) });
+  const dismissWelcome = async (goHome) => {
+    await updatePreferences({ hasSeenCreateWelcome: true });
+    queryClient.invalidateQueries({ queryKey: queryKeys.preferences(user?.email) });
+    if (goHome) navigate('/home', { replace: true });
   };
 
-  const handleRetry = () => {
-    runProposal({ onSuccess: () => setStep(4) });
+  const handleGenerate = async () => {
+    try {
+      trackProductEvent('journey_create_start');
+      const { journeyId } = await startAsyncJourneyGeneration(draft);
+      trackProductEvent('journey_create_complete', { journeyId });
+      resetWizard();
+      navigate(`/journeys/${journeyId}/diagnostic`, { replace: true });
+    } catch (err) {
+      toast.error(err?.message || 'Could not start journey generation.');
+    }
   };
 
   if (!isAuthenticated) {
@@ -48,6 +68,12 @@ export default function CreateJourneyPage() {
 
   return (
     <div className="create-journey-page">
+      <CreateJourneyWelcomeModal
+        open={showWelcome}
+        onBuild={() => dismissWelcome(false)}
+        onSkip={() => dismissWelcome(true)}
+      />
+
       <Link to="/journeys" className="journey-detail-back">← Journeys</Link>
 
       <header className="create-journey-header">
@@ -71,22 +97,11 @@ export default function CreateJourneyPage() {
       {step === 2 && (
         <StepSourceMaterial
           onBack={() => setStep(1)}
-          onBuild={handleBuild}
+          onBuild={handleGenerate}
         />
       )}
 
-      {step === 3 && (
-        <StepProcessing
-          onBack={() => setStep(2)}
-          onRetry={handleRetry}
-        />
-      )}
-
-      {step === 4 && (
-        <StepReviewModules onBack={() => setStep(2)} />
-      )}
-
-      {step > 4 && <Navigate to="/journeys/new" replace />}
+      {step > 2 && <Navigate to="/journeys/new" replace />}
     </div>
   );
 }

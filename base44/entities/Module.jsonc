@@ -61,6 +61,10 @@
     "firstQuizAt": {
       "type": "number",
       "description": "UTC ms of first completed quiz-type session on this module"
+    },
+    "timedBaselineCapturedAt": {
+      "type": "number",
+      "description": "UTC ms when first timed practice quiz updated pressure readiness"
     }
   },
   "required": [

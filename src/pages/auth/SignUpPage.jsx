@@ -1,15 +1,23 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PublicOnly from '@/components/routing/PublicOnly';
 import AuthForm from '@/components/auth/AuthForm';
 import { useAuth } from '@/hooks/useAuth';
+import { getBaselineCompleted } from '@/lib/baselineStorage';
 
 export default function SignUpPage() {
   const navigate = useNavigate();
   const { setUser } = useAuth();
 
+  useEffect(() => {
+    if (!getBaselineCompleted()) {
+      navigate('/', { replace: true });
+    }
+  }, [navigate]);
+
   function handleSuccess(user) {
     setUser(user);
-    navigate('/onboarding', { replace: true });
+    navigate('/journeys/new', { replace: true });
   }
 
   return (
@@ -18,7 +26,7 @@ export default function SignUpPage() {
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', textAlign: 'center' }}>
           Create an account
         </h1>
-        <AuthForm defaultTab="signup" onSuccess={handleSuccess} />
+        <AuthForm defaultTab="signup" hideAlternateAuthLink onSuccess={handleSuccess} />
       </div>
     </PublicOnly>
   );

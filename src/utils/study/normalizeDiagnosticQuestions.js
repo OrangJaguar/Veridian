@@ -9,6 +9,8 @@ function extractQuestionList(rawQuestions) {
   return extractAiList(coerced, 'questions');
 }
 
+const VARIANT_TYPES = ['verbatim', 'application', 'transfer'];
+
 export function normalizeDiagnosticQuestions(rawQuestions, modules, perModule = 3) {
   const list = extractQuestionList(rawQuestions);
   if (!list.length) return [];
@@ -43,6 +45,7 @@ export function normalizeDiagnosticQuestions(rawQuestions, modules, perModule = 
       explanation: String(q.explanation ?? q.rationale ?? '').trim(),
       conceptId: q.conceptId ? String(q.conceptId) : undefined,
       moduleId,
+      variantType: VARIANT_TYPES.includes(q.variantType) ? q.variantType : undefined,
     };
   }).filter((q) => q.stem && q.correctAnswer != null && q.moduleId);
 
@@ -59,6 +62,7 @@ export function normalizeDiagnosticQuestions(rawQuestions, modules, perModule = 
         ...q,
         id: q.id || `diag-${mod.moduleId}-${i + 1}`,
         moduleId: mod.moduleId,
+        variantType: q.variantType ?? VARIANT_TYPES[i] ?? 'application',
       });
     });
   }

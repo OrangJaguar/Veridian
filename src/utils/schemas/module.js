@@ -20,6 +20,7 @@ export const moduleSchema = z.object({
   baselineCapturedAt: z.number().nullable().optional(),
   baselineSkipped: z.boolean().optional(),
   firstQuizAt: z.number().nullable().optional(),
+  timedBaselineCapturedAt: z.number().nullable().optional(),
 });
 
 export const createModuleSchema = moduleSchema.pick({

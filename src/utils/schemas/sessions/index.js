@@ -14,6 +14,7 @@ export const quizQuestionSchema = z.object({
   explanation: z.string(),
   conceptId: z.string().optional(),
   moduleId: z.string().optional(),
+  variantType: z.enum(['verbatim', 'application', 'transfer']).optional(),
 });
 
 export const practiceQuizSessionDataSchema = z.object({

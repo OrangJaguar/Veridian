@@ -10,11 +10,11 @@ export default function DiagnosticIntro({
 }) {
   return (
     <div className="diagnostic-intro create-step">
-      <h2 className="create-step-title">Diagnostic assessment</h2>
+      <h2 className="create-step-title">Before you study anything</h2>
       <p className="create-step-desc">
-        Before you start studying
-        {journeyTitle ? ` ${journeyTitle}` : ''}
-        , answer a short assessment so Veridian can place each module at the right stage.
+        Here&apos;s where you stand
+        {journeyTitle ? ` — ${journeyTitle}` : ''}
+        . This diagnostic maps how your knowledge holds up across recognition, application, and transfer — on your actual material.
       </p>
 
       <ul className="diagnostic-intro-points">
@@ -25,11 +25,11 @@ export default function DiagnosticIntro({
           {' '}
           <strong>{moduleCount} modules</strong>
           {' '}
-          (3 per module)
+          (3 per module: verbatim, application, transfer)
         </li>
-        <li>Questions are designed to test real understanding — not lucky guesses</li>
-        <li>No time limit — take as long as you need</li>
-        <li>Results shown at the end; modules with 3/3 correct skip to Stage B practice</li>
+        <li>Untimed — take as long as you need to think clearly</li>
+        <li>A timed check-in comes later to measure exam pressure</li>
+        <li>Results show exactly where your knowledge breaks down and what we target first</li>
       </ul>
 
       <div className="create-step-actions diagnostic-intro-actions">
