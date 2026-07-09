@@ -12,12 +12,40 @@ export function getResearchSalt(): string {
   return salt;
 }
 
-export function hashEmailToAnonId(email: string, salt: string) {
-  const str = `${salt}:${String(email ?? "").toLowerCase()}`;
-  let hash = 2166136261;
-  for (let i = 0; i < str.length; i += 1) {
-    hash ^= str.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return Math.abs(hash) || 1;
+function toHex(bytes: ArrayBuffer) {
+  return Array.from(new Uint8Array(bytes))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/**
+ * HMAC-SHA256 pseudonym for research exports. Returns a 64-char hex string.
+ */
+export async function hashEmailToAnonId(email: string, salt: string): Promise<string> {
+  const normalized = String(email ?? "").trim().toLowerCase();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(salt),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(normalized),
+  );
+  return toHex(signature);
+}
+
+export async function buildAnonMap(emails: Iterable<string>) {
+  const salt = getResearchSalt();
+  const map: Record<string, string> = {};
+  const unique = [...new Set(emails)].filter(Boolean);
+  await Promise.all(
+    unique.map(async (email) => {
+      map[email] = await hashEmailToAnonId(email, salt);
+    }),
+  );
+  return map;
 }

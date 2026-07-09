@@ -63,9 +63,14 @@ describe('masterySnapshots', () => {
 describe('anonymizeUser', () => {
   const testSalt = 'test-salt-only';
 
-  it('returns stable ids', () => {
-    expect(hashEmailToAnonId('a@b.com', testSalt)).toBe(hashEmailToAnonId('a@b.com', testSalt));
-    expect(hashEmailToAnonId('a@b.com', testSalt)).not.toBe(hashEmailToAnonId('c@d.com', testSalt));
+  it('returns stable ids', async () => {
+    await expect(hashEmailToAnonId('a@b.com', testSalt)).resolves.toBe(
+      await hashEmailToAnonId('a@b.com', testSalt),
+    );
+    const a = await hashEmailToAnonId('a@b.com', testSalt);
+    const b = await hashEmailToAnonId('c@d.com', testSalt);
+    expect(a).not.toBe(b);
+    expect(a).toMatch(/^[0-9a-f]{64}$/);
   });
 });
 

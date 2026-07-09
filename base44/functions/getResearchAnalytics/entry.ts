@@ -1,6 +1,6 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 import { requireAdmin } from "../_shared/requireAdmin.ts";
-import { getResearchSalt, hashEmailToAnonId } from "../_shared/researchSalt.ts";
+import { buildAnonMap } from "../_shared/researchSalt.ts";
 
 const QUIZ_TYPES = new Set([
   "practiceQuiz",
@@ -10,15 +10,6 @@ const QUIZ_TYPES = new Set([
   "cramSession",
 ]);
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
-function buildAnonMap(emails: string[]) {
-  const salt = getResearchSalt();
-  const map: Record<string, number> = {};
-  for (const e of emails) {
-    if (e && !map[e]) map[e] = hashEmailToAnonId(e, salt);
-  }
-  return map;
-}
 
 function sessionBrier(sliderValue: unknown, score: unknown) {
   if (sliderValue == null || score == null) return null;
@@ -129,7 +120,7 @@ function getDataHealth(data: Awaited<ReturnType<typeof loadAll>>) {
   };
 }
 
-function getQualifyingPairs(data: Awaited<ReturnType<typeof loadAll>>) {
+async function getQualifyingPairs(data: Awaited<ReturnType<typeof loadAll>>) {
   const { modules, sessions, journeys, snapshots, prefs } = data;
   const journeyById: Record<string, Record<string, unknown>> = {};
   for (const j of journeys) journeyById[String(j.journeyId)] = j;
@@ -149,7 +140,7 @@ function getQualifyingPairs(data: Awaited<ReturnType<typeof loadAll>>) {
   }
 
   const emails = Object.keys(pairSessions).map((k) => k.split("::")[0]);
-  const anonMap = buildAnonMap(emails);
+  const anonMap = await buildAnonMap(emails);
   const rows = [];
 
   for (const [key, sessList] of Object.entries(pairSessions)) {
@@ -183,7 +174,7 @@ function getQualifyingPairs(data: Awaited<ReturnType<typeof loadAll>>) {
     });
   }
 
-  return rows.sort((a, b) => a.anonymizedUserId - b.anonymizedUserId);
+  return rows.sort((a, b) => String(a.anonymizedUserId).localeCompare(String(b.anonymizedUserId)));
 }
 
 function getDataQualityFlags(data: Awaited<ReturnType<typeof loadAll>>) {
@@ -256,7 +247,7 @@ Deno.serve(async (req) => {
       return Response.json({ data: getDataHealth(data) });
     }
     if (action === "getQualifyingPairs") {
-      return Response.json({ data: getQualifyingPairs(data) });
+      return Response.json({ data: await getQualifyingPairs(data) });
     }
     if (action === "getDataQualityFlags") {
       return Response.json({ data: getDataQualityFlags(data) });
@@ -268,7 +259,7 @@ Deno.serve(async (req) => {
           ...data.modules.map((m) => String(m.userEmail ?? "")),
         ].filter(Boolean)),
       ];
-      return Response.json({ data: buildAnonMap(emails) });
+      return Response.json({ data: await buildAnonMap(emails) });
     }
 
     return Response.json({ error: { message: `Unknown action: ${action}` } }, { status: 400 });

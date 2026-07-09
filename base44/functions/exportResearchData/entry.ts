@@ -1,6 +1,6 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 import { requireAdmin } from "../_shared/requireAdmin.ts";
-import { getResearchSalt, hashEmailToAnonId } from "../_shared/researchSalt.ts";
+import { buildAnonMap } from "../_shared/researchSalt.ts";
 
 const QUIZ_TYPES = new Set([
   "practiceQuiz",
@@ -72,9 +72,7 @@ Deno.serve(async (req) => {
         ...sessionsArr.map((s) => String(s.userEmail ?? "")),
       ].filter(Boolean)),
     ];
-    const anonMap: Record<string, number> = {};
-    const salt = getResearchSalt();
-    for (const e of emails) anonMap[e] = hashEmailToAnonId(e, salt);
+    const anonMap = await buildAnonMap(emails);
 
     let csv = "";
     let filename = "research_export.csv";
