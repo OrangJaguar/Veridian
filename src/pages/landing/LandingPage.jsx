@@ -11,7 +11,6 @@ export default function LandingPage() {
   const { setBaselineLocked } = useLandingChrome() ?? {};
 
   usePageMeta({
-    title: 'Veridian — Study engine with fluency diagnostics',
     description: 'Veridian shows you why studying hasn\'t been working — then tells you exactly what to do tonight. Free study engine with real diagnostics, spaced repetition, and Due Today planning.',
     canonicalPath: '/',
   });

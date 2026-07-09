@@ -15610,16 +15610,26 @@
 
     /* ── Post-signup: welcome modal, processing, empty home ── */
     .create-welcome-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1100;
       background: rgba(0, 0, 0, 0.55);
       backdrop-filter: blur(8px);
     }
 
     .create-welcome-modal {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      z-index: 1101;
+      transform: translate(-50%, -50%);
+      width: calc(100% - 2rem);
       max-width: 440px;
       border: 1px solid var(--border);
       border-radius: calc(var(--radius) * 1.5);
       background: var(--bg);
       padding: 1.75rem;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
     }
 
     .create-welcome-modal-title {
@@ -15720,8 +15730,60 @@
       align-items: center;
     }
 
+    .mai-survey-prompt-overlay {
+      z-index: 1200;
+      background: rgba(0, 0, 0, 0.72);
+    }
+
     .mai-survey-prompt-modal {
-      max-width: 420px;
+      max-width: 460px;
+      padding: 1.75rem 1.75rem 1.5rem;
+      border: 2px solid var(--text-main);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+      text-align: center;
+    }
+
+    .mai-survey-prompt-badge {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.25rem 0.65rem;
+      margin-bottom: 1rem;
+    }
+
+    .mai-survey-prompt-title {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin: 0 0 0.75rem;
+      line-height: 1.25;
+    }
+
+    .mai-survey-prompt-body {
+      color: var(--text-muted);
+      line-height: 1.65;
+      margin: 0 0 1.5rem;
+      font-size: 0.92rem;
+    }
+
+    .mai-survey-prompt-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .mai-survey-prompt-primary {
+      width: 100%;
+      font-weight: 600;
+    }
+
+    .mai-survey-prompt-dismiss {
+      width: 100%;
+      color: var(--text-muted);
     }
 
     .create-source-tabs {

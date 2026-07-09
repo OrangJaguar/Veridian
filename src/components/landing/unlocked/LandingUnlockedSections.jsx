@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { trackProductEventOnce } from '@/lib/analytics';
-import LandingUploadCta from './LandingUploadCta';
 import LandingRevealSection from './LandingRevealSection';
 import LandingSixFailuresGrid from './LandingSixFailuresGrid';
 import LandingOriginStory from './LandingOriginStory';
@@ -45,9 +44,6 @@ export default function LandingUnlockedSections() {
 
   return (
     <>
-      <div className="landing-upload-cta-bar">
-        <LandingUploadCta variant="primary" source="landing_top" />
-      </div>
       <LandingRevealSection />
       <div data-landing-section="failures">
         <LandingSixFailuresGrid />

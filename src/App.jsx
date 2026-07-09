@@ -1,6 +1,7 @@
 import { Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import MarketingLayout from '@/layouts/MarketingLayout';
 import AppShell from '@/layouts/AppShell';
+import LandingPage from '@/pages/landing/LandingPage';
 import LearnPage from '@/pages/landing/LearnPage';
 import SignInPage from '@/pages/auth/SignInPage';
 import SignUpPage from '@/pages/auth/SignUpPage';

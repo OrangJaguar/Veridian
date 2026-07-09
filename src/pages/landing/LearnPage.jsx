@@ -8,7 +8,6 @@ import LandingUploadCta from '@/components/landing/unlocked/LandingUploadCta';
 
 export default function LearnPage() {
   usePageMeta({
-    title: 'Veridian — Study engine with fluency diagnostics',
     description: 'Veridian diagnoses how your knowledge actually breaks down — recognition vs recall, transfer failures, exam pressure — then builds a daily study plan from your own material.',
     canonicalPath: '/learn',
   });
