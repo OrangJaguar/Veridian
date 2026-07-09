@@ -8,6 +8,15 @@ function daysUntilExam(examDate: number) {
   return examDate - Date.now();
 }
 
+/** Strip HTML tags, control characters, and limit length to prevent email spoofing. */
+function sanitizeEmailText(raw: unknown, max = 120): string {
+  return String(raw ?? "")
+    .replace(/<[^>]*>/g, "")
+    .replace(/[\x00-\x1f\x7f]/g, "")
+    .trim()
+    .slice(0, max);
+}
+
 async function sendEmail(base44: ReturnType<typeof createClientFromRequest>, to: string, subject: string, body: string) {
   const integrations = base44.integrations as { Core?: { SendEmail?: (p: { to: string; subject: string; body: string }) => Promise<unknown> } };
   if (integrations?.Core?.SendEmail) {
@@ -62,8 +71,9 @@ Deno.serve(async (req) => {
           const sentFor: string[] = prefs.examReminderSentFor ?? [];
           if (!sentFor.includes(key)) {
             shouldSend = true;
-            subject = `Exam coming up: ${urgentJourney.title ?? "Your journey"}`;
-            body = `Your exam for "${urgentJourney.title ?? "your journey"}" is within 3 days. Review your plan: https://veridianstudy.base44.app/journeys/${urgentJourney.journeyId}`;
+            const safeTitle = sanitizeEmailText(urgentJourney.title) || "Your journey";
+            subject = `Exam coming up: ${safeTitle}`;
+            body = `Your exam for "${safeTitle}" is within 3 days. Review your plan: https://veridianstudy.base44.app/journeys/${urgentJourney.journeyId}`;
             await base44.entities.UserPreferences.update(prefs.id, {
               examReminderSentFor: [...sentFor, key],
             });

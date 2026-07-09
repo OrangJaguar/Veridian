@@ -19,6 +19,7 @@ import ModuleListItem from '@/components/journey-detail/ModuleListItem';
 import JourneyLevelActions from '@/components/journey-detail/JourneyLevelActions';
 import JourneyDetailActions from '@/components/journey-detail/JourneyDetailActions';
 import JourneyInsightsPanel from '@/components/journey-detail/JourneyInsightsPanel';
+import VeridianLoading from '@/components/shared/VeridianLoading';
 import { useRecoverStaleGeneratingActivities } from '@/hooks/useRecoverStaleGeneratingActivities';
 
 export default function JourneyDetailPage() {

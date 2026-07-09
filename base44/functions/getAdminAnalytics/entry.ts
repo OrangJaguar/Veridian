@@ -1,5 +1,4 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
-import { serviceEntities } from "../_shared/serviceRole.ts";
 
 async function requireAdmin(base44: ReturnType<typeof createClientFromRequest>) {
   const user = await base44.auth.me();
@@ -45,6 +44,14 @@ function matchQuery(question: string) {
   return "unknown";
 }
 
+/** Strip control characters and limit length to prevent query manipulation. */
+function sanitizeQuestion(raw: string): string {
+  return String(raw ?? "")
+    .replace(/[\x00-\x1f\x7f]/g, "")
+    .trim()
+    .slice(0, 300);
+}
+
 async function loadAll(base44: ReturnType<typeof createClientFromRequest>) {
   const [prefs, journeys, modules, sessions, activities, productEvents] = await Promise.all([
     base44.entities.UserPreferences.list(),
@@ -52,7 +59,7 @@ async function loadAll(base44: ReturnType<typeof createClientFromRequest>) {
     base44.entities.Module.list(),
     base44.entities.Session.list(),
     base44.entities.Activity.list(),
-    serviceEntities(base44).ProductEvent.list().catch(() => []),
+    base44.entities.ProductEvent.list().catch(() => []),
   ]);
   return {
     prefs: prefs as Array<Record<string, unknown>>,
@@ -344,7 +351,7 @@ Deno.serve(async (req) => {
       if (!rateLimit(email)) {
         return Response.json({ error: { message: "Rate limit exceeded. Try again shortly." } }, { status: 429 });
       }
-      const question = String(body.question ?? "").trim();
+      const question = sanitizeQuestion(body.question);
       if (!question) {
         return Response.json({ error: { message: "Question is required." } }, { status: 400 });
       }

@@ -41,7 +41,7 @@ export default function InterleavedSession({ session, activity, journeyId, modul
   });
 
   const handleExit = () => {
-    abandonSession({ sessionId: session.sessionId, journeyId, returnPath });
+    abandonSession({ sessionId: session.sessionId, journeyId, returnPath: '/home' });
   };
 
   const handleStart = async (config) => {
@@ -111,7 +111,7 @@ export default function InterleavedSession({ session, activity, journeyId, modul
   };
 
   if (phase === 'summary') {
-    return <SessionSummary title="Interleaved Review complete" returnHref={returnPath} />;
+    return <SessionSummary title="Interleaved Review complete" returnHref="/home" />;
   }
 
   if (loading && phase === 'setup') {
