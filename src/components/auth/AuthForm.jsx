@@ -158,8 +158,11 @@ export default function AuthForm({
     setLoading(true);
     try {
       const response = await base44.auth.verifyOtp({ email, otpCode });
-      const token = response?.access_token || response?.token || response?.data?.access_token;
-      if (token) base44.auth.setToken(token);
+      const token = typeof response?.access_token === 'string' ? response.access_token : '';
+      if (!token) {
+        throw new Error('Verification failed — no session token returned. Please try again.');
+      }
+      base44.auth.setToken(token);
       const user = await base44.auth.me();
       const chosenUsername = pendingUsernameRef.current || normalizeUsername(username);
       if (chosenUsername) {
