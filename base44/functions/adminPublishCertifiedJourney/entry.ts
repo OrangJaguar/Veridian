@@ -32,9 +32,6 @@ Deno.serve(async (req) => {
     }
 
     const adminEmail = (auth.user as { email?: string }).email ?? "";
-    if (journey.userEmail !== adminEmail && !journey.isAdminAuthored) {
-      return Response.json({ error: { message: "Not an admin journey" } }, { status: 403 });
-    }
 
     const modules = (await base44.entities.Module.filter({ journeyId })) as Array<Record<string, unknown>>;
     const activities = (await base44.entities.Activity.filter({ journeyId })) as Array<Record<string, unknown>>;

@@ -1,7 +1,63 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
-import { sendAdminEmail, clipString } from "../_shared/errorLog.ts";
-import { serviceEntities } from "../_shared/serviceRole.ts";
-import { checkRequestRateLimit, rateLimitKey } from "../_shared/requestRateLimit.ts";
+
+type Base44Client = ReturnType<typeof createClientFromRequest>;
+
+function clipString(value: unknown, max: number): string {
+  return String(value ?? "").slice(0, max);
+}
+
+function serviceEntities(base44: Base44Client) {
+  if (!base44.asServiceRole) {
+    throw new Error("Service role is not available in this context.");
+  }
+  return base44.asServiceRole.entities;
+}
+
+async function sendAdminEmail(
+  base44: Base44Client,
+  to: string,
+  subject: string,
+  body: string,
+) {
+  const send = base44.integrations?.Core?.SendEmail;
+  if (send) {
+    await send({ to, subject, body });
+    return true;
+  }
+  console.log("[submitFeedback] would send", { to, subject });
+  return false;
+}
+
+const buckets = new Map<string, { count: number; resetAt: number }>();
+
+function getClientIp(req: Request): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    const first = forwarded.split(",")[0]?.trim();
+    if (first) return first.slice(0, 64);
+  }
+  const realIp = req.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp.slice(0, 64);
+  return "unknown";
+}
+
+function checkRequestRateLimit(key: string, max: number, windowMs: number): boolean {
+  const now = Date.now();
+  const entry = buckets.get(key);
+  if (!entry || now > entry.resetAt) {
+    buckets.set(key, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (entry.count >= max) return false;
+  entry.count += 1;
+  return true;
+}
+
+function rateLimitKey(scope: string, req: Request, extra?: string) {
+  const ip = getClientIp(req);
+  const suffix = extra ? `:${extra}` : "";
+  return `${scope}:${ip}${suffix}`;
+}
 
 const HOUR_MS = 60 * 60 * 1000;
 const MAX_FEEDBACK_PER_IP_HOUR = 5;
@@ -49,7 +105,10 @@ Deno.serve(async (req) => {
     const submissionId = crypto.randomUUID();
     const now = Date.now();
 
-    await serviceEntities(base44).FeedbackSubmission.create({
+    const feedbackEntities = user?.email
+      ? base44.entities.FeedbackSubmission
+      : serviceEntities(base44).FeedbackSubmission;
+    await feedbackEntities.create({
       submissionId,
       type,
       message,
