@@ -51,7 +51,7 @@ export default function CreateJourneyPage() {
       const { journeyId } = await startAsyncJourneyGeneration(draft);
       trackProductEvent('journey_create_complete', { journeyId });
       resetWizard();
-      navigate(`/journeys/${journeyId}/diagnostic`, { replace: true });
+      navigate(`/journeys/${journeyId}`, { replace: true });
     } catch (err) {
       toast.error(err?.message || 'Could not start journey generation.');
     }

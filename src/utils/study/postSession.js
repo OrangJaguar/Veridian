@@ -17,6 +17,7 @@ import {
   parseDiagnosticSummary,
   computePressureReadiness,
 } from '@/utils/study/conceptPerformance';
+import { parseModuleDiagnosticSummary } from '@/utils/study/diagnosticWeakness';
 
 function patchActivityStats(existing, session) {
   const stats = { ...(existing.stats ?? {}) };
@@ -97,28 +98,48 @@ export async function runPostSessionEffects(session, activity) {
       );
       if (isTimedQuiz && !mod.timedBaselineCapturedAt) {
         try {
-          const journeyRecord = await getJourney(journeyId);
-          const summary = parseDiagnosticSummary(journeyRecord);
-          if (summary?.conceptPerformance?.length) {
-            const questions = session.sessionData?.questions ?? [];
-            const answers = session.sessionData?.answers ?? [];
-            const conceptPerformance = mergeTimedConceptPerformance(
-              summary.conceptPerformance,
+          const questions = session.sessionData?.questions ?? [];
+          const answers = session.sessionData?.answers ?? [];
+          const moduleDiag = parseModuleDiagnosticSummary(mod);
+
+          if (moduleDiag?.conceptPerformance?.length) {
+            const merged = mergeTimedConceptPerformance(
+              moduleDiag.conceptPerformance,
               questions,
               answers,
             );
-            const nextSummary = {
-              ...summary,
-              conceptPerformance,
-              profile: {
-                ...summary.profile,
-                pressureReadiness: computePressureReadiness(conceptPerformance),
-              },
-            };
-            await updateJourney(journeyId, {
-              diagnosticSummary: JSON.stringify(nextSummary),
+            await updateModule(moduleId, {
+              timedBaselineCapturedAt: now,
+              moduleDiagnosticSummary: JSON.stringify({
+                ...moduleDiag,
+                conceptPerformance: merged,
+                profile: {
+                  ...(moduleDiag.profile ?? {}),
+                  pressureReadiness: computePressureReadiness(merged),
+                },
+              }),
             });
-            await updateModule(moduleId, { timedBaselineCapturedAt: now });
+          } else {
+            const journeyRecord = await getJourney(journeyId);
+            const journeySummary = parseDiagnosticSummary(journeyRecord);
+            if (journeySummary?.conceptPerformance?.length) {
+              const merged = mergeTimedConceptPerformance(
+                journeySummary.conceptPerformance,
+                questions,
+                answers,
+              );
+              await updateJourney(journeyId, {
+                diagnosticSummary: JSON.stringify({
+                  ...journeySummary,
+                  conceptPerformance: merged,
+                  profile: {
+                    ...journeySummary.profile,
+                    pressureReadiness: computePressureReadiness(merged),
+                  },
+                }),
+              });
+              await updateModule(moduleId, { timedBaselineCapturedAt: now });
+            }
           }
         } catch {
           // best effort pressure capture

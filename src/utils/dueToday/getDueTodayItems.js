@@ -12,10 +12,6 @@ import {
 
 const URGENCY_ORDER = { high: 0, medium: 1, low: 2 };
 
-function journeyDiagnosticReady(journey) {
-  return Boolean(journey.diagnosticSummary || journey.diagnosticSkipped);
-}
-
 function moduleHref(journeyId, moduleId) {
   return moduleId
     ? `/journeys/${journeyId}/modules/${moduleId}`
@@ -50,7 +46,7 @@ function buildAssignmentItem(journey, assignment, urgencyDays, tier = 'primary')
 }
 
 function buildDiagnosticFocusItem(journey, modules, activities, urgencyDays) {
-  if (!isFreshDiagnostic(journey)) return null;
+  if (!isFreshDiagnostic(journey, modules)) return null;
 
   const weakest = getWeakestDiagnosticModule(journey, modules);
   if (!weakest?.moduleId) return null;
@@ -163,7 +159,7 @@ export async function getDueTodayItems({
   const allItems = [];
 
   for (const journey of activeJourneys) {
-    if (!journeyDiagnosticReady(journey)) continue;
+    if (journey.generationStatus === 'processing') continue;
 
     const journeyId = journey.journeyId;
     const journeyModules = modules.filter((m) => m.journeyId === journeyId);

@@ -6,7 +6,6 @@ import DueTodaySkeleton from '@/components/home/DueTodaySkeleton';
 import HomeDailyProgress from '@/components/home/HomeDailyProgress';
 import ExpandToggle from '@/components/shared/ExpandToggle';
 import JourneyProcessingCard from '@/components/home/JourneyProcessingCard';
-import JourneyBaselineReadyCard from '@/components/home/JourneyBaselineReadyCard';
 
 export default function DueTodayZone({
   items = [],
@@ -19,9 +18,6 @@ export default function DueTodayZone({
   const [alsoExpanded, setAlsoExpanded] = useState(false);
 
   const processingJourneys = journeys.filter((j) => j.generationStatus === 'processing');
-  const readyForBaseline = journeys.filter(
-    (j) => j.generationStatus === 'completed' && !j.diagnosticSkipped && !j.diagnosticSummary,
-  );
 
   const focusItem = items.find((i) => i.tier === 'focus') ?? items[0] ?? null;
   const primaryItems = items.filter(
@@ -35,10 +31,6 @@ export default function DueTodayZone({
     <section className="home-due-today" aria-labelledby="due-today-heading">
       {processingJourneys.map((j) => (
         <JourneyProcessingCard key={j.journeyId} journey={j} />
-      ))}
-
-      {readyForBaseline.map((j) => (
-        <JourneyBaselineReadyCard key={j.journeyId} journey={j} />
       ))}
 
       <div className="due-today-plan-header">

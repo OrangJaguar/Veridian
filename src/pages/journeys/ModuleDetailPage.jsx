@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useJourney } from '@/hooks/queries/useJourneys';
 import { useModules } from '@/hooks/queries/useModules';
@@ -13,6 +13,7 @@ import StageSection from '@/components/module-detail/StageSection';
 import FlashcardDeckList from '@/components/module-detail/FlashcardDeckList';
 import SessionHistoryPanel from '@/components/module-detail/SessionHistoryPanel';
 import { useRecoverStaleGeneratingActivities } from '@/hooks/useRecoverStaleGeneratingActivities';
+import { moduleNeedsBaseline } from '@/utils/research/baselineCheck';
 
 export default function ModuleDetailPage() {
   const { id: journeyId, moduleId } = useParams();
@@ -61,6 +62,24 @@ export default function ModuleDetailPage() {
   return (
     <div className="module-detail-page">
       <ModuleDetailHeader module={mod} journey={journey} journeyId={journeyId} />
+
+      {moduleNeedsBaseline(mod) && (
+        <div className="module-diagnostic-prompt">
+          <div>
+            <h3 className="module-diagnostic-prompt-title">Know this already?</h3>
+            <p className="module-diagnostic-prompt-body">
+              Take an optional 3-question check and Veridian will place this module at the
+              right starting stage. You can study without it.
+            </p>
+          </div>
+          <Link
+            to={`/journeys/${journeyId}/modules/${moduleId}/baseline`}
+            className="btn btn-secondary btn-sm"
+          >
+            Take the quick check
+          </Link>
+        </div>
+      )}
 
       {['A', 'B', 'C'].map((stage) => (
         <StageSection

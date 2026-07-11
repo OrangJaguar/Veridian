@@ -8,6 +8,7 @@ import { updateModule } from '@/api/entities/modules';
 import { moduleNeedsBaseline } from '@/utils/research/baselineCheck';
 import VeridianLoading from '@/components/shared/VeridianLoading';
 import { BaselineCheckIntro } from '@/pages/study/modes/BaselineCheckSession';
+import { trackProductEvent } from '@/lib/analytics';
 
 export default function BaselineCheckPage() {
   const { id: journeyId, moduleId } = useParams();
@@ -42,6 +43,7 @@ export default function BaselineCheckPage() {
   const handleSkip = async () => {
     setSkipping(true);
     try {
+      trackProductEvent('module_diagnostic_skip', { journeyId, moduleId });
       await updateModule(moduleId, { baselineSkipped: true });
     } finally {
       setSkipping(false);
@@ -51,6 +53,7 @@ export default function BaselineCheckPage() {
 
   const handleStart = async () => {
     if (!baselineActivity) return;
+    trackProductEvent('module_diagnostic_start', { journeyId, moduleId });
     await launchStudy({
       journeyId,
       activity: baselineActivity,

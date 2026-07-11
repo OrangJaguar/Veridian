@@ -12,7 +12,6 @@ const MODULE_ACTIVITY_DEFS = [
 ];
 
 const JOURNEY_ACTIVITY_DEFS = [
-  { type: 'diagnostic', status: 'ready', title: 'Diagnostic Assessment' },
   { type: 'interleavedReview', status: 'ready', title: 'Interleaved Review' },
   { type: 'journeyChallenge', status: 'ready', title: 'Journey Challenge' },
   { type: 'cramSession', status: 'ready', title: 'Cram Session' },

@@ -27,7 +27,7 @@ export function useConfirmJourney() {
     onSuccess: async ({ journey }) => {
       await dismissHomeWelcomeHint(queryClient, user?.email);
       invalidateAll(queryClient, journey.journeyId);
-      navigate(`/journeys/${journey.journeyId}/diagnostic`);
+      navigate(`/journeys/${journey.journeyId}`);
     },
   });
 }

@@ -29,13 +29,13 @@ export const GENERATION_LOADING_PROFILES = {
     mode: 'long',
     label: 'Generating your learning guide…',
     steps: ['Planning sections', 'Writing explanations', 'Adding examples', 'Creating check-ins'],
-    patienceNote: 'This can take a few minutes for longer modules — thanks for your patience.',
+    patienceNote: 'DeepSeek is building the full guide in one pass — this may take a minute.',
   },
   proposeJourney: {
     mode: 'long',
     label: 'Building your Journey…',
     steps: ['Reading sources', 'Mapping concepts', 'Building modules'],
-    patienceNote: 'Building a full journey can take a few minutes — hang tight.',
+    patienceNote: 'Building your journey in one AI pass (up to 2 attempts if needed).',
   },
   regenerateModules: {
     mode: 'long',
@@ -44,10 +44,9 @@ export const GENERATION_LOADING_PROFILES = {
     patienceNote: 'Restructuring modules can take a few minutes — hang tight.',
   },
   generateDiagnosticQuestions: {
-    mode: 'long',
-    label: 'Building your diagnostic…',
-    steps: ['Analyzing modules', 'Writing questions', 'Balancing difficulty', 'Finalizing'],
-    patienceNote: 'Your diagnostic may take a few minutes to build — hang tight.',
+    mode: 'short',
+    label: 'Building your module check…',
+    steps: ['Analyzing concepts', 'Writing questions', 'Finalizing'],
   },
   generateInterleavedQuestions: {
     mode: 'short',
@@ -81,7 +80,7 @@ export const GENERATION_LOADING_PROFILES = {
   },
   rawGeminiDump: {
     mode: 'short',
-    label: 'Fetching raw Gemini response…',
+    label: 'Fetching raw AI response…',
     steps: [],
   },
 };

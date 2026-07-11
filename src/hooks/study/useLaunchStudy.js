@@ -6,12 +6,11 @@ import { queryKeys } from '@/api/query-keys';
 import { listSessionsByJourney } from '@/api/entities/sessions';
 import { updateActivity } from '@/api/entities/activities';
 import { isLearningGuideComplete } from '@/utils/study/activityContent';
-import { getModule } from '@/api/entities/modules';
-import { moduleNeedsBaseline } from '@/utils/research/baselineCheck';
 
 /**
  * Create an in-progress session and navigate to the study shell.
  * Resumes an existing in-progress session for the same activity when present.
+ * The module diagnostic (Starting Point Check) is optional and never blocks launch.
  */
 export function useLaunchStudy() {
   const navigate = useNavigate();
@@ -20,30 +19,6 @@ export function useLaunchStudy() {
 
   return useCallback(
     async ({ journeyId, activity, moduleId = null, initialSessionData = {}, forceNew = false }) => {
-      const resolvedModuleId = moduleId ?? activity.moduleId ?? null;
-
-      if (
-        resolvedModuleId
-        && activity.type !== 'baselineCheck'
-      ) {
-        let mod = null;
-        const cachedModules = queryClient.getQueryData(queryKeys.modules.byJourney(journeyId));
-        if (Array.isArray(cachedModules)) {
-          mod = cachedModules.find((m) => m.moduleId === resolvedModuleId);
-        }
-        if (!mod) {
-          try {
-            mod = await getModule(resolvedModuleId);
-          } catch {
-            mod = null;
-          }
-        }
-        if (moduleNeedsBaseline(mod)) {
-          navigate(`/journeys/${journeyId}/modules/${resolvedModuleId}/baseline`);
-          return null;
-        }
-      }
-
       const isGuideRedo = activity.type === 'learningGuide' && isLearningGuideComplete(activity);
       const skipResume = forceNew || isGuideRedo;
 

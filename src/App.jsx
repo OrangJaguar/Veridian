@@ -1,4 +1,4 @@
-import { Routes, Route, Outlet, Navigate } from 'react-router-dom';
+import { Routes, Route, Outlet, Navigate, useParams } from 'react-router-dom';
 import MarketingLayout from '@/layouts/MarketingLayout';
 import AppShell from '@/layouts/AppShell';
 import LandingPage from '@/pages/landing/LandingPage';
@@ -14,7 +14,6 @@ import ResetPasswordPage from '@/pages/auth/ResetPasswordPage';
 import HomePage from '@/pages/home/HomePage';
 import JourneysPage from '@/pages/journeys/JourneysPage';
 import CreateJourneyPage from '@/pages/journeys/CreateJourneyPage';
-import DiagnosticPage from '@/pages/journeys/DiagnosticPage';
 import JourneyDetailPage from '@/pages/journeys/JourneyDetailPage';
 import ModuleDetailPage from '@/pages/journeys/ModuleDetailPage';
 import CreateDeckPage from '@/pages/decks/CreateDeckPage';
@@ -135,7 +134,7 @@ export default function App() {
         <Route path="/home" element={<HomePage />} />
         <Route path="/journeys" element={<JourneysPage />} />
         <Route path="/journeys/new" element={<CreateJourneyPage />} />
-        <Route path="/journeys/:id/diagnostic" element={<DiagnosticPage />} />
+        <Route path="/journeys/:id/diagnostic" element={<JourneyDiagnosticRedirect />} />
         <Route path="/mai-survey" element={<MaiSurveyPage />} />
         <Route path="/journeys/:id/modules/:moduleId/baseline" element={<BaselineCheckPage />} />
         <Route path="/journeys/:id" element={<JourneyDetailPage />} />
@@ -154,4 +153,10 @@ export default function App() {
     </Routes>
     </>
   );
+}
+
+/** The journey-wide diagnostic was removed — old links land on the journey page. */
+function JourneyDiagnosticRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/journeys/${id}`} replace />;
 }

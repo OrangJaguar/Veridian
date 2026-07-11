@@ -58,6 +58,10 @@
       "type": "boolean",
       "description": "True when user explicitly skipped Starting Point Check"
     },
+    "moduleDiagnosticSummary": {
+      "type": "string",
+      "description": "JSON blob from the optional per-module AI diagnostic: accuracy, assignedStage, variantStats, failureSignals, weakestConceptId, conceptPerformance"
+    },
     "firstQuizAt": {
       "type": "number",
       "description": "UTC ms of first completed quiz-type session on this module"

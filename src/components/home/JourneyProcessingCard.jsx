@@ -7,7 +7,7 @@ export default function JourneyProcessingCard({ journey }) {
     <div className="journey-processing-card" role="status" aria-live="polite">
       <h3 className="journey-processing-title">Forging your {label} Journey…</h3>
       <p className="journey-processing-body">
-        Our engine is mapping concepts and building your baseline diagnostics. (ETA: ~2 minutes).
+        Our engine is mapping concepts and building your study modules. (ETA: ~2 minutes).
       </p>
       <div className="journey-processing-actions">
         <Link to="/library" className="btn btn-secondary btn-sm">Explore a Demo Journey</Link>

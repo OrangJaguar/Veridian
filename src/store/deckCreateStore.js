@@ -114,45 +114,22 @@ export const useDeckCreateStore = create((set, get) => ({
       });
 
       const cardCount = Number(payload.cardCount ?? 20);
-      const existingCards = get().generatedCards ?? [];
 
       const cards = await runStudyAiGeneration({
         generate: async () => {
-          const normalizeCards = (result) => {
-            const coerced = coerceStudyAiPayload('generateFlashcards', result);
-            return extractAiList(coerced, 'cards').map((c, i) => ({
-              id: `draft-${i}`,
-              front: c.front,
-              back: c.back,
-              conceptTag: c.conceptTag,
-            }));
-          };
-
-          if (cardCount <= 15) {
-            const result = await invokeWithRetry(
-              (signal) => generateFlashcards(payload, { signal }),
-            );
-            return normalizeCards(result);
-          }
-
-          const batchSize = 15;
-          const batches = Math.ceil(cardCount / batchSize);
-          const merged = [...existingCards];
-
-          for (let b = 0; b < batches; b += 1) {
-            const remaining = cardCount - merged.length;
-            const count = Math.min(batchSize, remaining);
-            if (count <= 0) break;
-
-            const result = await invokeWithRetry(
-              (signal) => generateFlashcards({ ...payload, cardCount: count }, { signal }),
-            );
-            const batch = normalizeCards(result);
-            merged.push(...batch);
-            set({ generatedCards: merged.slice(0, cardCount) });
-          }
-
-          return merged.slice(0, cardCount);
+          // Single call for the full deck — DeepSeek handles large card counts
+          // reliably (batching was a Gemma output-limit workaround).
+          const result = await invokeWithRetry(
+            (signal) => generateFlashcards(payload, { signal }),
+          );
+          const coerced = coerceStudyAiPayload('generateFlashcards', result);
+          const cardsList = extractAiList(coerced, 'cards').map((c, i) => ({
+            id: `draft-${i}`,
+            front: c.front,
+            back: c.back,
+            conceptTag: c.conceptTag,
+          }));
+          return cardsList.slice(0, cardCount);
         },
         normalize: (list) => list,
         validate: (list) => {

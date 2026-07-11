@@ -1,12 +1,17 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
-import { GoogleGenerativeAI } from "npm:@google/generative-ai";
 import { z } from "npm:zod";
 import { logServerError } from "../_shared/logServerError.ts";
 import { INJECTION_GUARD, wrapUserContent } from "../_shared/promptSafety.ts";
+import {
+  chatCompletion,
+  extractJsonText,
+  resolveModelForTier,
+  NimConfigError,
+  NimRateLimitError,
+} from "../_shared/nimClient.ts";
 
-const MODEL = "gemma-4-31b-it";
-const DEPLOY_BUILD = "inline-gemma-v7-progressive-propose";
-const MAX_OUTPUT_TOKENS = 4096;
+const DEPLOY_BUILD = "nim-deepseek-v1-two-call-propose";
+const MAX_OUTPUT_TOKENS = 8192;
 const MAX_OUTPUT_TOKENS_OUTLINE = 1536;
 const MAX_OUTPUT_TOKENS_MODULE = 1024;
 const TEMPERATURE = 0.1;
@@ -40,6 +45,11 @@ const proposePayloadSchema = z.object({
   subject: z.string().min(1).max(80),
   priorKnowledge: z.enum(["scratch", "some", "most"]).default("some"),
   material: z.string().min(50).max(80_000),
+});
+
+const repairPayloadSchema = proposePayloadSchema.extend({
+  partialProposal: z.record(z.unknown()),
+  validationErrors: z.string().min(1).max(2000),
 });
 
 const regeneratePayloadSchema = z.object({
@@ -87,6 +97,7 @@ const proposeModuleConceptsPayloadSchema = z.object({
 const requestSchema = z.object({
   action: z.enum([
     "proposeJourney",
+    "repairJourneyProposal",
     "proposeJourneyOutline",
     "proposeModuleConcepts",
     "regenerateModules",
@@ -126,34 +137,38 @@ async function checkAndIncrementQuota(
   userEmail: string,
   action: "proposeJourney" | "regenerateModules",
   estimatedInputTokens: number,
+  options: { skipCooldown?: boolean; skipIncrement?: boolean } = {},
 ) {
   const quota = await getOrCreateQuota(base44, userEmail);
   const now = Date.now();
 
-  if (quota.lastCallAt && now - quota.lastCallAt < LIMITS.cooldownSeconds * 1000) {
+  if (!options.skipCooldown && quota.lastCallAt && now - quota.lastCallAt < LIMITS.cooldownSeconds * 1000) {
     return errorResponse("Please wait a moment before making another AI request.", 429);
   }
 
-  if (action === "proposeJourney" && (quota.journeyProposals ?? 0) >= LIMITS.journeyProposalsPerDay) {
-    return errorResponse("Daily journey creation limit reached. Try again tomorrow.", 429);
-  }
+  if (!options.skipIncrement) {
+    if (action === "proposeJourney" && (quota.journeyProposals ?? 0) >= LIMITS.journeyProposalsPerDay) {
+      return errorResponse("Daily journey creation limit reached. Try again tomorrow.", 429);
+    }
 
-  if (action === "regenerateModules" && (quota.scaffoldRegenerates ?? 0) >= LIMITS.scaffoldRegeneratesPerDay) {
-    return errorResponse("Daily regenerate limit reached. Try again tomorrow.", 429);
+    if (action === "regenerateModules" && (quota.scaffoldRegenerates ?? 0) >= LIMITS.scaffoldRegeneratesPerDay) {
+      return errorResponse("Daily regenerate limit reached. Try again tomorrow.", 429);
+    }
   }
 
   if ((quota.inputTokens ?? 0) + estimatedInputTokens > LIMITS.maxInputTokensPerDay) {
     return errorResponse("Daily AI token budget exceeded. Try again tomorrow.", 429);
   }
 
+  const increment = options.skipIncrement ? 0 : 1;
   const patch = {
     lastCallAt: now,
     inputTokens: (quota.inputTokens ?? 0) + estimatedInputTokens,
     journeyProposals: action === "proposeJourney"
-      ? (quota.journeyProposals ?? 0) + 1
+      ? (quota.journeyProposals ?? 0) + increment
       : (quota.journeyProposals ?? 0),
     scaffoldRegenerates: action === "regenerateModules"
-      ? (quota.scaffoldRegenerates ?? 0) + 1
+      ? (quota.scaffoldRegenerates ?? 0) + increment
       : (quota.scaffoldRegenerates ?? 0),
   };
 
@@ -165,7 +180,7 @@ function estimateTokens(text: string) {
   return Math.ceil(text.length / 4);
 }
 
-const PROPOSE_SYSTEM = `You are a study curriculum architect. Extract a compact knowledge map and propose 2-8 modules.
+const PROPOSE_SYSTEM = `You are a study curriculum architect. Extract a compact knowledge map and propose 2-8 modules covering ALL of the provided material.
 
 Output ONLY valid JSON with this exact top-level shape (no wrapper keys):
 {"journeySummary":"string max 200 chars","modules":[{"name":"string max 80","description":"string max 120","concepts":[{"id":"c1","term":"string max 80","definition":"string max 80"}]}]}
@@ -174,7 +189,18 @@ Rules:
 - No markdown, no code fences, no commentary before or after the JSON.
 - Keep every string within its max length.
 - Use short concept ids like c1, c2 per module.
-- 2-8 modules, 1-10 concepts each.${INJECTION_GUARD}`;
+- 2-8 modules, 3-10 concepts each. Every module MUST include concepts.
+- Cover the full breadth of the material — do not stop early.${INJECTION_GUARD}`;
+
+const REPAIR_SYSTEM = `You are a study curriculum architect. A previous journey proposal failed validation. Fix it.
+
+You will receive the original material, the partial/broken proposal, and the validation errors. Return the FULL corrected proposal (not a diff) in this exact JSON shape:
+{"journeySummary":"string max 200 chars","modules":[{"name":"string max 80","description":"string max 120","concepts":[{"id":"c1","term":"string max 80","definition":"string max 80"}]}]}
+
+Rules:
+- Keep everything that was already valid; only fix or fill what the errors mention.
+- No markdown, no code fences, no commentary.
+- 2-8 modules, 3-10 concepts each. Every module MUST include concepts.${INJECTION_GUARD}`;
 
 const OUTLINE_SYSTEM = `You are a study curriculum architect. Propose a journey OUTLINE only — module names and descriptions, NO concepts yet.
 
@@ -203,18 +229,6 @@ function clipString(value: unknown, max: number) {
   const text = String(value ?? "").trim();
   if (!text) return "";
   return text.length > max ? text.slice(0, max).trim() : text;
-}
-
-function extractJsonText(raw: string) {
-  const trimmed = String(raw ?? "").trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fenced) return fenced[1].trim();
-
-  const start = trimmed.indexOf("{");
-  const end = trimmed.lastIndexOf("}");
-  if (start !== -1 && end > start) return trimmed.slice(start, end + 1);
-
-  return trimmed;
 }
 
 function normalizeProposal(raw: unknown) {
@@ -269,72 +283,24 @@ function formatValidationError(err: unknown) {
   return err instanceof Error ? err.message : "AI response validation failed";
 }
 
-function extractModelResponseText(response: {
-  text: () => string;
-  candidates?: Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean }> } }>;
-}): string {
-  const parts = response.candidates?.[0]?.content?.parts;
-  if (Array.isArray(parts) && parts.length) {
-    const visible = parts
-      .filter((part) => !part.thought && typeof part.text === "string")
-      .map((part) => part.text as string)
-      .join("");
-    if (visible) return visible;
-  }
-  return response.text();
-}
-
-async function callGeminiParsed<T>(
-  apiKey: string,
+async function callNimParsed<T>(
   system: string,
   user: string,
   schema: z.ZodType<T>,
   normalize: (raw: unknown) => unknown,
-  maxOutputTokens = MAX_OUTPUT_TOKENS,
+  maxTokens = MAX_OUTPUT_TOKENS,
 ) {
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: MODEL,
-    systemInstruction: system,
-    generationConfig: {
-      temperature: TEMPERATURE,
-      maxOutputTokens,
-      responseMimeType: "application/json",
-    },
+  const result = await chatCompletion({
+    tier: "heavy",
+    system,
+    user,
+    maxTokens,
+    temperature: TEMPERATURE,
+    jsonMode: true,
   });
-
-  const result = await model.generateContent(user);
-  const text = extractModelResponseText(result.response);
-  const parsed = JSON.parse(extractJsonText(text));
+  const parsed = JSON.parse(extractJsonText(result.text));
   const data = schema.parse(normalize(parsed));
-  const usage = result.response.usageMetadata;
-  return {
-    data,
-    usage: {
-      inputTokens: usage?.promptTokenCount ?? estimateTokens(user),
-      outputTokens: usage?.candidatesTokenCount ?? estimateTokens(text),
-    },
-  };
-}
-
-async function callGemini(
-  apiKey: string,
-  system: string,
-  user: string,
-  _retrySuffix = "",
-) {
-  try {
-    return await callGeminiParsed(
-      apiKey,
-      system,
-      user,
-      journeyProposalSchema,
-      normalizeProposal,
-      MAX_OUTPUT_TOKENS,
-    );
-  } catch (err) {
-    throw new Error(formatValidationError(err));
-  }
+  return { data, usage: result.usage, model: result.model };
 }
 
 function normalizeOutline(raw: unknown) {
@@ -366,17 +332,16 @@ function normalizeModuleConcepts(raw: unknown, moduleIndex: number) {
   };
 }
 
+function buildMeta() {
+  return { model: resolveModelForTier("heavy"), tier: "heavy", build: DEPLOY_BUILD };
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return errorResponse("Method not allowed.", 405);
   }
 
   try {
-    const apiKey = Deno.env.get("GEMINI_API_KEY");
-    if (!apiKey) {
-      return errorResponse("GEMINI_API_KEY is not configured on the server.", 503);
-    }
-
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) {
@@ -391,6 +356,66 @@ Deno.serve(async (req) => {
     const body = requestSchema.parse(await req.json());
     const { action, payload } = body;
 
+    if (action === "proposeJourney") {
+      const p = proposePayloadSchema.parse(payload);
+      const userPrompt = JSON.stringify({
+        task: "proposeJourney",
+        title: wrapUserContent(p.title),
+        subject: wrapUserContent(p.subject),
+        priorKnowledge: wrapUserContent(p.priorKnowledge),
+        material: wrapUserContent(p.material),
+      });
+      const estInput = estimateTokens(PROPOSE_SYSTEM + userPrompt);
+      const quotaErr = await checkAndIncrementQuota(base44, userKey, "proposeJourney", estInput);
+      if (quotaErr) return quotaErr;
+      try {
+        const { data, usage } = await callNimParsed(
+          PROPOSE_SYSTEM,
+          userPrompt,
+          journeyProposalSchema,
+          normalizeProposal,
+          MAX_OUTPUT_TOKENS,
+        );
+        return jsonResponse({ data, usage, _meta: buildMeta() });
+      } catch (err) {
+        throw new Error(formatValidationError(err));
+      }
+    }
+
+    if (action === "repairJourneyProposal") {
+      const p = repairPayloadSchema.parse(payload);
+      const userPrompt = JSON.stringify({
+        task: "repairJourneyProposal",
+        title: wrapUserContent(p.title),
+        subject: wrapUserContent(p.subject),
+        priorKnowledge: wrapUserContent(p.priorKnowledge),
+        material: wrapUserContent(p.material.slice(0, 40_000)),
+        partialProposal: p.partialProposal,
+        validationErrors: wrapUserContent(p.validationErrors),
+      });
+      const estInput = estimateTokens(REPAIR_SYSTEM + userPrompt);
+      // Repair is the immediate follow-up to a failed propose: same quota unit,
+      // so skip the cooldown and the journeyProposals increment.
+      const quotaErr = await checkAndIncrementQuota(base44, userKey, "proposeJourney", estInput, {
+        skipCooldown: true,
+        skipIncrement: true,
+      });
+      if (quotaErr) return quotaErr;
+      try {
+        const { data, usage } = await callNimParsed(
+          REPAIR_SYSTEM,
+          userPrompt,
+          journeyProposalSchema,
+          normalizeProposal,
+          MAX_OUTPUT_TOKENS,
+        );
+        return jsonResponse({ data, usage, _meta: buildMeta() });
+      } catch (err) {
+        throw new Error(formatValidationError(err));
+      }
+    }
+
+    // Legacy progressive actions — kept for rollback; primary flow no longer uses them.
     if (action === "proposeJourneyOutline") {
       const p = proposePayloadSchema.parse(payload);
       const userPrompt = JSON.stringify({
@@ -403,15 +428,14 @@ Deno.serve(async (req) => {
       const estInput = estimateTokens(OUTLINE_SYSTEM + userPrompt);
       const quotaErr = await checkAndIncrementQuota(base44, userKey, "proposeJourney", estInput);
       if (quotaErr) return quotaErr;
-      const { data, usage } = await callGeminiParsed(
-        apiKey,
+      const { data, usage } = await callNimParsed(
         OUTLINE_SYSTEM,
         userPrompt,
         journeyOutlineSchema,
         normalizeOutline,
         MAX_OUTPUT_TOKENS_OUTLINE,
       );
-      return jsonResponse({ data, usage, _meta: { model: MODEL, build: DEPLOY_BUILD } });
+      return jsonResponse({ data, usage, _meta: buildMeta() });
     }
 
     if (action === "proposeModuleConcepts") {
@@ -433,62 +457,55 @@ Deno.serve(async (req) => {
         const quotaErr = await checkAndIncrementQuota(base44, userKey, "proposeJourney", estInput);
         if (quotaErr) return quotaErr;
       }
-      const { data, usage } = await callGeminiParsed(
-        apiKey,
+      const { data, usage } = await callNimParsed(
         MODULE_CONCEPTS_SYSTEM,
         userPrompt,
         moduleConceptsSchema,
         (raw) => normalizeModuleConcepts(raw, p.moduleIndex),
         MAX_OUTPUT_TOKENS_MODULE,
       );
-      return jsonResponse({ data, usage, _meta: { model: MODEL, build: DEPLOY_BUILD } });
+      return jsonResponse({ data, usage, _meta: buildMeta() });
     }
 
-    let system = PROPOSE_SYSTEM;
-    let userPrompt = "";
-    let quotaAction: "proposeJourney" | "regenerateModules" = "proposeJourney";
+    // regenerateModules
+    const p = regeneratePayloadSchema.parse(payload);
+    const userPrompt = JSON.stringify({
+      task: "regenerateModules",
+      title: wrapUserContent(p.title),
+      subject: wrapUserContent(p.subject),
+      priorKnowledge: wrapUserContent(p.priorKnowledge),
+      journeySummary: wrapUserContent(p.cachedKnowledgeMap.journeySummary),
+      allConcepts: p.cachedKnowledgeMap.allConcepts,
+    });
 
-    if (action === "proposeJourney") {
-      const p = proposePayloadSchema.parse(payload);
-      userPrompt = JSON.stringify({
-        task: "proposeJourney",
-        title: wrapUserContent(p.title),
-        subject: wrapUserContent(p.subject),
-        priorKnowledge: wrapUserContent(p.priorKnowledge),
-        material: wrapUserContent(p.material),
-      });
-    } else {
-      const p = regeneratePayloadSchema.parse(payload);
-      system = REGENERATE_SYSTEM;
-      quotaAction = "regenerateModules";
-      userPrompt = JSON.stringify({
-        task: "regenerateModules",
-        title: wrapUserContent(p.title),
-        subject: wrapUserContent(p.subject),
-        priorKnowledge: wrapUserContent(p.priorKnowledge),
-        journeySummary: wrapUserContent(p.cachedKnowledgeMap.journeySummary),
-        allConcepts: p.cachedKnowledgeMap.allConcepts,
-      });
-    }
-
-    const estInput = estimateTokens(system + userPrompt);
-    const quotaErr = await checkAndIncrementQuota(
-      base44,
-      userKey,
-      quotaAction,
-      estInput,
-    );
+    const estInput = estimateTokens(REGENERATE_SYSTEM + userPrompt);
+    const quotaErr = await checkAndIncrementQuota(base44, userKey, "regenerateModules", estInput);
     if (quotaErr) return quotaErr;
 
-    const { data, usage } = await callGemini(apiKey, system, userPrompt);
-
-    return jsonResponse({ data, usage, _meta: { model: MODEL, build: DEPLOY_BUILD } });
+    try {
+      const { data, usage } = await callNimParsed(
+        REGENERATE_SYSTEM,
+        userPrompt,
+        journeyProposalSchema,
+        normalizeProposal,
+        MAX_OUTPUT_TOKENS,
+      );
+      return jsonResponse({ data, usage, _meta: buildMeta() });
+    } catch (err) {
+      throw new Error(formatValidationError(err));
+    }
   } catch (err) {
     if (err instanceof z.ZodError) {
       const details = err.issues
         .map((issue) => `${issue.path.join(".") || "request"}: ${issue.message}`)
         .join("; ");
       return errorResponse(`Invalid request: ${details}`, 400);
+    }
+    if (err instanceof NimConfigError) {
+      return errorResponse(err.message, 503);
+    }
+    if (err instanceof NimRateLimitError) {
+      return errorResponse(err.message, 429);
     }
     try {
       const base44 = createClientFromRequest(req);

@@ -19,6 +19,7 @@ export const moduleSchema = z.object({
   baselineScore: z.number().min(0).max(100).nullable().optional(),
   baselineCapturedAt: z.number().nullable().optional(),
   baselineSkipped: z.boolean().optional(),
+  moduleDiagnosticSummary: z.string().optional(),
   firstQuizAt: z.number().nullable().optional(),
   timedBaselineCapturedAt: z.number().nullable().optional(),
 });

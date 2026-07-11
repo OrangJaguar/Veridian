@@ -12,7 +12,6 @@ import JourneyDetailSkeleton from '@/components/journeys/JourneyDetailSkeleton';
 import JourneyDetailHeader from '@/components/journey-detail/JourneyDetailHeader';
 import JourneyDetailGuideBanner from '@/components/journey-detail/JourneyDetailGuideBanner';
 import VeridianCertifiedBanner from '@/components/journeys/VeridianCertifiedBanner';
-import DiagnosticBanner from '@/components/diagnostic/DiagnosticBanner';
 import JourneySharingPanel from '@/components/journey-detail/JourneySharingPanel';
 import RecommendedStudyPlan from '@/components/journey-detail/RecommendedStudyPlan';
 import ModuleListItem from '@/components/journey-detail/ModuleListItem';
@@ -67,7 +66,6 @@ export default function JourneyDetailPage() {
       <JourneyDetailHeader journey={journey} modules={modules} />
       <VeridianCertifiedBanner journey={journey} />
       <JourneyDetailGuideBanner />
-      <DiagnosticBanner journey={journey} journeyId={journeyId} />
 
       <JourneySharingPanel journey={journey} />
 

@@ -1,6 +1,12 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
-import { GoogleGenerativeAI } from "npm:@google/generative-ai";
 import { z } from "npm:zod";
+import {
+  chatCompletion,
+  resolveModelForTier,
+  NimConfigError,
+  NimRateLimitError,
+  type ModelTier,
+} from "../_shared/nimClient.ts";
 import { logServerError } from "../_shared/logServerError.ts";
 import { INJECTION_GUARD, wrapUserContent, wrapConversationHistory } from "../_shared/promptSafety.ts";
 // Inlined helpers — Base44 functions cannot import sibling local files.
@@ -696,22 +702,6 @@ function zodIssueSummary(err: unknown) {
   }));
 }
 
-/** Gemma 4 may return internal "thought" parts — exclude them from JSON extraction. */
-function extractModelResponseText(response: {
-  text: () => string;
-  candidates?: Array<{ content?: { parts?: Array<{ text?: string; thought?: boolean }> } }>;
-}): string {
-  const parts = response.candidates?.[0]?.content?.parts;
-  if (Array.isArray(parts) && parts.length) {
-    const visible = parts
-      .filter((part) => !part.thought && typeof part.text === "string")
-      .map((part) => part.text as string)
-      .join("");
-    if (visible) return visible;
-  }
-  return response.text();
-}
-
 function payloadShapeSummary(value: unknown): Record<string, unknown> {
   if (Array.isArray(value)) {
     return {
@@ -736,12 +726,30 @@ function payloadShapeSummary(value: unknown): Record<string, unknown> {
 }
 
 
-const MODEL = "gemma-4-31b-it";
-const DEPLOY_BUILD = "inline-gemma-v7-slim-guide-reliability";
+const DEPLOY_BUILD = "nim-deepseek-v1-single-call";
 const MAX_OUTPUT_TOKENS = 4096;
+const MAX_OUTPUT_TOKENS_GUIDE = 8192;
 const MAX_OUTPUT_TOKENS_SECTION = 1536;
 const MAX_OUTPUT_TOKENS_DIAGNOSTIC = 2048;
 const TEMPERATURE = 0.1;
+
+/** Light-tier actions run on AI_LIGHT_MODEL (deepseek-v4-flash); everything else is heavy. */
+const LIGHT_TIER_ACTIONS = new Set([
+  "feynmanConversationTurn",
+  "feynmanSummarizeConcept",
+  "gradeFreeRecall",
+  "generateFreeRecallHint",
+  "generateFreeRecallHints",
+  "generateConceptRefresher",
+  "applyDeckAiEdit",
+  "parseQuizletImport",
+  "extractDeckSource",
+  "findFlashcardDuplicates",
+]);
+
+function tierForAction(action: string): ModelTier {
+  return LIGHT_TIER_ACTIONS.has(action) ? "light" : "heavy";
+}
 
 const STUDY_LIMITS = {
   quizGenerationsPerDay: 20,
@@ -808,7 +816,11 @@ function jsonResponse(body: unknown, status = 200) {
     : { data: body };
   return Response.json({
     ...payload,
-    _meta: { model: MODEL, build: DEPLOY_BUILD },
+    _meta: {
+      model: resolveModelForTier("heavy"),
+      lightModel: resolveModelForTier("light"),
+      build: DEPLOY_BUILD,
+    },
   }, { status });
 }
 
@@ -909,43 +921,35 @@ async function checkStudyQuota(
 }
 
 async function callGeminiRaw(
-  apiKey: string,
+  tier: ModelTier,
   system: string,
   user: string,
   debug?: ReturnType<typeof createAiDebugTrace>,
 ) {
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: MODEL,
-    systemInstruction: system,
-    generationConfig: {
-      temperature: TEMPERATURE,
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-      responseMimeType: "application/json",
-    },
-  });
-
   const started = Date.now();
-  const result = await model.generateContent(user);
-  const text = extractModelResponseText(result.response);
+  const result = await chatCompletion({
+    tier,
+    system,
+    user,
+    maxTokens: MAX_OUTPUT_TOKENS,
+    temperature: TEMPERATURE,
+    jsonMode: true,
+  });
+  const text = result.text;
   debug?.setRawGeminiText(text);
   debug?.record("raw_dump", true, {
     textLength: text.length,
-    note: "Validation skipped — full raw Gemini text returned to client.",
+    note: "Validation skipped — full raw model text returned to client.",
   }, undefined, Date.now() - started);
 
-  const usage = result.response.usageMetadata;
   return {
     rawGeminiText: text,
-    usage: {
-      inputTokens: usage?.promptTokenCount ?? estimateTokens(user),
-      outputTokens: usage?.candidatesTokenCount ?? estimateTokens(text),
-    },
+    usage: result.usage,
   };
 }
 
 async function callGeminiJson(
-  apiKey: string,
+  tier: ModelTier,
   system: string,
   user: string,
   schema: z.ZodType,
@@ -955,17 +959,6 @@ async function callGeminiJson(
   maxAttempts = 2,
   maxOutputTokens = MAX_OUTPUT_TOKENS,
 ) {
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: MODEL,
-    systemInstruction: system,
-    generationConfig: {
-      temperature: TEMPERATURE,
-      maxOutputTokens,
-      responseMimeType: "application/json",
-    },
-  });
-
   const fallbackRetry = "\n\nReturn ONLY valid compact JSON. Use $...$ for LaTeX.";
   const attempts = maxAttempts <= 1
     ? [user]
@@ -976,11 +969,19 @@ async function callGeminiJson(
     const prompt = attempts[attempt];
     const attemptStart = Date.now();
     try {
-      const result = await model.generateContent(prompt);
-      const text = extractModelResponseText(result.response);
+      const result = await chatCompletion({
+        tier,
+        system,
+        user: prompt,
+        maxTokens: maxOutputTokens,
+        temperature: TEMPERATURE,
+        jsonMode: true,
+      });
+      const text = result.text;
       debug?.setRawGeminiText(text);
-      debug?.record("gemini_generateContent", true, {
+      debug?.record("nim_chatCompletion", true, {
         attempt: attempt + 1,
+        model: result.model,
         textLength: text.length,
         preview: text.slice(0, 400),
       }, undefined, Date.now() - attemptStart);
@@ -1011,13 +1012,9 @@ async function callGeminiJson(
       try {
         const data = schema.parse(parsed);
         debug?.record("schema_validate", true, payloadShapeSummary(data));
-        const usage = result.response.usageMetadata;
         return {
           data,
-          usage: {
-            inputTokens: usage?.promptTokenCount ?? estimateTokens(prompt),
-            outputTokens: usage?.candidatesTokenCount ?? estimateTokens(text),
-          },
+          usage: result.usage,
         };
       } catch (schemaErr) {
         debug?.record("schema_validate", false, {
@@ -1411,7 +1408,6 @@ function conceptsForGuideSection(concepts: GuideConcept[], sectionIndex: number,
 }
 
 async function generateOneLearningGuideSection(
-  apiKey: string,
   payload: Record<string, unknown>,
   sectionIndex: number,
   sectionCount: number,
@@ -1439,7 +1435,7 @@ async function generateOneLearningGuideSection(
     `\n\nReturn EXACTLY one section in { "sections": [ {...} ] }. Section ${sectionIndex + 1} of ${sectionCount}. JSON only.`;
 
   const { data, usage } = await callGeminiJson(
-    apiKey,
+    "heavy",
     LEARNING_GUIDE_SECTION_SYSTEM,
     sectionPrompt,
     guideSingleSectionOutputSchema,
@@ -1476,7 +1472,6 @@ type DiagnosticModuleInput = {
 };
 
 async function generateDiagnosticQuestionsBatch(
-  apiKey: string,
   payload: Record<string, unknown>,
   debug?: ReturnType<typeof createAiDebugTrace>,
 ) {
@@ -1530,7 +1525,7 @@ async function generateDiagnosticQuestionsBatch(
       `\n\nReturn EXACTLY ${questionsPerModule} questions. Every question MUST use moduleId "${mod.moduleId}" exactly. JSON only.`;
 
     const { data, usage } = await callGeminiJson(
-      apiKey,
+      "heavy",
       system,
       modulePrompt,
       schema,
@@ -1671,9 +1666,6 @@ Deno.serve(async (req) => {
   let requestAction = "unknown";
 
   try {
-    const apiKey = Deno.env.get("GEMINI_API_KEY");
-    if (!apiKey) return errorResponse("GEMINI_API_KEY is not configured.", 503);
-
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) {
@@ -1694,7 +1686,7 @@ Deno.serve(async (req) => {
 
     debug.record("request_received", true, {
       action,
-      model: MODEL,
+      tier: tierForAction(action),
       build: DEPLOY_BUILD,
       rawDumpOnly,
       payloadKeys: Object.keys(payload),
@@ -1702,14 +1694,10 @@ Deno.serve(async (req) => {
 
     if (action === "generateDiagnosticQuestions") {
       const estInput = estimateTokens(JSON.stringify(payload));
-      const moduleIndex = Number(payload.moduleIndex ?? 0);
-      const quotaOpts = Number.isFinite(moduleIndex) && moduleIndex > 0
-        ? { skipCooldown: true, skipIncrement: true }
-        : undefined;
-      const quotaErr = await checkStudyQuota(base44, userKey, action, estInput, quotaOpts);
+      const quotaErr = await checkStudyQuota(base44, userKey, action, estInput);
       if (quotaErr) return quotaErr;
 
-      const result = await generateDiagnosticQuestionsBatch(apiKey, payload, debug);
+      const result = await generateDiagnosticQuestionsBatch(payload, debug);
       debug.record("response_ready", true, { questionCount: result.data.questions.length });
       return jsonResponse({
         data: result.data,
@@ -1718,39 +1706,34 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (action === "generateLearningGuide" && !rawDumpOnly) {
+    // Legacy section-by-section guide path — kept for old clients; new clients
+    // generate the full guide in a single call via the generic path below.
+    if (action === "generateLearningGuide" && !rawDumpOnly && payload.sectionOnly === true) {
       const estInput = estimateTokens(JSON.stringify(payload));
-      const sectionOnly = payload.sectionOnly === true;
       const sectionIndex = Number(payload.sectionIndex);
-      const quotaOpts = sectionOnly && sectionIndex > 0
+      if (!Number.isFinite(sectionIndex)) {
+        return errorResponse("sectionOnly requests must include sectionIndex.", 400);
+      }
+      const quotaOpts = sectionIndex > 0
         ? { skipCooldown: true, skipIncrement: true }
         : undefined;
       const quotaErr = await checkStudyQuota(base44, userKey, action, estInput, quotaOpts);
       if (quotaErr) return quotaErr;
 
-      if (sectionOnly && Number.isFinite(sectionIndex)) {
-        const sectionCount = Math.min(5, Math.max(1, Number(payload.sectionCount ?? 3)));
-        const { section, usage } = await generateOneLearningGuideSection(
-          apiKey,
-          payload,
-          sectionIndex,
-          sectionCount,
-          typeof payload.previousSectionTitle === "string" ? payload.previousSectionTitle : null,
-          debug,
-        );
-        debug.record("response_ready", true, { sectionIndex, title: section.title });
-        return jsonResponse({
-          data: { section, sectionIndex, sectionCount },
-          usage,
-          ...debugExtras(debug),
-        });
-      }
-
-      return errorResponse(
-        "Learning guides must be generated one section per request (sectionOnly + sectionIndex). "
-        + "Publish the latest Veridian site — older clients trigger a server timeout.",
-        400,
+      const sectionCount = Math.min(5, Math.max(1, Number(payload.sectionCount ?? 3)));
+      const { section, usage } = await generateOneLearningGuideSection(
+        payload,
+        sectionIndex,
+        sectionCount,
+        typeof payload.previousSectionTitle === "string" ? payload.previousSectionTitle : null,
+        debug,
       );
+      debug.record("response_ready", true, { sectionIndex, title: section.title });
+      return jsonResponse({
+        data: { section, sectionIndex, sectionCount },
+        usage,
+        ...debugExtras(debug),
+      });
     }
 
     const system = buildSystem(action, payload as Record<string, unknown>);
@@ -1761,9 +1744,11 @@ Deno.serve(async (req) => {
     const quotaErr = await checkStudyQuota(base44, userKey, action, estInput);
     if (quotaErr) return quotaErr;
 
+    const tier = tierForAction(action);
+
     if (rawDumpOnly) {
       debug.record("raw_dump_mode", true, { action, note: "Skipping parse, coerce, validate, finalize." });
-      const { rawGeminiText, usage } = await callGeminiRaw(apiKey, system, userPrompt, debug);
+      const { rawGeminiText, usage } = await callGeminiRaw(tier, system, userPrompt, debug);
       return jsonResponse({
         data: { rawGeminiText, action, parsedSkipped: true },
         rawGeminiText,
@@ -1775,13 +1760,15 @@ Deno.serve(async (req) => {
     const schema = schemaForAction(action);
     const retrySuffix = retrySuffixForAction(action, payload);
     const { data: raw, usage } = await callGeminiJson(
-      apiKey,
+      tier,
       system,
       userPrompt,
       schema,
       retrySuffix,
       action,
       debug,
+      2,
+      action === "generateLearningGuide" ? MAX_OUTPUT_TOKENS_GUIDE : MAX_OUTPUT_TOKENS,
     );
 
     let data: unknown;
@@ -1804,6 +1791,12 @@ Deno.serve(async (req) => {
       ...debugExtras(debug),
     });
   } catch (err) {
+    if (err instanceof NimConfigError) {
+      return errorResponse(err.message, 503);
+    }
+    if (err instanceof NimRateLimitError) {
+      return errorResponse(err.message, 429);
+    }
     let message = "AI request failed";
     if (err instanceof z.ZodError) {
       const issue = err.issues[0];

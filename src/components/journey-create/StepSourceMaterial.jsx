@@ -181,7 +181,7 @@ export default function StepSourceMaterial({ onBack, onBuild }) {
             onChange={(e) => handleTopicChange(e.target.value)}
           />
           <p className="create-topic-hint">
-            Fastest way to start. (Note: For the most accurate, hyper-personalized diagnostics, uploading your specific class notes is recommended).
+            Fastest way to start. (Note: For the most accurate, hyper-personalized modules, uploading your specific class notes is recommended).
           </p>
         </>
       )}

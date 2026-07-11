@@ -120,7 +120,6 @@ export async function cloneJourney(sourceJourneyId, {
     clonedFromJourneyId: sourceJourneyId,
     clonedFromTitle: source.title,
     clonedFromVeridianCertified: certified,
-    diagnosticSkipped: false,
     createdAt: now,
     updatedAt: now,
   });

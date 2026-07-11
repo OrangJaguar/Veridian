@@ -13505,6 +13505,33 @@
       margin-top: 1.5rem;
     }
 
+    .module-diagnostic-prompt {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      border: 1px solid var(--border);
+      border-radius: calc(var(--radius) * 1.5);
+      background: var(--surface);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .module-diagnostic-prompt-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin: 0 0 0.25rem;
+    }
+
+    .module-diagnostic-prompt-body {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      line-height: 1.5;
+      margin: 0;
+      max-width: 34rem;
+    }
+
     .mai-survey-page {
       max-width: 32rem;
       margin: 0 auto;

@@ -15,7 +15,7 @@ export function useCloneJourney() {
       queryClient.invalidateQueries({ queryKey: queryKeys.journeys.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.library.list() });
       toast.success('Journey cloned to your account');
-      navigate(`/journeys/${journeyId}/diagnostic`);
+      navigate(`/journeys/${journeyId}`);
     },
     onError: (err) => {
       toast.error(err?.message ?? 'Could not clone journey');

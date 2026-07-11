@@ -4,10 +4,10 @@ import { logClientError } from '@/api/errors/logClientError';
 import { notifyAiQuotaChanged } from '@/api/ai/quota';
 
 const FUNCTION_NOT_DEPLOYED_MSG =
-  'The AI backend (geminiJourney) is not deployed yet. Push functions/geminiJourney/ to GitHub and Publish on Base44 (CLI deploy only works on Backend Platform apps). Also confirm GEMINI_API_KEY is set in Base44 secrets.';
+  'The AI backend (geminiJourney) is not deployed yet. Push functions/geminiJourney/ to GitHub and Publish on Base44 (CLI deploy only works on Backend Platform apps).';
 
 const KEY_NOT_CONFIGURED_MSG =
-  'GEMINI_API_KEY is not configured on the server. Run: base44 secrets set GEMINI_API_KEY=your_key';
+  'NVIDIA_API_KEY is not configured on the server. Run: base44 secrets set NVIDIA_API_KEY=nvapi-...';
 
 function extractServerMessage(err) {
   const payload = err?.data ?? err?.response?.data ?? err?.body;
@@ -33,7 +33,7 @@ function normalizeInvokeError(err) {
   if (status === 404 || message.includes('status code 404')) {
     return new Error(FUNCTION_NOT_DEPLOYED_MSG);
   }
-  if (status === 503 || message.includes('GEMINI_API_KEY')) {
+  if (status === 503 || message.includes('NVIDIA_API_KEY') || message.includes('GEMINI_API_KEY')) {
     return new Error(KEY_NOT_CONFIGURED_MSG);
   }
   if (status === 429) {
@@ -47,13 +47,13 @@ function normalizeInvokeError(err) {
     return new Error('Please sign in again to use AI features.');
   }
   if (status === 502 || message.includes('status code 502')) {
-    return new Error('The AI service took too long to respond. Tap Continue generating to resume.');
+    return new Error('The AI service took too long to respond. Please try again.');
   }
   if (status === 504 || /504|timeout|timed out/i.test(message)) {
-    return new Error('AI generation timed out. Tap Continue generating to resume.');
+    return new Error('AI generation timed out. Please try again.');
   }
   if (err?.name === 'AbortError' || /aborted/i.test(message)) {
-    return new Error('Request timed out. Tap Continue generating to resume.');
+    return new Error('Request timed out. Please try again.');
   }
   if (status === 400 && message.includes('status code 400') && serverMessage) {
     return new Error(serverMessage);
@@ -74,7 +74,7 @@ function normalizeInvokeError(err) {
 
 /**
  * Invoke the geminiJourney Base44 backend function.
- * @param {'proposeJourney' | 'regenerateModules'} action
+ * @param {'proposeJourney' | 'repairJourneyProposal' | 'regenerateModules'} action
  * @param {object} payload
  * @param {{ signal?: AbortSignal }} options
  */

@@ -25,7 +25,6 @@ export async function createJourney(payload) {
     userEmail: user.email,
     isPublic: payload.isPublic ?? false,
     archived: payload.archived ?? false,
-    diagnosticSkipped: payload.diagnosticSkipped ?? false,
     sources: payload.sources ?? [],
     tags: payload.tags ?? [],
     cloneCount: payload.cloneCount ?? 0,

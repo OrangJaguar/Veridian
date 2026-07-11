@@ -29,9 +29,6 @@ export default function StudyShell() {
 
   const activity = activities.find((a) => a.activityId === session?.activityId);
   const module = modules.find((m) => m.moduleId === session?.moduleId);
-  const practiceQuizActivity = activities.find(
-    (a) => a.moduleId === session?.moduleId && a.type === 'practiceQuiz',
-  );
   const activityCards = cards.filter((c) => c.activityId === session?.activityId);
 
   useEffect(() => {
@@ -87,13 +84,7 @@ export default function StudyShell() {
     case 'cramSession':
       return <CramSession {...props} modules={modules} cards={cards} />;
     case 'baselineCheck':
-      return (
-        <BaselineCheckSession
-          {...props}
-          journey={journey}
-          practiceQuizActivity={practiceQuizActivity}
-        />
-      );
+      return <BaselineCheckSession {...props} journey={journey} />;
     default:
       return (
         <div className="stub-page">

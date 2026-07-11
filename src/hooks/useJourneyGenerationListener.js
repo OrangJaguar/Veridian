@@ -46,10 +46,10 @@ export function useJourneyGenerationListener() {
         markNotified(j.journeyId);
         const topic = j.sourceTopic || j.title || 'your topic';
         toast('Engine Ready', {
-          description: `Your custom Journey for ${topic} is built and ready for baseline calibration.`,
+          description: `Your custom Journey for ${topic} is built and ready to study.`,
           action: {
-            label: 'Start Diagnostic',
-            onClick: () => navigate(`/journeys/${j.journeyId}/diagnostic`),
+            label: 'Open Journey',
+            onClick: () => navigate(`/journeys/${j.journeyId}`),
           },
           duration: Infinity,
         });

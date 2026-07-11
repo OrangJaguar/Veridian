@@ -14,7 +14,7 @@ const FUNCTION_NOT_DEPLOYED_MSG =
   'The AI backend (geminiStudy) is not deployed yet. Push functions/geminiStudy/ to GitHub and Publish on Base44.';
 
 const KEY_NOT_CONFIGURED_MSG =
-  'GEMINI_API_KEY is not configured on the server.';
+  'NVIDIA_API_KEY is not configured on the server. Run: base44 secrets set NVIDIA_API_KEY=nvapi-...';
 
 function extractErrorPayload(err) {
   return err?.data ?? err?.response?.data ?? err?.body ?? err?.response?.body ?? null;
@@ -72,11 +72,11 @@ function normalizeInvokeError(err) {
 
   if (status === 404 || message.includes('status code 404')) {
     normalized.message = FUNCTION_NOT_DEPLOYED_MSG;
-  } else if (status === 503 || message.includes('GEMINI_API_KEY')) {
+  } else if (status === 503 || message.includes('NVIDIA_API_KEY') || message.includes('GEMINI_API_KEY')) {
     normalized.message = KEY_NOT_CONFIGURED_MSG;
   } else if (status === 429) {
-    if (/too many requests/i.test(message) && !message.includes('Daily AI')) {
-      normalized.message = 'Too many requests. Wait a moment and try again.';
+    if (/rate limited|too many requests/i.test(message) && !message.includes('Daily AI')) {
+      normalized.message = 'AI provider is busy (rate limited). Wait a moment and try again.';
     } else {
       normalized.message = 'Daily AI limit reached. Try again tomorrow.';
       notifyAiQuotaChanged();
@@ -84,9 +84,9 @@ function normalizeInvokeError(err) {
   } else if (status === 401 || /authentication required/i.test(message)) {
     normalized.message = 'Please sign in again to use AI features.';
   } else if (status === 502 || message.includes('status code 502')) {
-    normalized.message = 'The AI service took too long to respond. Please try again — we\'ll pick up where we left off if possible.';
+    normalized.message = 'The AI service took too long to respond. Please try again.';
   } else if (status === 504 || /504|timeout|timed out/i.test(message)) {
-    normalized.message = 'AI generation timed out. Please try again — partial progress may be saved.';
+    normalized.message = 'AI generation timed out. Please try again.';
   } else if (err?.name === 'AbortError' || /aborted/i.test(message)) {
     normalized.message = 'This step took too long. Please try again.';
   }
@@ -135,7 +135,7 @@ export async function invokeGeminiStudy(action, payload, options = {}) {
 
   const handleResult = (result) => {
     if (result?._meta) {
-      window.__veridianLastGeminiStudyMeta = result._meta;
+      window.__veridianLastAiMeta = result._meta;
       if (typeof console !== 'undefined' && window.localStorage?.getItem('veridian:ai-debug') === '1') {
         console.info('[Veridian AI] geminiStudy _meta:', result._meta);
       }
