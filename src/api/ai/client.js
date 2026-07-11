@@ -88,7 +88,7 @@ export async function invokeAiJourney(action, payload, options = {}) {
 
   let invokePromise;
   try {
-    invokePromise = base44.functions.invoke('geminiJourney', {
+    invokePromise = base44.functions.invoke('aiJourney', {
       action,
       payload,
     });

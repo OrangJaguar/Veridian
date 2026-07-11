@@ -121,7 +121,7 @@ export async function invokeAiStudy(action, payload, options = {}) {
 
   let invokePromise;
   try {
-    invokePromise = base44.functions.invoke('geminiStudy', {
+    invokePromise = base44.functions.invoke('aiStudy', {
       action,
       payload: requestPayload,
     });
@@ -137,7 +137,7 @@ export async function invokeAiStudy(action, payload, options = {}) {
     if (result?._meta) {
       window.__veridianLastAiMeta = result._meta;
       if (typeof console !== 'undefined' && window.localStorage?.getItem('veridian:ai-debug') === '1') {
-        console.info('[Veridian AI] geminiStudy _meta:', result._meta);
+        console.info('[Veridian AI] aiStudy _meta:', result._meta);
       }
     }
 
