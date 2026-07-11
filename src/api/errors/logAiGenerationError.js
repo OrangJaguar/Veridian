@@ -39,8 +39,8 @@ export function logAiGenerationError({
       ok: s.ok,
       error: s.error,
     })) ?? error?.serverPayload?._debug?.steps ?? null,
-    rawPreview: error?.rawGeminiText
-      ? String(error.rawGeminiText).slice(0, 1200)
+    rawPreview: error?.rawAiText
+      ? String(error.rawAiText).slice(0, 1200)
       : null,
     aiTrace: error?.aiTrace ?? null,
   };

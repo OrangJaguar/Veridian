@@ -116,7 +116,7 @@ function extractJsonText(raw: string) {
   return trimmed;
 }
 
-/** Close unclosed strings/brackets when Gemma truncates mid-JSON. */
+/** Close unclosed strings/brackets when the model truncates mid-JSON. */
 function repairTruncatedJson(text: string) {
   let s = String(text ?? "").trim();
   if (!s) return s;
@@ -627,24 +627,24 @@ type AiDebugStep = {
 type AiDebugSnapshot = {
   enabled: boolean;
   steps: AiDebugStep[];
-  lastRawGeminiText: string | null;
+  lastRawAiText: string | null;
   lastParsedShape: Record<string, unknown> | null;
 };
 
 function createAiDebugTrace(enabled: boolean) {
   const steps: AiDebugStep[] = [];
-  let lastRawGeminiText: string | null = null;
+  let lastRawAiText: string | null = null;
   let lastParsedShape: Record<string, unknown> | null = null;
 
   return {
     enabled,
     steps,
-    get lastRawGeminiText() {
-      return lastRawGeminiText;
+    get lastRawAiText() {
+      return lastRawAiText;
     },
-    setRawGeminiText(text: string) {
+    setRawAiText(text: string) {
       if (!enabled) return;
-      lastRawGeminiText = text;
+      lastRawAiText = text;
     },
     setParsedShape(value: unknown) {
       if (!enabled) return;
@@ -671,7 +671,7 @@ function createAiDebugTrace(enabled: boolean) {
       return {
         enabled,
         steps,
-        lastRawGeminiText,
+        lastRawAiText,
         lastParsedShape,
       };
     },
@@ -828,7 +828,7 @@ function errorResponse(message: string, status = 400, debug?: ReturnType<typeof 
   const snap: AiDebugSnapshot | undefined = debug?.enabled ? debug.snapshot() : undefined;
   return jsonResponse({
     error: { message, status },
-    ...(snap?.lastRawGeminiText ? { rawGeminiText: snap.lastRawGeminiText } : {}),
+    ...(snap?.lastRawAiText ? { rawAiText: snap.lastRawAiText } : {}),
     ...(snap ? { _debug: snap } : {}),
   }, status);
 }
@@ -837,7 +837,7 @@ function debugExtras(debug?: ReturnType<typeof createAiDebugTrace>) {
   if (!debug?.enabled) return {};
   const snap = debug.snapshot();
   return {
-    ...(snap.lastRawGeminiText ? { rawGeminiText: snap.lastRawGeminiText } : {}),
+    ...(snap.lastRawAiText ? { rawAiText: snap.lastRawAiText } : {}),
     _debug: snap,
   };
 }
@@ -920,7 +920,7 @@ async function checkStudyQuota(
   return null;
 }
 
-async function callGeminiRaw(
+async function callAiRaw(
   tier: ModelTier,
   system: string,
   user: string,
@@ -936,19 +936,19 @@ async function callGeminiRaw(
     jsonMode: true,
   });
   const text = result.text;
-  debug?.setRawGeminiText(text);
+  debug?.setRawAiText(text);
   debug?.record("raw_dump", true, {
     textLength: text.length,
     note: "Validation skipped — full raw model text returned to client.",
   }, undefined, Date.now() - started);
 
   return {
-    rawGeminiText: text,
+    rawAiText: text,
     usage: result.usage,
   };
 }
 
-async function callGeminiJson(
+async function callAiJson(
   tier: ModelTier,
   system: string,
   user: string,
@@ -978,7 +978,7 @@ async function callGeminiJson(
         jsonMode: true,
       });
       const text = result.text;
-      debug?.setRawGeminiText(text);
+      debug?.setRawAiText(text);
       debug?.record("nim_chatCompletion", true, {
         attempt: attempt + 1,
         model: result.model,
@@ -1434,7 +1434,7 @@ async function generateOneLearningGuideSection(
   const retrySuffix =
     `\n\nReturn EXACTLY one section in { "sections": [ {...} ] }. Section ${sectionIndex + 1} of ${sectionCount}. JSON only.`;
 
-  const { data, usage } = await callGeminiJson(
+  const { data, usage } = await callAiJson(
     "heavy",
     LEARNING_GUIDE_SECTION_SYSTEM,
     sectionPrompt,
@@ -1524,7 +1524,7 @@ async function generateDiagnosticQuestionsBatch(
     const retrySuffix =
       `\n\nReturn EXACTLY ${questionsPerModule} questions. Every question MUST use moduleId "${mod.moduleId}" exactly. JSON only.`;
 
-    const { data, usage } = await callGeminiJson(
+    const { data, usage } = await callAiJson(
       "heavy",
       system,
       modulePrompt,
@@ -1748,10 +1748,10 @@ Deno.serve(async (req) => {
 
     if (rawDumpOnly) {
       debug.record("raw_dump_mode", true, { action, note: "Skipping parse, coerce, validate, finalize." });
-      const { rawGeminiText, usage } = await callGeminiRaw(tier, system, userPrompt, debug);
+      const { rawAiText, usage } = await callAiRaw(tier, system, userPrompt, debug);
       return jsonResponse({
-        data: { rawGeminiText, action, parsedSkipped: true },
-        rawGeminiText,
+        data: { rawAiText, action, parsedSkipped: true },
+        rawAiText,
         usage,
         ...debugExtras(debug),
       });
@@ -1759,7 +1759,7 @@ Deno.serve(async (req) => {
 
     const schema = schemaForAction(action);
     const retrySuffix = retrySuffixForAction(action, payload);
-    const { data: raw, usage } = await callGeminiJson(
+    const { data: raw, usage } = await callAiJson(
       tier,
       system,
       userPrompt,
@@ -1808,11 +1808,11 @@ Deno.serve(async (req) => {
     debug.record("handler_error", false, { message }, message);
     try {
       const base44 = createClientFromRequest(req);
-      await logServerError(base44, "geminiStudy/handler", err, {
+      await logServerError(base44, "aiStudy/handler", err, {
         message,
         action: requestAction,
         zodIssues: err instanceof z.ZodError ? zodIssueSummary(err) : undefined,
-        rawPreview: debug?.lastRawGeminiText?.slice(0, 1200),
+        rawPreview: debug?.lastRawAiText?.slice(0, 1200),
       });
     } catch {
       // ignore logging failures

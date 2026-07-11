@@ -4,7 +4,7 @@ import { logClientError } from '@/api/errors/logClientError';
 import { notifyAiQuotaChanged } from '@/api/ai/quota';
 
 const FUNCTION_NOT_DEPLOYED_MSG =
-  'The AI backend (geminiJourney) is not deployed yet. Push functions/geminiJourney/ to GitHub and Publish on Base44 (CLI deploy only works on Backend Platform apps).';
+  'The AI backend (aiJourney) is not deployed yet. Push functions/aiJourney/ to GitHub and Publish on Base44 (CLI deploy only works on Backend Platform apps).';
 
 const KEY_NOT_CONFIGURED_MSG =
   'NVIDIA_API_KEY is not configured on the server. Run: base44 secrets set NVIDIA_API_KEY=nvapi-...';
@@ -33,7 +33,7 @@ function normalizeInvokeError(err) {
   if (status === 404 || message.includes('status code 404')) {
     return new Error(FUNCTION_NOT_DEPLOYED_MSG);
   }
-  if (status === 503 || message.includes('NVIDIA_API_KEY') || message.includes('GEMINI_API_KEY')) {
+  if (status === 503 || message.includes('NVIDIA_API_KEY')) {
     return new Error(KEY_NOT_CONFIGURED_MSG);
   }
   if (status === 429) {
@@ -64,8 +64,8 @@ function normalizeInvokeError(err) {
 
   if (status >= 500 || (!status && !serverMessage?.includes('Daily AI limit'))) {
     logClientError({
-      message: `geminiJourney invoke failed: ${message}`,
-      context: { status, source: 'ai-client', function: 'geminiJourney' },
+      message: `aiJourney invoke failed: ${message}`,
+      context: { status, source: 'ai-client', function: 'aiJourney' },
     });
   }
 
@@ -73,12 +73,12 @@ function normalizeInvokeError(err) {
 }
 
 /**
- * Invoke the geminiJourney Base44 backend function.
+ * Invoke the aiJourney Base44 backend function.
  * @param {'proposeJourney' | 'repairJourneyProposal' | 'regenerateModules'} action
  * @param {object} payload
  * @param {{ signal?: AbortSignal }} options
  */
-export async function invokeGemini(action, payload, options = {}) {
+export async function invokeAiJourney(action, payload, options = {}) {
   const { signal } = options;
 
   const user = await requireAuth();
@@ -119,7 +119,7 @@ export async function invokeGemini(action, payload, options = {}) {
   }
 }
 
-export function parseGeminiResponse(result) {
+export function parseAiJourneyResponse(result) {
   if (!result) throw new Error('Empty response from AI service');
 
   if (result.error) {

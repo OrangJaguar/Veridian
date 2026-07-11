@@ -95,7 +95,7 @@ function coerceCardItem(card) {
 }
 
 /**
- * Mirror server-side coercePayloadForAction so client parsing survives alternate Gemini shapes.
+ * Mirror server-side coercePayloadForAction so client parsing survives alternate AI shapes.
  */
 export function coerceStudyAiPayload(action, raw) {
   if (!raw) return raw;

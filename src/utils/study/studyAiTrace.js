@@ -53,7 +53,7 @@ export function enableRawDumpMode() {
   console.info(
     '%c[Veridian AI] RAW DUMP MODE ON',
     'color:#fbbf24;font-weight:bold;font-size:13px',
-    '— Gemini response will be returned with NO parsing. Reload the page, then trigger the AI action.',
+    '— AI response will be returned with NO parsing. Reload the page, then trigger the AI action.',
   );
 }
 
@@ -63,13 +63,13 @@ export function disableRawDumpMode() {
   console.info('%c[Veridian AI] Raw dump mode OFF', 'color:#94a3b8;font-weight:bold');
 }
 
-export function captureRawGemini(text, meta = {}) {
+export function captureRawAi(text, meta = {}) {
   if (!text) return null;
-  window.__veridianLastRawGemini = text;
-  window.__veridianLastRawGeminiMeta = meta;
+  window.__veridianLastRawAi = text;
+  window.__veridianLastRawAiMeta = meta;
 
   console.group(
-    '%c[Veridian AI] FULL RAW GEMINI RESPONSE (unparsed)',
+    '%c[Veridian AI] FULL RAW AI RESPONSE (unparsed)',
     'color:#fbbf24;font-weight:bold;font-size:14px',
   );
   console.log(text);
@@ -86,15 +86,15 @@ export function captureRawGemini(text, meta = {}) {
   return text;
 }
 
-export function getLastRawGemini() {
-  return window.__veridianLastRawGemini ?? null;
+export function getLastRawAi() {
+  return window.__veridianLastRawAi ?? null;
 }
 
-export function extractRawGeminiFromPayload(payload) {
+export function extractRawAiFromPayload(payload) {
   if (!payload) return null;
-  return payload.rawGeminiText
-    ?? payload.data?.rawGeminiText
-    ?? payload._debug?.lastRawGeminiText
+  return payload.rawAiText
+    ?? payload.data?.rawAiText
+    ?? payload._debug?.lastRawAiText
     ?? null;
 }
 
@@ -104,7 +104,7 @@ export function enableStudyAiDebug() {
   console.info(
     '%c[Veridian AI Debug] ON',
     'color:#7dd3fc;font-weight:bold',
-    '— For full unparsed Gemini text run veridianAiDebug.rawOn() then reload',
+    '— For full unparsed AI text run veridianAiDebug.rawOn() then reload',
   );
 }
 
@@ -135,11 +135,11 @@ export function initStudyAiDebugFromUrl() {
     isRawOn: isRawDumpEnabled,
     lastRun: () => runHistory[runHistory.length - 1] ?? null,
     lastServer: () => window.__veridianLastServerAiDebug ?? null,
-    lastRaw: getLastRawGemini,
+    lastRaw: getLastRawAi,
     printRaw: () => {
-      const raw = getLastRawGemini();
+      const raw = getLastRawAi();
       if (!raw) {
-        console.warn('[Veridian AI] No raw Gemini text captured yet.');
+        console.warn('[Veridian AI] No raw AI text captured yet.');
         return null;
       }
       console.log(raw);
@@ -260,8 +260,8 @@ export function createStudyAiTraceRun(opts = {}) {
       if (window.__veridianLastServerAiDebug) {
         console.log('Server _debug:', window.__veridianLastServerAiDebug);
       }
-      const rawFail = getLastRawGemini();
-      if (rawFail) console.log('Raw Gemini (length %d):', rawFail.length, rawFail);
+      const rawFail = getLastRawAi();
+      if (rawFail) console.log('Raw AI (length %d):', rawFail.length, rawFail);
       console.groupEnd();
     },
 
@@ -279,8 +279,8 @@ export function createStudyAiTraceRun(opts = {}) {
       if (window.__veridianLastServerAiDebug) {
         console.log('Server _debug:', window.__veridianLastServerAiDebug);
       }
-      const rawPrint = getLastRawGemini();
-      if (rawPrint) console.log('Raw Gemini (length %d):', rawPrint.length, rawPrint);
+      const rawPrint = getLastRawAi();
+      if (rawPrint) console.log('Raw AI (length %d):', rawPrint.length, rawPrint);
       console.groupEnd();
     },
 

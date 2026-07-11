@@ -1,4 +1,4 @@
-import { invokeGeminiStudy, parseGeminiStudyResponse } from '@/api/ai/studyClient';
+import { invokeAiStudy, parseAiStudyResponse } from '@/api/ai/studyClient';
 import { getActiveStudyAiTrace, isStudyAiDebugEnabled, isRawDumpEnabled } from '@/utils/study/studyAiTrace';
 
 async function callStudy(action, payload, options) {
@@ -7,29 +7,29 @@ async function callStudy(action, payload, options) {
 
   let result;
   try {
-    result = await invokeGeminiStudy(action, payload, options);
+    result = await invokeAiStudy(action, payload, options);
   } catch (err) {
     throw err;
   }
 
   const parseStart = Date.now();
   if (isStudyAiDebugEnabled() && trace) {
-    trace.stepStart('1b_parse', rawDump ? 'Raw dump response (skip parse)' : 'Parse geminiStudy response', {
+    trace.stepStart('1b_parse', rawDump ? 'Raw dump response (skip parse)' : 'Parse aiStudy response', {
       resultKeys: Object.keys(result ?? {}),
       hasDebug: Boolean(result?._debug),
-      hasRaw: Boolean(result?.rawGeminiText ?? result?.data?.rawGeminiText),
+      hasRaw: Boolean(result?.rawAiText ?? result?.data?.rawAiText),
     });
   }
 
   try {
-    const parsed = parseGeminiStudyResponse(result);
+    const parsed = parseAiStudyResponse(result);
     if (isStudyAiDebugEnabled() && trace) {
-      trace.stepOk('1b_parse', rawDump ? 'Raw dump response' : 'Parse geminiStudy response', trace.summarizeCounts(parsed), Date.now() - parseStart);
+      trace.stepOk('1b_parse', rawDump ? 'Raw dump response' : 'Parse aiStudy response', trace.summarizeCounts(parsed), Date.now() - parseStart);
     }
     return parsed;
   } catch (err) {
     if (isStudyAiDebugEnabled() && trace) {
-      trace.stepFail('1b_parse', 'Parse geminiStudy response', err, {
+      trace.stepFail('1b_parse', 'Parse aiStudy response', err, {
         resultKeys: Object.keys(result ?? {}),
         serverDebug: result?._debug ?? window.__veridianLastServerAiDebug,
       }, Date.now() - parseStart);
@@ -38,8 +38,8 @@ async function callStudy(action, payload, options) {
   }
 }
 
-/** Fetch raw Gemini text only — no server-side validation. Requires raw dump mode + published geminiStudy. */
-export function fetchGeminiStudyRaw(action, payload, options) {
+/** Fetch raw AI text only — no server-side validation. Requires raw dump mode + published aiStudy. */
+export function fetchAiStudyRaw(action, payload, options) {
   return callStudy(action, payload, options);
 }
 

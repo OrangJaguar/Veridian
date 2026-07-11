@@ -2,7 +2,7 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 
 /**
  * Acknowledges async journey generation requests.
- * Client runs the full Gemma pipeline; this endpoint exists for future server-side migration
+ * Client runs the full AI pipeline; this endpoint exists for future server-side migration
  * and deployment parity with the product spec.
  */
 Deno.serve(async (req) => {

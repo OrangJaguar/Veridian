@@ -509,7 +509,7 @@ Deno.serve(async (req) => {
     }
     try {
       const base44 = createClientFromRequest(req);
-      await logServerError(base44, "geminiJourney/handler", err);
+      await logServerError(base44, "aiJourney/handler", err);
     } catch {
       // ignore logging failures
     }

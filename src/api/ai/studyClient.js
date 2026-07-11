@@ -6,12 +6,12 @@ import {
   getActiveStudyAiTrace,
   isStudyAiDebugEnabled,
   isRawDumpEnabled,
-  captureRawGemini,
-  extractRawGeminiFromPayload,
+  captureRawAi,
+  extractRawAiFromPayload,
 } from '@/utils/study/studyAiTrace';
 
 const FUNCTION_NOT_DEPLOYED_MSG =
-  'The AI backend (geminiStudy) is not deployed yet. Push functions/geminiStudy/ to GitHub and Publish on Base44.';
+  'The AI backend (aiStudy) is not deployed yet. Push functions/aiStudy/ to GitHub and Publish on Base44.';
 
 const KEY_NOT_CONFIGURED_MSG =
   'NVIDIA_API_KEY is not configured on the server. Run: base44 secrets set NVIDIA_API_KEY=nvapi-...';
@@ -44,9 +44,9 @@ function storeDebugAndRawFromPayload(payload, source) {
     window.__veridianLastServerAiDebug = payload._debug;
   }
 
-  const raw = extractRawGeminiFromPayload(payload);
+  const raw = extractRawAiFromPayload(payload);
   if (raw && isStudyAiDebugEnabled()) {
-    captureRawGemini(raw, { source, status: payload?.error?.status });
+    captureRawAi(raw, { source, status: payload?.error?.status });
   }
   return raw;
 }
@@ -67,12 +67,12 @@ function normalizeInvokeError(err) {
   normalized.status = status;
   normalized.serverPayload = payload;
   normalized.debug = payload?._debug ?? null;
-  normalized.rawGeminiText = extractRawGeminiFromPayload(payload);
+  normalized.rawAiText = extractRawAiFromPayload(payload);
   normalized.rawError = err;
 
   if (status === 404 || message.includes('status code 404')) {
     normalized.message = FUNCTION_NOT_DEPLOYED_MSG;
-  } else if (status === 503 || message.includes('NVIDIA_API_KEY') || message.includes('GEMINI_API_KEY')) {
+  } else if (status === 503 || message.includes('NVIDIA_API_KEY')) {
     normalized.message = KEY_NOT_CONFIGURED_MSG;
   } else if (status === 429) {
     if (/rate limited|too many requests/i.test(message) && !message.includes('Daily AI')) {
@@ -94,7 +94,7 @@ function normalizeInvokeError(err) {
   return normalized;
 }
 
-export async function invokeGeminiStudy(action, payload, options = {}) {
+export async function invokeAiStudy(action, payload, options = {}) {
   const { signal } = options;
   const trace = getActiveStudyAiTrace();
   const debug = isStudyAiDebugEnabled();
@@ -112,7 +112,7 @@ export async function invokeGeminiStudy(action, payload, options = {}) {
   }
 
   if (debug && trace) {
-    trace.stepStart('1a_invoke', 'POST geminiStudy', {
+    trace.stepStart('1a_invoke', 'POST aiStudy', {
       action,
       rawDump,
       payloadKeys: Object.keys(payload ?? {}),
@@ -144,9 +144,9 @@ export async function invokeGeminiStudy(action, payload, options = {}) {
     storeDebugAndRawFromPayload(result, 'success');
     notifyAiQuotaChanged();
     if (debug && trace) {
-      trace.stepOk('1a_invoke', 'POST geminiStudy', {
+      trace.stepOk('1a_invoke', 'POST aiStudy', {
         resultKeys: Object.keys(result ?? {}),
-        hasRaw: Boolean(extractRawGeminiFromPayload(result)),
+        hasRaw: Boolean(extractRawAiFromPayload(result)),
         hasDebug: Boolean(result?._debug),
         meta: result?._meta,
       });
@@ -169,16 +169,16 @@ export async function invokeGeminiStudy(action, payload, options = {}) {
       console.log('message:', normalized.message);
       console.log('serverPayload:', normalized.serverPayload);
       console.log('server _debug:', normalized.debug);
-      console.log('rawGeminiText length:', normalized.rawGeminiText?.length ?? 0);
-      if (normalized.rawGeminiText) console.log('rawGeminiText:', normalized.rawGeminiText);
+      console.log('rawAiText length:', normalized.rawAiText?.length ?? 0);
+      if (normalized.rawAiText) console.log('rawAiText:', normalized.rawAiText);
       console.groupEnd();
     }
     if (trace && debug) {
-      trace.stepFail('1a_invoke', 'POST geminiStudy', normalized, {
+      trace.stepFail('1a_invoke', 'POST aiStudy', normalized, {
         status: normalized.status,
         serverPayload: normalized.serverPayload,
         serverDebug: normalized.debug,
-        rawLength: normalized.rawGeminiText?.length ?? 0,
+        rawLength: normalized.rawAiText?.length ?? 0,
       });
     }
     throw normalized;
@@ -197,16 +197,16 @@ export async function invokeGeminiStudy(action, payload, options = {}) {
   return invokePromise.then(handleResult).catch(handleFailure);
 }
 
-export function parseGeminiStudyResponse(result) {
+export function parseAiStudyResponse(result) {
   if (!result) throw new Error('Empty response from AI service');
 
   storeDebugAndRawFromPayload(result, 'parse');
 
-  // Debug responses attach rawGeminiText for inspection — only skip parsing for explicit raw-dump mode.
+  // Debug responses attach rawAiText for inspection — only skip parsing for explicit raw-dump mode.
   const explicitRawDump = result.data?.parsedSkipped === true;
-  if (explicitRawDump && (result.rawGeminiText || result.data?.rawGeminiText)) {
+  if (explicitRawDump && (result.rawAiText || result.data?.rawAiText)) {
     return {
-      rawGeminiText: result.rawGeminiText ?? result.data?.rawGeminiText,
+      rawAiText: result.rawAiText ?? result.data?.rawAiText,
       parsedSkipped: true,
       action: result.data?.action,
     };
@@ -216,7 +216,7 @@ export function parseGeminiStudyResponse(result) {
     const err = new Error(result.error.message || result.error);
     err.status = result.error.status ?? result.status;
     err.debug = result._debug;
-    err.rawGeminiText = result.rawGeminiText;
+    err.rawAiText = result.rawAiText;
     throw normalizeInvokeError(err);
   }
 

@@ -3,7 +3,7 @@ import StudyAiRawPanel from '@/components/study/StudyAiRawPanel';
 import {
   formatStudyAiDebugSummary,
   isStudyAiDebugEnabled,
-  getLastRawGemini,
+  getLastRawAi,
 } from '@/utils/study/studyAiTrace';
 import { classifyAiFailure } from '@/utils/ai/invokeWithRetry';
 
@@ -55,7 +55,7 @@ export function AiFailureCard({
   const displayMessage = friendlyMessage(message, error, progress);
   const ref = ticketRef ?? error?.ticketRef ?? null;
   const debugSummary = debugEnabled ? formatStudyAiDebugSummary(error) : null;
-  const rawText = debugEnabled ? (error?.rawGeminiText ?? getLastRawGemini()) : null;
+  const rawText = debugEnabled ? (error?.rawAiText ?? getLastRawAi()) : null;
   const isQuotaError = error?.status === 429
     || /daily ai limit|token budget/i.test(message ?? '');
 
@@ -103,7 +103,7 @@ export function AiFailureCard({
         {debugEnabled && rawText && (
           <StudyAiRawPanel
             text={rawText}
-            title="Raw Gemini response (debug only)"
+            title="Raw AI response (debug only)"
             subtitle="Visible because AI debug mode is on."
           />
         )}

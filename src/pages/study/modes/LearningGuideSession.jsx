@@ -6,7 +6,7 @@ import SessionSummary from '@/components/study/SessionSummary';
 import { StudyAiError } from '@/components/study/StudyAiStatus';
 import AiGenerationLoading from '@/components/shared/AiGenerationLoading';
 import StudyAiRawPanel from '@/components/study/StudyAiRawPanel';
-import { fetchGeminiStudyRaw } from '@/api/ai/study';
+import { fetchAiStudyRaw } from '@/api/ai/study';
 import { generateLearningGuideProgressive } from '@/utils/study/generateLearningGuideProgressive';
 import { sectionCountForConcepts } from '@/api/ai/prompts/learningGuide';
 import { normalizeGuideContent } from '@/utils/study/normalizeGuideContent';
@@ -90,7 +90,7 @@ export default function LearningGuideSession({ session, activity, module, journe
     setRawLoading(true);
     setRawError(null);
 
-    fetchGeminiStudyRaw('generateLearningGuide', buildPayload())
+    fetchAiStudyRaw('generateLearningGuide', buildPayload())
       .then((result) => {
         if (cancelled) return;
         setRawText(result?.rawGeminiText ?? getLastRawGemini());

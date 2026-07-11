@@ -1,7 +1,7 @@
 import { journeyProposalSchema } from '@/utils/schemas/ai';
 import { normalizeJourneyProposal } from '@/utils/schemas/ai/normalize';
 import { trimMaterial } from '@/api/ai/tokenEstimate';
-import { invokeGemini, parseGeminiResponse } from '@/api/ai/client';
+import { invokeAiJourney, parseAiJourneyResponse } from '@/api/ai/client';
 import { sanitizeMaterialInput, sanitizeShortLabel } from '@/utils/ai/sanitizeUserInput';
 
 function buildBasePayload(input) {
@@ -18,7 +18,7 @@ function buildBasePayload(input) {
 }
 
 function parseProposal(raw) {
-  const parsed = parseGeminiResponse(raw);
+  const parsed = parseAiJourneyResponse(raw);
   return journeyProposalSchema.parse(
     normalizeJourneyProposal(parsed.data ?? parsed),
   );
@@ -35,7 +35,7 @@ export async function proposeJourney(input, options = {}) {
 
   onProgress?.({ phase: 'propose', moduleIndex: 0, moduleCount: 0 });
 
-  const raw = await invokeGemini('proposeJourney', base, { signal });
+  const raw = await invokeAiJourney('proposeJourney', base, { signal });
 
   let firstError;
   try {
@@ -53,14 +53,14 @@ export async function proposeJourney(input, options = {}) {
 
   const parsedFirst = (() => {
     try {
-      const p = parseGeminiResponse(raw);
+      const p = parseAiJourneyResponse(raw);
       return p.data ?? p;
     } catch {
       return {};
     }
   })();
 
-  const repairRaw = await invokeGemini('repairJourneyProposal', {
+  const repairRaw = await invokeAiJourney('repairJourneyProposal', {
     ...base,
     partialProposal: typeof parsedFirst === 'object' && parsedFirst !== null ? parsedFirst : {},
     validationErrors: String(firstError?.message ?? 'Proposal failed validation').slice(0, 2000),

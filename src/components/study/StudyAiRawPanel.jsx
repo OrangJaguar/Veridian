@@ -3,8 +3,8 @@ import { toast } from 'sonner';
 
 export default function StudyAiRawPanel({
   text,
-  title = 'Raw Gemini response (unparsed)',
-  subtitle = 'This is exactly what Gemini returned — no parsing or validation applied.',
+  title = 'Raw AI response (unparsed)',
+  subtitle = 'This is exactly what AI returned — no parsing or validation applied.',
   onExit,
 }) {
   const [copied, setCopied] = useState(false);

@@ -1,6 +1,6 @@
 import { journeyProposalSchema, cachedKnowledgeMapSchema } from '@/utils/schemas/ai';
 import { normalizeJourneyProposal } from '@/utils/schemas/ai/normalize';
-import { invokeGemini, parseGeminiResponse } from '@/api/ai/client';
+import { invokeAiJourney, parseAiJourneyResponse } from '@/api/ai/client';
 
 /**
  * @param {{ title: string, subject: string, priorKnowledge: string, cachedKnowledgeMap: object }} input
@@ -8,14 +8,14 @@ import { invokeGemini, parseGeminiResponse } from '@/api/ai/client';
 export async function regenerateModules(input, options = {}) {
   const cached = cachedKnowledgeMapSchema.parse(input.cachedKnowledgeMap);
 
-  const raw = await invokeGemini('regenerateModules', {
+  const raw = await invokeAiJourney('regenerateModules', {
     title: input.title,
     subject: input.subject,
     priorKnowledge: input.priorKnowledge ?? 'some',
     cachedKnowledgeMap: cached,
   }, options);
 
-  const parsed = parseGeminiResponse(raw);
+  const parsed = parseAiJourneyResponse(raw);
   const data = journeyProposalSchema.parse(
     normalizeJourneyProposal(parsed.data ?? parsed),
   );
