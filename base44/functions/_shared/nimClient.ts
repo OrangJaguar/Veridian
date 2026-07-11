@@ -6,8 +6,7 @@
  *   light → AI_LIGHT_MODEL (default deepseek-ai/deepseek-v4-flash)
  *
  * Secrets (base44 secrets set --env-file .env.secrets):
- *   NVIDIA_API_KEY        — required
- *   NVIDIA_API_KEY_LIGHT  — optional, falls back to NVIDIA_API_KEY
+ *   NVIDIA_API_KEY        — required (same key for both tiers)
  *   NVIDIA_NIM_BASE_URL   — optional, defaults to https://integrate.api.nvidia.com/v1
  */
 
@@ -37,10 +36,8 @@ export function resolveModelForTier(tier: ModelTier): string {
   return Deno.env.get("AI_HEAVY_MODEL")?.trim() || DEFAULT_HEAVY_MODEL;
 }
 
-function resolveApiKey(tier: ModelTier): string {
-  const heavyKey = Deno.env.get("NVIDIA_API_KEY")?.trim();
-  const lightKey = Deno.env.get("NVIDIA_API_KEY_LIGHT")?.trim();
-  const key = tier === "light" ? (lightKey || heavyKey) : heavyKey;
+function resolveApiKey(): string {
+  const key = Deno.env.get("NVIDIA_API_KEY")?.trim();
   if (!key) {
     throw new NimConfigError(
       "NVIDIA_API_KEY is not configured on the server. Run: base44 secrets set NVIDIA_API_KEY=nvapi-...",
@@ -51,6 +48,14 @@ function resolveApiKey(tier: ModelTier): string {
 
 function resolveBaseUrl(): string {
   return Deno.env.get("NVIDIA_NIM_BASE_URL")?.trim() || DEFAULT_BASE_URL;
+}
+
+/** Per-tier thinking-mode toggle — light model uses reasoning, heavy model disables it. */
+function chatTemplateKwargsForTier(tier: ModelTier): Record<string, unknown> {
+  if (tier === "light") {
+    return { thinking: true, reasoning_effort: "high" };
+  }
+  return { thinking: false };
 }
 
 export interface ChatCompletionParams {
@@ -110,7 +115,7 @@ export async function chatCompletion(params: ChatCompletionParams): Promise<Chat
     history = [],
   } = params;
 
-  const apiKey = resolveApiKey(tier);
+  const apiKey = resolveApiKey();
   const model = resolveModelForTier(tier);
   const baseUrl = resolveBaseUrl();
 
@@ -126,6 +131,7 @@ export async function chatCompletion(params: ChatCompletionParams): Promise<Chat
     temperature,
     max_tokens: maxTokens,
     stream: false,
+    chat_template_kwargs: chatTemplateKwargsForTier(tier),
   };
   if (jsonMode) {
     body.response_format = { type: "json_object" };
