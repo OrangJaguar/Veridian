@@ -21,7 +21,7 @@ import { useUpdateActivity } from '@/hooks/mutations/useActivityMutations';
 import { useUpdateSession } from '@/hooks/mutations/useSessionMutations';
 import { useJourney } from '@/hooks/queries/useJourneys';
 import { queryKeys } from '@/api/query-keys';
-import { isRawDumpEnabled, getLastRawGemini } from '@/utils/study/studyAiTrace';
+import { isRawDumpEnabled, getLastRawAi } from '@/utils/study/studyAiTrace';
 
 export default function LearningGuideSession({ session, activity, module, journeyId }) {
   const rawDumpMode = isRawDumpEnabled();
@@ -93,12 +93,12 @@ export default function LearningGuideSession({ session, activity, module, journe
     fetchAiStudyRaw('generateLearningGuide', buildPayload())
       .then((result) => {
         if (cancelled) return;
-        setRawText(result?.rawGeminiText ?? getLastRawGemini());
+        setRawText(result?.rawAiText ?? getLastRawAi());
       })
       .catch((err) => {
         if (cancelled) return;
         setRawError(err instanceof Error ? err : new Error(String(err)));
-        const captured = getLastRawGemini();
+        const captured = getLastRawAi();
         if (captured) setRawText(captured);
       })
       .finally(() => {
@@ -315,7 +315,7 @@ export default function LearningGuideSession({ session, activity, module, journe
     if (rawLoading) {
       return (
         <AiGenerationLoading
-          action="rawGeminiDump"
+          action="rawAiDump"
           className="study-mode-view guide-mode-view guide-mode-view--loading"
         />
       );
@@ -324,7 +324,7 @@ export default function LearningGuideSession({ session, activity, module, journe
       return (
         <StudyAiRawPanel
           text={rawText}
-          title="Learning guide — raw Gemini dump"
+          title="Learning guide — raw AI dump"
           onExit={handleExit}
         />
       );
