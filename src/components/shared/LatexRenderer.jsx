@@ -3,13 +3,27 @@ import 'katex/dist/katex.min.css';
 import 'katex/contrib/mhchem';
 import { normalizeLatexText } from '@/utils/latex/normalizeLatexText';
 
+function isSafeUrl(url) {
+  if (typeof url !== 'string') return false;
+  const lower = url.trim().toLowerCase();
+  return lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('mailto:');
+}
+
+/** Allow \href/\url only for safe protocols; blocks javascript:, data:, vbscript:, etc. */
+function katexTrust(context) {
+  if (context && (context.command === '\\href' || context.command === '\\url')) {
+    return isSafeUrl(context.url);
+  }
+  return false;
+}
+
 function renderSegment(text, displayMode) {
   try {
     return katex.renderToString(text, {
       throwOnError: false,
       displayMode,
       strict: 'ignore',
-      trust: true,
+      trust: katexTrust,
     });
   } catch {
     return text;
