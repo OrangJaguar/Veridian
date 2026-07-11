@@ -50,6 +50,10 @@ function extractJsonText(raw: string): string {
   return trimmed;
 }
 
+function estimateTokens(text: string) {
+  return Math.ceil(text.length / 4);
+}
+
 interface ChatCompletionParams {
   tier: ModelTier;
   system: string;
@@ -124,7 +128,7 @@ function wrapUserContent(value: unknown): string {
   return `${USER_DATA_START}\n${text}\n${USER_DATA_END}`;
 }
 
-const DEPLOY_BUILD = "nim-deepseek-v1-two-call-propose-v2";
+const DEPLOY_BUILD = "nim-deepseek-v1-inline-nim-v3";
 const MAX_OUTPUT_TOKENS = 8192;
 const MAX_OUTPUT_TOKENS_OUTLINE = 1536;
 const MAX_OUTPUT_TOKENS_MODULE = 1024;
@@ -288,10 +292,6 @@ async function checkAndIncrementQuota(
 
   await base44.entities.UserAiQuota.update(quota.id, patch);
   return null;
-}
-
-function estimateTokens(text: string) {
-  return Math.ceil(text.length / 4);
 }
 
 const PROPOSE_SYSTEM = `You are a study curriculum architect. Extract a compact knowledge map and propose 2-8 modules covering ALL of the provided material.

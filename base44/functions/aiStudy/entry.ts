@@ -30,6 +30,22 @@ function chatTemplateKwargsForTier(tier: ModelTier): Record<string, unknown> {
   return { thinking: false };
 }
 
+function stripModelDecorations(raw: string): string {
+  let text = String(raw ?? "");
+  const open = "<" + "think" + ">";
+  const close = "</" + "think" + ">";
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  text = text.replace(new RegExp(esc(open) + "[\\s\\S]*?" + esc(close), "gi"), "");
+  const trimmed = text.trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) return fenced[1].trim();
+  return trimmed;
+}
+
+function estimateTokens(text: string) {
+  return Math.ceil(text.length / 4);
+}
+
 interface ChatCompletionParams {
   tier: ModelTier;
   system: string;
@@ -196,7 +212,7 @@ function clipString(value: unknown, max: number) {
 }
 
 function extractJsonText(raw: string) {
-  const trimmed = String(raw ?? "").trim();
+  const trimmed = stripModelDecorations(raw);
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenced) return fenced[1].trim();
 
@@ -827,7 +843,7 @@ function payloadShapeSummary(value: unknown): Record<string, unknown> {
 }
 
 
-const DEPLOY_BUILD = "nim-deepseek-v1-single-call-v2";
+const DEPLOY_BUILD = "nim-deepseek-v1-inline-nim-v3";
 const MAX_OUTPUT_TOKENS = 4096;
 const MAX_OUTPUT_TOKENS_GUIDE = 8192;
 const MAX_OUTPUT_TOKENS_SECTION = 1536;
@@ -941,10 +957,6 @@ function debugExtras(debug?: ReturnType<typeof createAiDebugTrace>) {
     ...(snap.lastRawAiText ? { rawAiText: snap.lastRawAiText } : {}),
     _debug: snap,
   };
-}
-
-function estimateTokens(text: string) {
-  return Math.ceil(text.length / 4);
 }
 
 async function getOrCreateQuota(base44: ReturnType<typeof createClientFromRequest>, userEmail: string) {
