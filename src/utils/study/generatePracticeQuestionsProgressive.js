@@ -6,7 +6,7 @@ import { generateInterleavedQuestions } from '@/api/ai/study';
 
 /**
  * All quiz modes generate the full question set in ONE AI call
- * (DeepSeek handles the full count reliably; the old 5-question batching
+ * (the AI model handles the full count reliably; the old 5-question batching
  * existed for older model output limits). Options like onBatch/existingQuestions
  * from the batched era are accepted and ignored for caller compatibility.
  */

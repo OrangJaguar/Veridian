@@ -44,9 +44,9 @@ export default function PrivacyPage() {
       <section className="legal-section">
         <h2>AI processing</h2>
         <p>
-          Veridian uses <strong>Google Gemini</strong> to power AI features (learning guides, quizzes,
+          Veridian uses <strong>AI models</strong> to power AI features (learning guides, quizzes,
           flashcards, grading, and journey creation). Text and materials you submit may be transmitted to
-          Google&apos;s API to generate outputs. Generated content is stored in your Veridian account.
+          our AI provider to generate outputs. Generated content is stored in your Veridian account.
           We send only what is needed to provide the feature you requested.
         </p>
         <p>

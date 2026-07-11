@@ -4,7 +4,7 @@ function clipString(value, max) {
   return text.length > max ? text.slice(0, max).trim() : text;
 }
 
-/** Coerce Gemini output into schema-friendly shape before Zod validation. */
+/** Coerce AI output into schema-friendly shape before Zod validation. */
 export function normalizeJourneyProposal(raw) {
   if (!raw || typeof raw !== 'object') return raw;
 

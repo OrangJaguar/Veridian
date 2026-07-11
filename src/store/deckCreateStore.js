@@ -117,8 +117,8 @@ export const useDeckCreateStore = create((set, get) => ({
 
       const cards = await runStudyAiGeneration({
         generate: async () => {
-          // Single call for the full deck — DeepSeek handles large card counts
-          // reliably (batching was a Gemma output-limit workaround).
+          // Single call for the full deck — the AI model handles large card counts
+          // reliably (batching was a legacy output-limit workaround).
           const result = await invokeWithRetry(
             (signal) => generateFlashcards(payload, { signal }),
           );

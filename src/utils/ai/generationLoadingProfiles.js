@@ -29,7 +29,7 @@ export const GENERATION_LOADING_PROFILES = {
     mode: 'long',
     label: 'Generating your learning guide…',
     steps: ['Planning sections', 'Writing explanations', 'Adding examples', 'Creating check-ins'],
-    patienceNote: 'DeepSeek is building the full guide in one pass — this may take a minute.',
+    patienceNote: 'AI is building the full guide in one pass — this may take a minute.',
   },
   proposeJourney: {
     mode: 'long',
@@ -78,7 +78,7 @@ export const GENERATION_LOADING_PROFILES = {
     label: 'Updating your deck…',
     steps: ['Analyzing cards', 'Applying edits'],
   },
-  rawGeminiDump: {
+  rawAiDump: {
     mode: 'short',
     label: 'Fetching raw AI response…',
     steps: [],

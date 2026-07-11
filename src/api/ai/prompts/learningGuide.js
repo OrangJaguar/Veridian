@@ -1,5 +1,5 @@
 /**
- * Reference prompts for generateLearningGuide — canonical server copy: base44/functions/geminiStudy/entry.ts (model: gemma-4-31b-it)
+ * Reference prompts for generateLearningGuide — canonical server copy: base44/functions/aiStudy/entry.ts
  * UI layout (LearningGuideViewer):
  *   title → zigzag explanation (+ 2 decorative SVG slots, client-side) → worked example →
  *   check-in → YouTube chips (client-side from title) → Continue
