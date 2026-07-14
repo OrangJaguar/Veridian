@@ -8,6 +8,7 @@ import {
   buildJourneyTitleRules,
 } from '@/components/auth/AuthFieldRules';
 import { isValidJourneyTitle, normalizeJourneyTitle } from '@/utils/schemas/journeyTitle';
+import { canAdvanceBasicSetup } from '@/utils/journey/canAdvanceBasicSetup';
 
 const PRIOR_OPTIONS = [
   { value: 'scratch', label: 'Starting from scratch' },
@@ -19,19 +20,26 @@ export default function StepBasicSetup({ onNext }) {
   const draft = useJourneyCreateStore((s) => s.draft);
   const updateDraft = useJourneyCreateStore((s) => s.updateDraft);
   const [titleFocused, setTitleFocused] = useState(false);
+  const [hasExamDate, setHasExamDate] = useState(draft.examDate != null);
 
   const titleRules = buildJourneyTitleRules(draft.title, titleFocused);
-  const titleValid = isValidJourneyTitle(draft.title);
   const showTitleRules = titleFocused || draft.title.length > 0;
 
-  const canNext = titleValid
-    && JOURNEY_SUBJECT_OPTIONS.includes(draft.subject)
-    && draft.examDate != null;
+  const canNext = canAdvanceBasicSetup(draft, { hasExamDate });
+
+  const selectExamMode = (withExam) => {
+    setHasExamDate(withExam);
+    if (!withExam) {
+      updateDraft({ examDate: null });
+    }
+  };
 
   return (
     <div className="create-step">
-      <h2 className="create-step-title">Name and deadline</h2>
-      <p className="create-step-desc">Tell Veridian what you&apos;re studying and when your exam is.</p>
+      <h2 className="create-step-title">Name and goal</h2>
+      <p className="create-step-desc">
+        Tell Veridian what you&apos;re studying — and set an exam date only if you have one.
+      </p>
 
       <label className="create-field">
         <span>Journey title</span>
@@ -65,20 +73,46 @@ export default function StepBasicSetup({ onNext }) {
         </select>
       </label>
 
-      <label className="create-field">
-        <span>Exam date</span>
-        <input
-          type="date"
-          required
-          value={draft.examDate ? new Date(draft.examDate).toISOString().slice(0, 10) : ''}
-          onChange={(e) => {
-            const val = e.target.value;
-            updateDraft({
-              examDate: val ? new Date(`${val}T12:00:00`).getTime() : null,
-            });
-          }}
-        />
-      </label>
+      <fieldset className="create-field create-fieldset">
+        <legend className="create-fieldset-legend">Exam timeline</legend>
+        <div className="create-choice-list">
+          <ChoiceRadio
+            name="examMode"
+            value="exam"
+            label="I have an exam date"
+            checked={hasExamDate}
+            onChange={() => selectExamMode(true)}
+          />
+          <ChoiceRadio
+            name="examMode"
+            value="open"
+            label="Open learning — no exam"
+            checked={!hasExamDate}
+            onChange={() => selectExamMode(false)}
+          />
+        </div>
+      </fieldset>
+
+      {hasExamDate ? (
+        <label className="create-field">
+          <span>Exam date</span>
+          <input
+            type="date"
+            required
+            value={draft.examDate ? new Date(draft.examDate).toISOString().slice(0, 10) : ''}
+            onChange={(e) => {
+              const val = e.target.value;
+              updateDraft({
+                examDate: val ? new Date(`${val}T12:00:00`).getTime() : null,
+              });
+            }}
+          />
+        </label>
+      ) : (
+        <p className="create-step-hint">
+          Without an exam, Veridian uses Keep sharp pacing (lighter, spaced practice).
+        </p>
+      )}
 
       <fieldset className="create-field create-fieldset">
         <legend className="create-fieldset-legend">Prior knowledge</legend>

@@ -32,7 +32,7 @@ export default function LandingPage() {
     applicationCategory: 'EducationalApplication',
     operatingSystem: 'Web',
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-    description: 'Study engine with fluency diagnostics, spaced repetition, and Due Today planning.',
+    description: 'Study engine that detects six learning breakdown patterns, adapts practice to your gaps, and plans Due Today from your own material.',
   };
 
   return (

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
 import PreQuizConfidenceStep from '@/components/research/PreQuizConfidenceStep';
 import { StudyAiError } from '@/components/study/StudyAiStatus';
@@ -8,6 +8,7 @@ import { usePreQuizConfidence } from '@/hooks/research/usePreQuizConfidence';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
 import { useUpdateSession } from '@/hooks/mutations/useSessionMutations';
+import { useStudyAiAutoGeneration } from '@/hooks/ai/useStudyAiGeneration';
 import { generateDiagnosticQuestions } from '@/api/ai/study';
 import { invokeWithRetry } from '@/utils/ai/invokeWithRetry';
 import { applyModuleDiagnosticResults } from '@/api/entities/applyModuleDiagnosticResults';
@@ -33,10 +34,9 @@ export default function BaselineCheckSession({
   journeyId,
   journey,
 }) {
-  const [phase, setPhase] = useState(() => quizPhaseAfterQuestions(session, 'loading'));
+  const hasQuestions = Boolean(session.sessionData?.questions?.length);
+  const [phase, setPhase] = useState(() => quizPhaseAfterQuestions(session, hasQuestions ? 'confidence' : 'loading'));
   const [questions, setQuestions] = useState(() => session.sessionData?.questions ?? []);
-  const [loading, setLoading] = useState(!session.sessionData?.questions?.length);
-  const [genError, setGenError] = useState(null);
   const [confidenceSlider, setConfidenceSlider] = useState(
     () => session.sessionData?.confidenceSlider ?? null,
   );
@@ -59,36 +59,58 @@ export default function BaselineCheckSession({
     abandonSession({ sessionId: session.sessionId, journeyId, returnPath });
   };
 
-  const generate = useCallback(async () => {
-    setLoading(true);
-    setGenError(null);
-    try {
-      const raw = await invokeWithRetry((signal) => generateDiagnosticQuestions({
-        title: journey?.title,
-        subject: journey?.subject,
-        priorKnowledge: journey?.priorKnowledge ?? 'some',
-        difficultyGuidance: difficultyGuidanceForPriorKnowledge(journey?.priorKnowledge),
-        questionsPerModule: DIAGNOSTIC_QUESTIONS_PER_MODULE,
-        modules: [{
-          moduleId: module.moduleId,
-          name: module.name,
-          description: module.description,
-          concepts: module.knowledgeMap?.concepts ?? [],
-        }],
-      }, { signal }));
+  const buildPayload = useCallback(() => ({
+    title: journey?.title,
+    subject: journey?.subject,
+    priorKnowledge: journey?.priorKnowledge ?? 'some',
+    difficultyGuidance: difficultyGuidanceForPriorKnowledge(journey?.priorKnowledge),
+    questionsPerModule: DIAGNOSTIC_QUESTIONS_PER_MODULE,
+    modules: [{
+      moduleId: module.moduleId,
+      name: module.name,
+      description: module.description,
+      concepts: module.knowledgeMap?.concepts ?? [],
+    }],
+  }), [journey?.priorKnowledge, journey?.subject, journey?.title, module]);
 
-      const nextQuestions = normalizeDiagnosticQuestions(
-        raw.questions ?? raw,
-        [module],
-        DIAGNOSTIC_QUESTIONS_PER_MODULE,
-      );
+  const markSessionGenerating = useCallback(async () => {
+    await updateSession.mutateAsync({
+      sessionId: session.sessionId,
+      journeyId,
+      skipInvalidate: true,
+      patch: {
+        sessionData: {
+          ...session.sessionData,
+          aiGeneration: { status: 'generating', startedAt: Date.now() },
+        },
+      },
+    });
+  }, [journeyId, session.sessionData, session.sessionId, updateSession]);
+
+  const { isLoading, isError, error, retry } = useStudyAiAutoGeneration({
+    action: 'generateDiagnosticQuestions',
+    enabled: Boolean(journey && module?.moduleId),
+    hasContent: hasQuestions,
+    beforeGenerate: markSessionGenerating,
+    generate: () => invokeWithRetry(
+      (signal) => generateDiagnosticQuestions(buildPayload(), { signal }),
+      { maxAttempts: 2 },
+    ),
+    normalize: (raw) => normalizeDiagnosticQuestions(
+      raw.questions ?? raw,
+      [module],
+      DIAGNOSTIC_QUESTIONS_PER_MODULE,
+    ),
+    validate: (nextQuestions) => {
       if (!nextQuestions.length) {
         throw new Error('AI returned no diagnostic questions. Try again.');
       }
-
+    },
+    persist: async (nextQuestions) => {
       await updateSession.mutateAsync({
         sessionId: session.sessionId,
         journeyId,
+        skipInvalidate: true,
         patch: {
           sessionData: {
             ...session.sessionData,
@@ -97,21 +119,25 @@ export default function BaselineCheckSession({
           },
         },
       });
+    },
+    onSuccess: (nextQuestions) => {
       setQuestions(nextQuestions);
       setPhase('confidence');
-    } catch (err) {
-      setGenError(err instanceof Error ? err : new Error(String(err)));
-      setPhase('error');
-    } finally {
-      setLoading(false);
-    }
-  }, [journey, module, session.sessionData, session.sessionId, journeyId, updateSession]);
-
-  useEffect(() => {
-    if (!session.sessionData?.questions?.length) {
-      generate();
-    }
-  }, [generate, session.sessionData?.questions?.length]);
+    },
+    onError: async (err) => {
+      await updateSession.mutateAsync({
+        sessionId: session.sessionId,
+        journeyId,
+        skipInvalidate: true,
+        patch: {
+          sessionData: {
+            ...session.sessionData,
+            aiGeneration: { status: 'failed', message: err.message, failedAt: Date.now() },
+          },
+        },
+      }).catch(() => {});
+    },
+  });
 
   const handleComplete = async (answers) => {
     const correct = answers.filter((a) => a.correct).length;
@@ -146,7 +172,7 @@ export default function BaselineCheckSession({
     });
   };
 
-  if (loading && !questions.length) {
+  if (isLoading && !questions.length) {
     return (
       <AiGenerationLoading
         action="generateDiagnosticQuestions"
@@ -155,9 +181,9 @@ export default function BaselineCheckSession({
     );
   }
 
-  if (genError) {
+  if (isError && !questions.length) {
     return (
-      <StudyAiError message={genError?.message} error={genError} onRetry={generate} onExit={handleExit} />
+      <StudyAiError message={error?.message} error={error} onRetry={retry} onExit={handleExit} />
     );
   }
 
@@ -197,14 +223,38 @@ export default function BaselineCheckSession({
 
 export function BaselineCheckIntro({ module, onStart, onSkip, skipping }) {
   return (
-    <div className="baseline-check-intro">
-      <h1 className="baseline-check-title">See where you&apos;re starting</h1>
-      <p className="baseline-check-lead">
-        An optional {DIAGNOSTIC_QUESTIONS_PER_MODULE}-question AI check so Veridian can place
-        this module at the right starting stage. Skipping is completely fine — you can study
-        right away and take it later.
-      </p>
-      <p className="baseline-check-meta">{DIAGNOSTIC_QUESTIONS_PER_MODULE} questions · {module?.name}</p>
+    <div className="baseline-check-shell">
+      <div className="baseline-check-hero card-surface">
+        <span className="baseline-check-badge">Optional · ~2 min</span>
+        <h1 className="baseline-check-title">See where you&apos;re starting</h1>
+        <p className="baseline-check-module-name">{module?.name}</p>
+        <p className="baseline-check-lead">
+          A quick {DIAGNOSTIC_QUESTIONS_PER_MODULE}-question AI check helps Veridian place this module
+          at the right starting stage. Skipping is fine — you can study right away and take it later.
+        </p>
+      </div>
+
+      <div className="baseline-check-grid">
+        <div className="baseline-check-info-card card-surface">
+          <h2 className="baseline-check-info-title">What it measures</h2>
+          <p>How well you can apply this module&apos;s core ideas — not just recognize terms from a list.</p>
+        </div>
+        <div className="baseline-check-info-card card-surface">
+          <h2 className="baseline-check-info-title">Why it&apos;s optional</h2>
+          <p>Veridian works without it. The check only fine-tunes your starting stage and study recommendations.</p>
+        </div>
+        <div className="baseline-check-info-card card-surface">
+          <h2 className="baseline-check-info-title">What happens after</h2>
+          <p>We suggest a starting stage for this module and tailor what shows up in your study queue.</p>
+        </div>
+      </div>
+
+      <ol className="baseline-check-steps card-surface">
+        <li><span>1</span> Answer {DIAGNOSTIC_QUESTIONS_PER_MODULE} short questions</li>
+        <li><span>2</span> Set your confidence level</li>
+        <li><span>3</span> Jump into the module at the right stage</li>
+      </ol>
+
       <div className="baseline-check-actions">
         <button type="button" className="btn btn-primary" onClick={onStart}>
           Start check

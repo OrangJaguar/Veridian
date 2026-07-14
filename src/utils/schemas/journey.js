@@ -37,7 +37,7 @@ export const journeySchema = z.object({
   weeklyPlanSnapshot: z.record(z.unknown()).optional(),
   weeklyPlanWeekKey: z.string().optional(),
   weeklyPlanBuiltAt: z.number().optional(),
-  weeklyPlanMode: z.enum(['normal', 'cram']).optional(),
+  weeklyPlanMode: z.enum(['normal', 'examWeek', 'cram', 'keepSharp']).optional(),
   publishedAt: z.number().nullable().optional(),
   creatorUsername: z.string().optional(),
   clonedFromJourneyId: z.string().optional(),

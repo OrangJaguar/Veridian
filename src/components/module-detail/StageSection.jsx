@@ -6,11 +6,20 @@ const STAGE_LABELS = {
   C: { title: 'Stage C — Mastery', desc: 'Deepen understanding with advanced techniques' },
 };
 
-export default function StageSection({ stage, recommendedStage, activities, cardsByActivity, journeyId, moduleId }) {
+export default function StageSection({
+  stage,
+  recommendedStage,
+  activities,
+  cardsByActivity,
+  journeyId,
+  moduleId,
+  guideComplete = false,
+}) {
   const types = stageActivityTypes(stage);
   const stageActivities = activities.filter((a) => types.includes(a.type));
   const info = STAGE_LABELS[stage];
   const isRecommended = stage === recommendedStage;
+  const showHonesty = stage === 'A' && recommendedStage === 'A' && !guideComplete;
 
   return (
     <section className={`module-stage-section${isRecommended ? ' recommended' : ''}`}>
@@ -18,6 +27,11 @@ export default function StageSection({ stage, recommendedStage, activities, card
         <h2 className="module-stage-title">{info.title}</h2>
         {isRecommended && <span className="module-stage-badge">Recommended</span>}
         <p className="module-stage-desc">{info.desc}</p>
+        {showHonesty && (
+          <p className="module-stage-a-honesty">
+            We start with the Learning Guide so early practice isn&apos;t random.
+          </p>
+        )}
       </div>
       <div className="module-stage-activities">
         {stageActivities.length === 0 ? (

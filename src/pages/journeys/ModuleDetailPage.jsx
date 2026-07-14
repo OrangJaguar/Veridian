@@ -12,8 +12,11 @@ import ModuleDetailHeader from '@/components/module-detail/ModuleDetailHeader';
 import StageSection from '@/components/module-detail/StageSection';
 import FlashcardDeckList from '@/components/module-detail/FlashcardDeckList';
 import SessionHistoryPanel from '@/components/module-detail/SessionHistoryPanel';
+import ModuleFailureProfileCard from '@/components/module-detail/ModuleFailureProfileCard';
+import { useModuleFailureProfile } from '@/hooks/queries/useModuleFailureProfile';
 import { useRecoverStaleGeneratingActivities } from '@/hooks/useRecoverStaleGeneratingActivities';
 import { moduleNeedsBaseline } from '@/utils/research/baselineCheck';
+import { learningGuideIncomplete } from '@/utils/study/activityContent';
 
 export default function ModuleDetailPage() {
   const { id: journeyId, moduleId } = useParams();
@@ -27,6 +30,7 @@ export default function ModuleDetailPage() {
   const mod = modules.find((m) => m.moduleId === moduleId);
   const flashcardDecks = activities.filter((a) => a.type === 'flashcardSet');
   const recommendedStage = mod?.stage || 'A';
+  const { data: failureProfile, isLoading: profileLoading } = useModuleFailureProfile(moduleId, journeyId);
   const waitingForCore = (journeyPending && !journey) || (modulesPending && !mod);
 
   useRecoverStaleGeneratingActivities(journeyId, activities, sessions);
@@ -36,6 +40,9 @@ export default function ModuleDetailPage() {
     if (!cardsByActivity[card.activityId]) cardsByActivity[card.activityId] = [];
     cardsByActivity[card.activityId].push(card);
   }
+
+  const guideActivity = activities.find((a) => a.type === 'learningGuide');
+  const guideComplete = guideActivity ? !learningGuideIncomplete(guideActivity) : false;
 
   if (!isAuthenticated) {
     return (
@@ -68,8 +75,8 @@ export default function ModuleDetailPage() {
           <div>
             <h3 className="module-diagnostic-prompt-title">Know this already?</h3>
             <p className="module-diagnostic-prompt-body">
-              Take an optional 3-question check and Veridian will place this module at the
-              right starting stage. You can study without it.
+              Optional placement check (~2 min). Skipping is fine — you can study right away.
+              This places the module at the right starting stage; it is not a full learning diagnosis.
             </p>
           </div>
           <Link
@@ -81,6 +88,17 @@ export default function ModuleDetailPage() {
         </div>
       )}
 
+      <ModuleFailureProfileCard
+        profile={failureProfile}
+        loading={profileLoading}
+        moduleId={moduleId}
+        journeyId={journeyId}
+        journeyTitle={journey.title}
+        moduleName={mod.name}
+        activities={activities}
+        stage={mod.stage}
+      />
+
       {['A', 'B', 'C'].map((stage) => (
         <StageSection
           key={stage}
@@ -90,6 +108,7 @@ export default function ModuleDetailPage() {
           cardsByActivity={cardsByActivity}
           journeyId={journeyId}
           moduleId={moduleId}
+          guideComplete={guideComplete}
         />
       ))}
 

@@ -28,6 +28,14 @@ export function evaluateRecallAnswers(governance, power) {
 }
 
 export const REVEAL_COPY = {
+  skipped: {
+    header: 'See how Veridian works on real material.',
+    body: [
+      {
+        text: 'You skipped the demo — that\'s fine. Veridian turns your notes and topics into a structured study path with recall practice, not just recognition drills.',
+      },
+    ],
+  },
   failed: {
     header: 'You just experienced the Fluency Illusion.',
     body: [
@@ -36,7 +44,7 @@ export const REVEAL_COPY = {
       },
       { bold: true, text: 'Iron → Metal → Centralize' },
       {
-        text: '). Reading notes and scrolling flashcards only builds surface-level recognition. True exams test deep retrieval.',
+        text: '). Reading notes and scrolling flashcards only builds surface-level recognition. True exams test deep retrieval. In Veridian, we call this the verbatim trap — one of six learning breakdown patterns we detect from your sessions.',
       },
     ],
   },

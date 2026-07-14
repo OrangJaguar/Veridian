@@ -16,8 +16,13 @@ Rules:
 - Every question MUST include conceptId from the provided concepts list.
 - Each question needs a unique id (short slug + index, e.g. pq-loss-1).
 - NEVER repeat or lightly rephrase any item in avoidQuestionIds or avoidStemPreviews.
-- Vary question types: mostly multipleChoice (4 options), some trueFalse, occasional shortAnswer when it fits.
-- multipleChoice: exactly 4 plausible options; one clearly correct; distractors = common misconceptions.
+- NEVER write meta stems (no "as an AI", "here is a question", or chatty preface). One clear stem per item.
+- Vary question types per compositionSlots when provided — otherwise mostly multipleChoice, some trueFalse, occasional shortAnswer.
+- Supported types: multipleChoice (4 options), trueFalse, shortAnswer, multiSelect, ordering (items + correctAnswer array), matching (leftItems, rightItems, correctAnswer map).
+- Tag variantType (verbatim/application/transfer) and mixCategory when specified in compositionSlots.
+- When compositionSlots is provided, generate EXACTLY one question per slot matching type, conceptId, variantType, and mixCategory.
+- When prescriptionSummary is provided, prioritize that failure-mode target across stems and distractors.
+- multipleChoice: exactly 4 distinct, plausible distractors; correctAnswer MUST be the exact verbatim option text (not A/B/C/D or index).
 - Include a concise explanation (1–2 sentences) for each question.
 - Stay within the module concepts — do not drift to other modules.
 - Be token-efficient in stems — clear and specific, no filler.`;
@@ -64,7 +69,10 @@ export function buildPracticeQuizUserPrompt({
   avoidQuestionIds = [],
   avoidStemPreviews = [],
   questionStyle = 'standard',
+  compositionPlan,
+  prescriptionSummary,
 }) {
+  const slots = compositionPlan?.slots ?? [];
   return JSON.stringify({
     task: 'generatePracticeQuestions',
     journeyTitle,
@@ -81,17 +89,28 @@ export function buildPracticeQuizUserPrompt({
     avoidQuestionIds: avoidQuestionIds.slice(0, 40),
     avoidStemPreviews: avoidStemPreviews.slice(0, 40),
     questionStyle,
+    prescriptionSummary: prescriptionSummary ?? null,
+    compositionSlots: slots,
     outputSchema: {
       questions: [{
         id: 'string unique',
-        type: 'multipleChoice | trueFalse | shortAnswer',
+        type: 'multipleChoice | trueFalse | shortAnswer | multiSelect | ordering | matching',
         stem: 'string',
-        options: ['4 strings for multipleChoice'],
-        correctAnswer: 'string or array for multi-select',
+        options: ['for multipleChoice/multiSelect'],
+        items: ['for ordering — correct sequence items'],
+        leftItems: ['for matching terms'],
+        rightItems: ['for matching definitions'],
+        correctAnswer: 'string | string[] | Record<leftItem,rightItem>',
+        acceptableAnswers: ['optional shortAnswer aliases'],
         explanation: 'string',
         conceptId: 'string from concepts',
+        variantType: 'verbatim | application | transfer (optional)',
+        mixCategory: 'understanding | application | transfer | discrimination | review (optional)',
       }],
     },
+    slotInstructions: slots.length
+      ? 'Generate EXACTLY one question per compositionSlots entry, matching each slot type and metadata.'
+      : 'Vary question types sensibly for the stage — mostly multipleChoice, some trueFalse, occasional shortAnswer.',
   });
 }
 

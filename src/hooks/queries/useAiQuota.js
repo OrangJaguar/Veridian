@@ -14,6 +14,11 @@ export function useAiQuota() {
     enabled: isAuthenticated,
     staleTime: 45_000,
     refetchOnWindowFocus: true,
+    retry: (failureCount, error) => {
+      const status = error?.status ?? error?.response?.status;
+      if (status === 429) return false;
+      return failureCount < 1;
+    },
   });
 
   useEffect(() => {

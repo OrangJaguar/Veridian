@@ -69,6 +69,10 @@
     "timedBaselineCapturedAt": {
       "type": "number",
       "description": "UTC ms when first timed practice quiz updated pressure readiness"
+    },
+    "failureEvidence": {
+      "type": "string",
+      "description": "JSON blob: versioned continuous failure-mode evidence (concept hits, processed session IDs)"
     }
   },
   "required": [

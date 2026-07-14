@@ -22,6 +22,7 @@ export const moduleSchema = z.object({
   moduleDiagnosticSummary: z.string().optional(),
   firstQuizAt: z.number().nullable().optional(),
   timedBaselineCapturedAt: z.number().nullable().optional(),
+  failureEvidence: z.string().optional(),
 });
 
 export const createModuleSchema = moduleSchema.pick({

@@ -1,6 +1,8 @@
 /**
  * Extract a named list from AI response payloads (handles nested { data: { items } }).
  */
+import { resolveCorrectAnswer } from '@/utils/study/resolveCorrectAnswer';
+
 const LIST_ALIASES = {
   questions: ['questions', 'items', 'problems'],
   sections: ['sections', 'chapters', 'parts'],
@@ -46,16 +48,25 @@ function coerceQuestionItem(q, index) {
   if (correctAnswer == null && Array.isArray(options) && options.length) {
     correctAnswer = options[0];
   }
+  const resolved = resolveCorrectAnswer(correctAnswer, options);
+  if (resolved != null) correctAnswer = resolved;
   return {
     id: q.id ?? q.questionId ?? `q-${index + 1}`,
     type: q.type,
     stem: String(stem).trim(),
     options,
+    items: q.items,
+    leftItems: q.leftItems,
+    rightItems: q.rightItems,
+    acceptableAnswers: q.acceptableAnswers,
+    matchMode: q.matchMode,
     correctAnswer,
     explanation: String(q.explanation ?? q.rationale ?? q.reason ?? '').trim(),
     conceptId: q.conceptId ?? q.concept ?? q.concept_id,
     moduleId: q.moduleId ?? q.module_id ?? q.module,
     moduleName: q.moduleName ?? q.module_name,
+    variantType: q.variantType,
+    mixCategory: q.mixCategory,
   };
 }
 
@@ -67,6 +78,9 @@ function asWorkedExamplesArray(value) {
 
 function coerceSectionItem(section, index) {
   const checkIn = section.checkInQuestion ?? section.checkIn ?? section.quiz ?? section.question ?? {};
+  const checkInOptions = checkIn.options ?? checkIn.choices ?? checkIn.answers;
+  const rawCorrect = checkIn.correctAnswer ?? checkIn.answer ?? checkIn.correct;
+  const resolvedCorrect = resolveCorrectAnswer(rawCorrect, checkInOptions);
   return {
     sectionId: section.sectionId ?? section.id ?? `section-${index + 1}`,
     title: String(section.title ?? section.name ?? section.heading ?? `Section ${index + 1}`).trim(),
@@ -77,8 +91,8 @@ function coerceSectionItem(section, index) {
     checkInQuestion: {
       question: String(checkIn.question ?? checkIn.stem ?? checkIn.prompt ?? checkIn.text ?? '').trim(),
       type: checkIn.type,
-      options: checkIn.options ?? checkIn.choices ?? checkIn.answers,
-      correctAnswer: checkIn.correctAnswer ?? checkIn.answer ?? checkIn.correct,
+      options: checkInOptions,
+      correctAnswer: resolvedCorrect ?? rawCorrect,
       explanation: String(checkIn.explanation ?? checkIn.rationale ?? checkIn.reason ?? '').trim(),
     },
     keyTerms: section.keyTerms ?? [],

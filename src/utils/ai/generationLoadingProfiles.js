@@ -15,6 +15,11 @@ export const GENERATION_LOADING_PROFILES = {
     label: 'Writing your practice questions…',
     steps: ['Analyzing concepts', 'Writing questions', 'Finalizing'],
   },
+  improvePracticeQuestions: {
+    mode: 'short',
+    label: 'Improving question quality…',
+    steps: ['Checking stems', 'Rewriting weak items', 'Finalizing'],
+  },
   generateFlashcards: {
     mode: 'short',
     label: 'Building your flashcard deck…',

@@ -1,18 +1,19 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/api/query-keys';
-import { createJourney, updateJourney, deleteJourney } from '@/api/entities/journeys';
-import { rebuildWeeklyPlan } from '@/api/entities/weeklyPlan';
+import { rebuildGlobalPlan } from '@/api/entities/globalPlan';
 import { generateJourneyId } from '@/utils/schemas/ids';
 import { createJourneySchema } from '@/utils/schemas/journey';
 import { dismissHomeWelcomeHint } from '@/utils/preferences/dismissHomeWelcomeHint';
 import { patchListItem } from '@/lib/optimisticMutation';
 import { useAuth } from '@/hooks/useAuth';
+import { createJourney, updateJourney, deleteJourney } from '@/api/entities/journeys';
 import { toast } from 'sonner';
 
 function invalidateJourneyQueries(queryClient, journeyId) {
   queryClient.invalidateQueries({ queryKey: queryKeys.journeys.all });
   queryClient.invalidateQueries({ queryKey: queryKeys.journeys.archived });
   queryClient.invalidateQueries({ queryKey: queryKeys.dueToday });
+  queryClient.invalidateQueries({ queryKey: queryKeys.globalPlan });
   if (journeyId) {
     queryClient.invalidateQueries({ queryKey: queryKeys.journeys.detail(journeyId) });
     queryClient.invalidateQueries({ queryKey: queryKeys.cards.byJourney(journeyId) });
@@ -53,7 +54,7 @@ export function useUpdateJourney() {
     mutationFn: async ({ journeyId, patch }) => {
       const result = await updateJourney(journeyId, patch);
       if ('examDate' in patch) {
-        await rebuildWeeklyPlan(journeyId, { force: true });
+        await rebuildGlobalPlan({ force: true });
       }
       return result;
     },
@@ -94,7 +95,7 @@ export function useArchiveJourney() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ journeyId, archived, archivedManually }) => {
+    mutationFn: async ({ journeyId, archived, archivedManually }) => {
       const patch = { archived };
       if (archived && archivedManually) {
         patch.archivedManually = true;
@@ -102,7 +103,9 @@ export function useArchiveJourney() {
       if (!archived) {
         patch.archivedManually = false;
       }
-      return updateJourney(journeyId, patch);
+      const result = await updateJourney(journeyId, patch);
+      await rebuildGlobalPlan({ force: true });
+      return result;
     },
     onSuccess: (_, { journeyId }) => invalidateJourneyQueries(queryClient, journeyId),
   });
@@ -114,5 +117,12 @@ export function useDeleteJourney() {
   return useMutation({
     mutationFn: (journeyId) => deleteJourney(journeyId),
     onSuccess: () => invalidateAllHomeData(queryClient),
+    onSettled: async () => {
+      try {
+        await rebuildGlobalPlan({ force: true });
+      } catch {
+        /* plan rebuilds on next ensure */
+      }
+    },
   });
 }

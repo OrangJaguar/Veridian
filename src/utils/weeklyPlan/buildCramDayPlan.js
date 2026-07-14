@@ -12,7 +12,8 @@ import {
 import { getDueCards } from '@/utils/fsrs';
 
 /**
- * Cram mode: pack today's plan up to daily budget with highest-urgency modules first.
+ * Legacy denser one-day pack (Exam week urgency). Prefer buildNormalWeekPlan /
+ * buildGlobalPlan for production snapshots; kept for tests and fallback callers.
  */
 export function buildCramDayPlan({
   journey,
@@ -85,7 +86,7 @@ export function buildCramDayPlan({
   }));
 
   return {
-    mode: 'cram',
+    mode: 'examWeek',
     weekKey: dateKey,
     builtAt: now.getTime(),
     dailyBudgetMin,

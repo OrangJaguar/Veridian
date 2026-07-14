@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { ChoiceRadio, ChoiceToggle, ChoicePresetButton } from '@/components/shared/ChoiceControl';
+import QuizContentSourceBadge from '@/components/study/quiz/QuizContentSourceBadge';
 import { formatStudyTime } from '@/utils/study/feedback';
 
 const FOCUS_PRESETS = [
@@ -18,7 +19,15 @@ const STRICT_TIME_OPTIONS = [
   { seconds: 120, label: '2m per question' },
 ];
 
-export default function QuizSetupModal({ open, defaultConfig = {}, onClose, onStart, loading }) {
+export default function QuizSetupModal({
+  open,
+  defaultConfig = {},
+  onClose,
+  onStart,
+  loading,
+  prescriptionSummary,
+  bankAvailable = false,
+}) {
   const [questionCount, setQuestionCount] = useState(defaultConfig.questionCount ?? 10);
   const [customCount, setCustomCount] = useState('');
   const [useCustom, setUseCustom] = useState(false);
@@ -68,6 +77,17 @@ export default function QuizSetupModal({ open, defaultConfig = {}, onClose, onSt
         </div>
 
         <form className="study-modal-body" onSubmit={handleSubmit}>
+          {bankAvailable && (
+            <div className="quiz-bank-hint-wrap">
+              <QuizContentSourceBadge source="questionBank" />
+              <p className="quiz-bank-hint">Your certified bank is ready — questions start with no AI wait.</p>
+            </div>
+          )}
+          {prescriptionSummary && (
+            <div className="quiz-prescription-badge-wrap">
+              <span className="quiz-prescription-badge">Targeting: {prescriptionSummary}</span>
+            </div>
+          )}
           <div className="study-setup-section">
             <span className="study-setup-label">Questions</span>
             <div className="study-setup-presets">

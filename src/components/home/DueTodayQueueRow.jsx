@@ -1,16 +1,18 @@
 import { useLaunchDueItem, actionVerbForType } from '@/hooks/home/useLaunchDueItem';
+import { formatDueItemPresentation } from '@/utils/dueToday/formatDueItemPresentation';
 
 export default function DueTodayQueueRow({ item }) {
   const launch = useLaunchDueItem();
   const verb = actionVerbForType(item.activityType);
+  const { activityLabel, reasonLine, contextLine } = formatDueItemPresentation(item);
 
   return (
     <div className="home-queue-row">
       <div className="home-queue-row-main">
-        <span className="home-queue-row-activity">{item.activityLabel}</span>
+        <span className="home-queue-row-activity">{activityLabel}</span>
         <span className="home-queue-row-context">
-          {item.journeyTitle}
-          {item.moduleName && <> · {item.moduleName}</>}
+          {reasonLine || item.actionLabel}
+          {contextLine && <> · {contextLine}</>}
         </span>
       </div>
       <div className="home-queue-row-meta">

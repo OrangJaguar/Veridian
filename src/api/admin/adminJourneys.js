@@ -10,7 +10,7 @@ export async function listAdminJourneys() {
   if (user.role !== 'admin') throw new Error('Forbidden');
   const rows = await base44.entities.Journey.list();
   return rows
-    .filter((j) => j.isAdminAuthored || j.userEmail === user.email)
+    .filter((j) => j.isAdminAuthored === true)
     .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
 }
 

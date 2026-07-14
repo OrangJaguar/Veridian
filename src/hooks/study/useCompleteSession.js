@@ -80,9 +80,14 @@ export function useCompleteSession() {
       }
 
       queryClient.invalidateQueries({ queryKey: queryKeys.dueToday });
+      queryClient.invalidateQueries({ queryKey: queryKeys.globalPlan });
       queryClient.invalidateQueries({ queryKey: queryKeys.studyPlan(journeyId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.modules.byJourney(journeyId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.cards.byJourney(journeyId) });
+      if (activity?.moduleId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.failureProfile(activity.moduleId) });
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.journeyFailureRollup(journeyId) });
       queryClient.invalidateQueries({ queryKey: ['sessions', 'detail', sessionId] });
 
       reset();

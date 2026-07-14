@@ -33,6 +33,7 @@ WORKED EXAMPLE (exactly one per section in workedExamples array):
 
 CHECK-IN (one multipleChoice per section):
 - type: "multipleChoice" with exactly 4 options.
+- correctAnswer MUST be the exact verbatim string from options — never A/B/C/D or a numeric index.
 - The correct answer MUST be clearly supported by the section explanation and worked example.
 - Distractors should reflect plausible misconceptions, not joke answers.
 - Include a brief explanation for why the correct answer is right.
@@ -86,7 +87,7 @@ export function buildLearningGuideUserPrompt({
       sections: [
         {
           sectionId: 'short-kebab-case slug',
-          title: 'string — section heading',
+          title: 'string — meaningful section heading (not "Section 1")',
           explanation: 'string — 80-120 words, paragraphs separated by \\n\\n',
           keyTerms: [{ term: 'string', definition: 'string — 1-2 sentences' }],
           takeaways: ['string — short bullet takeaway'],
@@ -99,8 +100,8 @@ export function buildLearningGuideUserPrompt({
           checkInQuestion: {
             question: 'string',
             type: 'multipleChoice',
-            options: ['A', 'B', 'C', 'D'],
-            correctAnswer: 'string — must match one option exactly',
+            options: ['First plausible answer', 'Second plausible answer', 'Third plausible answer', 'Fourth plausible answer'],
+            correctAnswer: 'string — must match one option text exactly (not A/B/C/D)',
             explanation: 'string',
           },
         },

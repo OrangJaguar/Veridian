@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useCloneJourney } from '@/hooks/mutations/useCloneJourney';
+import { ChoiceRadio } from '@/components/shared/ChoiceControl';
 
 export default function CloneJourneyModal({
   journeyId,
@@ -9,6 +10,7 @@ export default function CloneJourneyModal({
 }) {
   const clone = useCloneJourney();
   const [title, setTitle] = useState(`${sourceTitle} (copy)`);
+  const [hasExamDate, setHasExamDate] = useState(true);
   const [examDate, setExamDate] = useState('');
   const [selectedIds, setSelectedIds] = useState(modules.map((m) => m.moduleId));
 
@@ -20,9 +22,15 @@ export default function CloneJourneyModal({
     ));
   };
 
+  const canSubmit = title.trim()
+    && selectedIds.length > 0
+    && (!hasExamDate || Boolean(examDate));
+
   const handleClone = () => {
-    if (!examDate) return;
-    const examMs = new Date(`${examDate}T12:00:00`).getTime();
+    if (!canSubmit) return;
+    const examMs = hasExamDate && examDate
+      ? new Date(`${examDate}T12:00:00`).getTime()
+      : null;
     clone.mutate({
       sourceJourneyId: journeyId,
       title: title.trim(),
@@ -49,15 +57,43 @@ export default function CloneJourneyModal({
           <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} />
         </label>
 
-        <label className="veridian-form-field">
-          Your exam date
-          <input
-            type="date"
-            required
-            value={examDate}
-            onChange={(e) => setExamDate(e.target.value)}
-          />
-        </label>
+        <fieldset className="clone-exam-fieldset">
+          <legend>Exam timeline</legend>
+          <div className="create-choice-list">
+            <ChoiceRadio
+              name="cloneExamMode"
+              value="exam"
+              label="I have an exam date"
+              checked={hasExamDate}
+              onChange={() => setHasExamDate(true)}
+            />
+            <ChoiceRadio
+              name="cloneExamMode"
+              value="open"
+              label="Open learning — no exam"
+              checked={!hasExamDate}
+              onChange={() => {
+                setHasExamDate(false);
+                setExamDate('');
+              }}
+            />
+          </div>
+        </fieldset>
+
+        {hasExamDate ? (
+          <label className="veridian-form-field">
+            Your exam date
+            <input
+              type="date"
+              value={examDate}
+              onChange={(e) => setExamDate(e.target.value)}
+            />
+          </label>
+        ) : (
+          <p className="clone-modal-hint">
+            Without an exam, Veridian uses Keep sharp pacing (lighter, spaced practice).
+          </p>
+        )}
 
         <fieldset className="clone-module-fieldset">
           <legend>Modules to include</legend>
@@ -80,10 +116,10 @@ export default function CloneJourneyModal({
           <button
             type="button"
             className="btn btn-primary"
-            disabled={clone.isPending || !examDate || selectedIds.length === 0}
+            disabled={clone.isPending || !canSubmit}
             onClick={handleClone}
           >
-            {clone.isPending ? 'Cloning…' : 'Clone & start diagnostic'}
+            {clone.isPending ? 'Cloning…' : 'Clone & go to Home'}
           </button>
         </div>
       </div>

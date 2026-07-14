@@ -27,12 +27,12 @@ export const ACTIVITY_TOOLTIPS = {
   cramSession: {
     icon: Timer,
     title: 'Cram Session',
-    body: 'A fast, time-boxed review across your weakest modules — ideal before an exam. Unlocks when half your modules reach Stage B.',
+    body: 'Short timed sprint on weak modules — prep, not a full mock exam. Unlocks when half your modules reach Stage B. Distinct from Exam week packing on your study plan.',
   },
   journeyChallenge: {
     icon: Trophy,
     title: 'Journey Challenge',
-    body: 'A strict, timed exam-style run covering your whole journey. Tests everything you have studied so far under realistic pressure.',
+    body: 'Timed exam-style check across the journey. Measures readiness under realistic pressure — assessment, not a weak-module sprint.',
   },
   feynman: {
     icon: MessageCircle,

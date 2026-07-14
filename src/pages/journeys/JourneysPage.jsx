@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useJourneys } from '@/hooks/queries/useJourneys';
 import { useRemoveStarterJourney } from '@/hooks/useRemoveStarterJourney';
-import JourneyCard, { journeyUrgencySort } from '@/components/journeys/JourneyCard';
+import JourneyCard, { journeyListSort } from '@/components/journeys/JourneyCard';
 import JourneysEmptyState from '@/components/journeys/JourneysEmptyState';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
 import VeridianLoading from '@/components/shared/VeridianLoading';
@@ -17,7 +17,7 @@ export default function JourneysPage() {
   useRemoveStarterJourney();
 
   const sorted = useMemo(
-    () => [...journeys].sort(journeyUrgencySort),
+    () => [...journeys].sort(journeyListSort),
     [journeys],
   );
 

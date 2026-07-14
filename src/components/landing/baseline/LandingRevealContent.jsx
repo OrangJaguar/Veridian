@@ -16,7 +16,7 @@ function RevealBody({ segments }) {
 }
 
 export default function LandingRevealContent({ outcome, layout = 'split' }) {
-  const copy = outcome === 'passed' ? REVEAL_COPY.passed : REVEAL_COPY.failed;
+  const copy = REVEAL_COPY[outcome] ?? REVEAL_COPY.failed;
 
   const copyBlock = (
     <>

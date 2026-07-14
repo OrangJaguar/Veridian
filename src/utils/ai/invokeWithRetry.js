@@ -28,12 +28,21 @@ export function isAuthRefreshableError(err) {
  * @param {unknown} err
  * @returns {boolean}
  */
-export function isRetryableAiError(err) {
+export function isQuotaOrRateLimitError(err) {
   const status = err?.status;
   const message = err?.message ?? '';
-  if (status === 502 || status === 503 || status === 504 || status === 429) return true;
+  if (status === 429) return true;
+  return /daily ai limit|token budget|rate limited|too many requests|please wait a moment/i.test(message);
+}
+
+export function isRetryableAiError(err) {
+  if (isQuotaOrRateLimitError(err)) return false;
+
+  const status = err?.status;
+  const message = err?.message ?? '';
+  if (status === 502 || status === 503 || status === 504) return true;
   if (err?.name === 'AbortError') return true;
-  return /502|503|504|bad gateway|timeout|timed out|too many requests|aborted/i.test(message);
+  return /502|503|504|bad gateway|timeout|timed out|aborted/i.test(message);
 }
 
 /**

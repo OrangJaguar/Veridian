@@ -1,6 +1,8 @@
 import LatexRenderer from '@/components/shared/LatexRenderer';
 
-export default function FeynmanMessageBubble({ message, concepts, onConceptChange, currentConceptId }) {
+export default function FeynmanMessageBubble({
+  message, concepts, onConceptChange, currentConceptId, topicLocked = false,
+}) {
   const isUser = message.role === 'user';
   const isOpening = message.type === 'opening';
 
@@ -14,7 +16,9 @@ export default function FeynmanMessageBubble({ message, concepts, onConceptChang
               className="feynman-concept-select"
               value={currentConceptId}
               onChange={(e) => onConceptChange(e.target.value)}
+              disabled={topicLocked}
               aria-label="Select concept"
+              aria-disabled={topicLocked}
             >
               {concepts.map((c) => (
                 <option key={c.id} value={c.id}>{c.term}</option>
@@ -22,6 +26,9 @@ export default function FeynmanMessageBubble({ message, concepts, onConceptChang
             </select>
             . Explain the concept in your own words.
           </p>
+          {topicLocked && (
+            <p className="feynman-topic-locked-note">Topic locked for this explanation.</p>
+          )}
         </div>
       </div>
     );

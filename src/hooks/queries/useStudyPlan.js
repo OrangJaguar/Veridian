@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/api/query-keys';
 import { ensureWeeklyPlan } from '@/api/entities/weeklyPlan';
-import { daysUntilExam } from '@/utils/weeklyPlan/weekKey';
+import { daysUntilExam, isExamWeekMode } from '@/utils/weeklyPlan/weekKey';
 import { useAuth } from '@/hooks/useAuth';
 
 /**
@@ -27,7 +27,10 @@ export function useStudyPlan(journeyId) {
           moduleName: s.moduleName,
           note: s.priorityText,
         })) ?? [],
-        overallStatus: snapshot?.mode === 'cram' ? 'needsAttention' : 'onTrack',
+        weekStrategy: snapshot?.weekStrategy ?? '',
+        overallStatus: isExamWeekMode(snapshot?.mode) || isExamWeekMode(result.mode)
+          ? 'needsAttention'
+          : 'onTrack',
       };
     },
     enabled: isAuthenticated && !!journeyId,

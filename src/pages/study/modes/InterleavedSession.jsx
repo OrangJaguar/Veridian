@@ -23,7 +23,10 @@ export default function InterleavedSession({ session, activity, journeyId, modul
   const [questions, setQuestions] = useState(() => session.sessionData?.questions ?? []);
   const [loading, setLoading] = useState(false);
   const [genError, setGenError] = useState(null);
-  const [selectedModuleIds, setSelectedModuleIds] = useState(modules.map((m) => m.moduleId));
+  const [selectedModuleIds, setSelectedModuleIds] = useState(
+    () => session.sessionData?.selectedModuleIds ?? modules.map((m) => m.moduleId),
+  );
+  const plannerConfig = session.sessionData?.quizConfig;
   const { completeSessionInBackground } = useCompleteSession();
   const abandonSession = useAbandonSession();
   const updateSession = useUpdateSession();
@@ -72,6 +75,7 @@ export default function InterleavedSession({ session, activity, journeyId, modul
                 selectedModuleIds,
                 questions: list,
                 quizConfig: config,
+                prescription: session.sessionData?.prescription ?? null,
                 aiGeneration: { status: 'ready', completedAt: Date.now() },
               },
             },

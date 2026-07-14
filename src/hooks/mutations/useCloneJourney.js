@@ -14,8 +14,15 @@ export function useCloneJourney() {
     onSuccess: ({ journeyId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.journeys.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.library.list() });
-      toast.success('Journey cloned to your account');
-      navigate(`/journeys/${journeyId}`);
+      queryClient.invalidateQueries({ queryKey: queryKeys.dueToday });
+      toast.success('Journey cloned — your first session will be ready on Home', {
+        action: {
+          label: 'Go to Focus',
+          onClick: () => navigate('/home'),
+        },
+        duration: 8000,
+      });
+      navigate('/home', { replace: true });
     },
     onError: (err) => {
       toast.error(err?.message ?? 'Could not clone journey');

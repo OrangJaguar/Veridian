@@ -1,7 +1,7 @@
-import { base44 } from '@/api/base44Client';
+import { invokeAdminFunction } from '@/api/admin/invokeAdminFunction';
 
 function invoke(action, payload = {}) {
-  return base44.functions.invoke('getAdminAnalytics', { action, ...payload });
+  return invokeAdminFunction('getAdminAnalytics', { action, ...payload });
 }
 
 export async function fetchAdminSummaryStats() {

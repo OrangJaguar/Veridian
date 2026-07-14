@@ -1,12 +1,13 @@
-import { NORMAL_BUDGET_MIN, CRAM_BUDGET_MIN } from '@/utils/weeklyPlan/constants';
-import { isCramMode, getDateKey } from '@/utils/weeklyPlan/weekKey';
+import { NORMAL_BUDGET_MIN } from '@/utils/weeklyPlan/constants';
+import { isExamWeek, getDateKey } from '@/utils/weeklyPlan/weekKey';
 import { buildAllModuleContexts } from '@/utils/weeklyPlan/moduleContext';
 import { buildNormalWeekPlan } from '@/utils/weeklyPlan/buildNormalWeekPlan';
-import { buildCramDayPlan } from '@/utils/weeklyPlan/buildCramDayPlan';
 import { getPlanWeekKey } from '@/utils/weeklyPlan/planStale';
 
 /**
  * Build weekly plan snapshot for a journey (pure computation).
+ * Exam week uses the same 7-day grid as normal; denser packing is handled
+ * by the global planner. Legacy single-day cram packing is no longer the default.
  */
 export function buildWeeklyPlan({
   journey,
@@ -18,29 +19,25 @@ export function buildWeeklyPlan({
   now = new Date(),
 }) {
   const moduleContexts = buildAllModuleContexts(modules, activities, sessions, journey);
-  const cram = isCramMode(journey.examDate, now);
-  const budget = cram ? CRAM_BUDGET_MIN : (dailyBudgetMin ?? NORMAL_BUDGET_MIN);
+  const examWeek = isExamWeek(journey.examDate, now);
+  const budget = dailyBudgetMin ?? NORMAL_BUDGET_MIN;
 
-  const snapshot = cram
-    ? buildCramDayPlan({
-      journey,
-      moduleContexts,
-      cards,
-      dailyBudgetMin: budget,
-      now,
-    })
-    : buildNormalWeekPlan({
-      journey,
-      moduleContexts,
-      cards,
-      dailyBudgetMin: budget,
-      now,
-    });
+  const snapshot = buildNormalWeekPlan({
+    journey,
+    moduleContexts,
+    cards,
+    dailyBudgetMin: budget,
+    now,
+  });
+
+  if (examWeek) {
+    snapshot.mode = 'examWeek';
+  }
 
   return {
     snapshot,
     weekKey: getPlanWeekKey(journey, now),
-    mode: cram ? 'cram' : 'normal',
+    mode: examWeek ? 'examWeek' : 'normal',
     builtAt: now.getTime(),
   };
 }

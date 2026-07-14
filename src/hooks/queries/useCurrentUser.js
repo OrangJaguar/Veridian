@@ -18,5 +18,10 @@ export function useCurrentUser() {
     staleTime: 5 * 60_000,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
+    retry: (failureCount, error) => {
+      const status = error?.status ?? error?.response?.status;
+      if (status === 429) return false;
+      return failureCount < 1;
+    },
   });
 }

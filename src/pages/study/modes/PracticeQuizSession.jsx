@@ -3,6 +3,7 @@ import QuizSetupModal from '@/components/study/quiz/QuizSetupModal';
 import QuizRunner from '@/components/study/quiz/QuizRunner';
 import ApClassroomQuizRunner from '@/components/study/quiz/ap-classroom/ApClassroomQuizRunner';
 import QuizSummary from '@/components/study/quiz/QuizSummary';
+import QuizContentSourceBadge from '@/components/study/quiz/QuizContentSourceBadge';
 import { StudyAiError } from '@/components/study/StudyAiStatus';
 import AiGenerationLoading from '@/components/shared/AiGenerationLoading';
 import { generateConceptRefresher } from '@/api/ai/study';
@@ -14,7 +15,11 @@ import {
   mergeQuizRegistry,
   underrepresentedConceptIds,
 } from '@/utils/study/quizDedup';
-import { normalizeQuizQuestions } from '@/utils/study/normalizeQuizQuestions';
+import { normalizeQuizQuestions } from '@/utils/quiz/normalizeQuizQuestions';
+import {
+  validateGeneratedQuestions,
+  collectRejectedStemPreviews,
+} from '@/utils/quiz/validateGeneratedQuestions';
 import { requireGeneratedQuestions } from '@/utils/study/requireGeneratedQuestions';
 import { selectQuestionsFromBank, shouldUseQuestionBank } from '@/utils/study/sampleQuestionBank';
 import { runStudyAiGeneration } from '@/hooks/ai/runStudyAiGeneration';
@@ -27,9 +32,26 @@ import { useSessions } from '@/hooks/queries/useSessions';
 import PreQuizConfidenceStep from '@/components/research/PreQuizConfidenceStep';
 import { usePreQuizConfidence } from '@/hooks/research/usePreQuizConfidence';
 import { quizPhaseAfterQuestions, withConfidenceSlider } from '@/utils/research/sessionConfidence';
+import { resolveModulePrescription } from '@/utils/failures/resolveModulePrescription';
+import { computeFailureProfile } from '@/utils/failures/computeFailureProfile';
+import { buildQuizCompositionPlan } from '@/utils/quiz/buildQuizCompositionPlan';
+import { compositionNeedsClassicRunner } from '@/utils/quiz/questionTypes';
+import { formatSessionInsight } from '@/utils/failures/formatFailureCopy';
 
 function initialPhase(session) {
   return quizPhaseAfterQuestions(session, 'setup');
+}
+
+function mergeUniqueByStem(a = [], b = []) {
+  const out = [...a];
+  const seen = new Set(a.map((q) => String(q.stem ?? q.prompt ?? '').toLowerCase().trim()));
+  for (const q of b) {
+    const key = String(q.stem ?? q.prompt ?? '').toLowerCase().trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(q);
+  }
+  return out;
 }
 
 export default function PracticeQuizSession({ session, activity, module, journeyId }) {
@@ -40,9 +62,24 @@ export default function PracticeQuizSession({ session, activity, module, journey
 
   const [phase, setPhase] = useState(() => initialPhase(session));
   const [questions, setQuestions] = useState(() => session.sessionData?.questions ?? []);
-  const [config, setConfig] = useState(initialConfig ?? activity.content?.lastConfig ?? {});
-  const [loading, setLoading] = useState(
-    () => !!initialConfig?.questionCount && !session.sessionData?.questions?.length,
+  const [config, setConfig] = useState(() => {
+    const plannerConfig = session.sessionData?.quizConfig;
+    const base = plannerConfig ?? initialConfig ?? activity.content?.lastConfig ?? {};
+    if (session.sessionData?.prescription?.spec?.timed || plannerConfig?.strictTimedMode) {
+      return {
+        ...base,
+        strictTimedMode: true,
+        timedMode: true,
+        strictMode: true,
+        instantFeedback: false,
+      };
+    }
+    return base;
+  });
+  const [loading, setLoading] = useState(false);
+  const [improvingQuality, setImprovingQuality] = useState(false);
+  const [contentSource, setContentSource] = useState(
+    () => session.sessionData?.aiGeneration?.source ?? null,
   );
   const [genError, setGenError] = useState(null);
   const [refresherContent, setRefresherContent] = useState(null);
@@ -51,6 +88,8 @@ export default function PracticeQuizSession({ session, activity, module, journey
       ? {
         answers: session.sessionData.answers,
         totalTimeSec: session.durationSec ?? 0,
+        failureInsight: null,
+        failureModeId: null,
       }
       : null
   ));
@@ -61,6 +100,7 @@ export default function PracticeQuizSession({ session, activity, module, journey
   const [confidenceSlider, setConfidenceSlider] = useState(
     () => session.sessionData?.confidenceSlider ?? null,
   );
+  const [apFallbackNotice, setApFallbackNotice] = useState(null);
   const { handleSubmit: submitConfidence, submitting: confidenceSubmitting } = usePreQuizConfidence({
     session,
     journeyId,
@@ -72,31 +112,84 @@ export default function PracticeQuizSession({ session, activity, module, journey
 
   const concepts = module?.knowledgeMap?.concepts ?? [];
   const weakConceptIds = getWeakConceptIds(sessions, module?.moduleId);
+  const bankAvailable = shouldUseQuestionBank(journey, activity);
 
   const handleExit = () => {
     abandonSession({ sessionId: session.sessionId, journeyId, returnPath: '/home' });
   };
 
-  const generateQuestions = useCallback(async (setupConfig) => {
+  const generateQuestions = useCallback(async (setupConfig, { onImproving } = {}) => {
+    const plannerRx = session.sessionData?.prescription;
+    const prescription = plannerRx?.spec
+      ? {
+        shouldApply: true,
+        spec: plannerRx.spec,
+        profile: computeFailureProfile(module),
+        primaryMode: plannerRx.primaryMode,
+        summary: plannerRx.summary,
+      }
+      : resolveModulePrescription(module);
+    const effectiveSetup = { ...setupConfig, ...(session.sessionData?.quizConfig ?? {}) };
+    const compositionPlan = buildQuizCompositionPlan({
+      module,
+      failureProfile: prescription.profile ?? computeFailureProfile(module),
+      prescriptionSpec: prescription.shouldApply ? prescription.spec : null,
+      setupConfig: effectiveSetup,
+      concepts,
+      quizRegistry: activity.content?.quizRegistry,
+      sessions,
+      journey,
+      weakConceptIds,
+    });
+
+    let effectiveConfig = { ...effectiveSetup };
+    if (prescription.shouldApply && prescription.spec?.timed) {
+      effectiveConfig = {
+        ...effectiveConfig,
+        strictMode: true,
+        strictTimedMode: true,
+        timedMode: true,
+        instantFeedback: false,
+      };
+    }
+
+    if (setupConfig.uiPreset === 'apClassroom' && compositionNeedsClassicRunner(compositionPlan.slots)) {
+      effectiveConfig = { ...effectiveConfig, uiPreset: 'classic' };
+      setApFallbackNotice('This personalized quiz uses question types that need the classic interface.');
+    } else {
+      setApFallbackNotice(null);
+    }
+
+    const sessionMeta = {
+      prescription: {
+        prescriptionType: prescription.spec?.prescriptionType ?? null,
+        primaryMode: prescription.primaryMode,
+        summary: prescription.summary,
+      },
+      compositionPlan,
+    };
+
     if (shouldUseQuestionBank(journey, activity)) {
       const bankQuestions = selectQuestionsFromBank(
         activity.content.questionBank,
-        setupConfig,
-        { weakConceptIds },
+        effectiveConfig,
+        { weakConceptIds, compositionPlan },
       );
-      requireGeneratedQuestions(bankQuestions, setupConfig.questionCount, 'questions');
+      requireGeneratedQuestions(bankQuestions, effectiveConfig.questionCount, 'questions');
       await updateSession.mutateAsync({
         sessionId: session.sessionId,
         journeyId,
         patch: {
           sessionData: {
-            quizConfig: setupConfig,
+            quizConfig: effectiveConfig,
             questions: bankQuestions,
+            ...sessionMeta,
             aiGeneration: { status: 'ready', completedAt: Date.now(), source: 'questionBank' },
           },
         },
       });
-      return bankQuestions;
+      setContentSource('questionBank');
+      return { questions: bankQuestions, config: effectiveConfig, source: 'questionBank' };
     }
 
     const { avoidQuestionIds, avoidStemPreviews, seen } = buildQuizAvoidList(
@@ -105,49 +198,85 @@ export default function PracticeQuizSession({ session, activity, module, journey
       module?.moduleId,
     );
 
-    let focusGuidance = focusGuidanceForPreset(setupConfig.focusPreset, { weakConceptIds });
-    if (setupConfig.focusPreset === 'newMaterial') {
+    let focusGuidance = focusGuidanceForPreset(effectiveConfig.focusPreset, { weakConceptIds });
+    if (effectiveConfig.focusPreset === 'newMaterial') {
       const under = underrepresentedConceptIds(concepts, seen);
       if (under.length) {
         focusGuidance += ` Underrepresented concepts: ${under.join(', ')}.`;
       }
     }
 
-    return runStudyAiGeneration({
-      action: 'generatePracticeQuestions',
-      generate: () => generatePracticeQuestionsBatched({
-        journeyTitle: journey?.title,
-        subject: journey?.subject,
-        moduleName: module?.name,
-        moduleDescription: module?.description,
-        moduleStage: module?.stage ?? 'B',
-        concepts,
-        questionCount: setupConfig.questionCount,
-        focusPreset: setupConfig.focusPreset,
-        focusGuidance,
-        weakConceptIds,
-        avoidQuestionIds,
-        avoidStemPreviews,
-        questionStyle: setupConfig.questionStyle ?? 'standard',
-      }),
-      normalize: (raw) => normalizeQuizQuestions(raw, setupConfig.questionCount),
-      validate: (nextQuestions) => {
-        requireGeneratedQuestions(nextQuestions, setupConfig.questionCount, 'questions');
-      },
-      persist: async (nextQuestions) => {
-        await updateSession.mutateAsync({
-          sessionId: session.sessionId,
-          journeyId,
-          patch: {
-            sessionData: {
-              quizConfig: setupConfig,
-              questions: nextQuestions,
-              aiGeneration: { status: 'ready', completedAt: Date.now() },
-            },
-          },
+    const bankStems = activity.content?.questionBank ?? [];
+    const runGenerate = async (extraAvoidStems = [], reasonSuffix = '') => {
+      const guidance = reasonSuffix
+        ? `${focusGuidance} ${reasonSuffix}`
+        : focusGuidance;
+      return runStudyAiGeneration({
+        action: 'generatePracticeQuestions',
+        generate: () => generatePracticeQuestionsBatched({
+          journeyTitle: journey?.title,
+          subject: journey?.subject,
+          moduleName: module?.name,
+          moduleDescription: module?.description,
+          moduleStage: module?.stage ?? 'B',
+          concepts,
+          questionCount: effectiveConfig.questionCount,
+          focusPreset: effectiveConfig.focusPreset,
+          focusGuidance: guidance,
+          weakConceptIds,
+          avoidQuestionIds,
+          avoidStemPreviews: [...avoidStemPreviews, ...extraAvoidStems],
+          questionStyle: effectiveConfig.questionStyle ?? 'standard',
+          compositionPlan,
+          prescriptionSummary: prescription.summary,
+        }),
+        normalize: (raw) => normalizeQuizQuestions(raw, effectiveConfig.questionCount),
+        validate: () => {},
+        persist: async () => {},
+      });
+    };
+
+    let firstBatch = await runGenerate();
+    let validated = validateGeneratedQuestions(firstBatch, {
+      expectedCount: effectiveConfig.questionCount,
+      existingBank: bankStems,
+    });
+    let good = validated.questions;
+
+    if (!validated.ok) {
+      onImproving?.(true);
+      const rejectStems = collectRejectedStemPreviews(validated.rejected);
+      try {
+        const retryBatch = await runGenerate(
+          rejectStems,
+          'Rewrite rejected thin/meta/duplicate stems with distinct distractors.',
+        );
+        const retryValidated = validateGeneratedQuestions(retryBatch, {
+          expectedCount: effectiveConfig.questionCount,
+          existingBank: bankStems,
         });
+        good = mergeUniqueByStem(good, retryValidated.questions);
+      } finally {
+        onImproving?.(false);
+      }
+    }
+
+    requireGeneratedQuestions(good, effectiveConfig.questionCount, 'questions');
+
+    await updateSession.mutateAsync({
+      sessionId: session.sessionId,
+      journeyId,
+      patch: {
+        sessionData: {
+          quizConfig: effectiveConfig,
+          questions: good,
+          ...sessionMeta,
+          aiGeneration: { status: 'ready', completedAt: Date.now(), source: 'ai' },
+        },
       },
     });
+    setContentSource('ai');
+    return { questions: good, config: effectiveConfig, source: 'ai' };
   }, [
     activity,
     concepts,
@@ -167,8 +296,15 @@ export default function PracticeQuizSession({ session, activity, module, journey
   ]);
 
   const handleStart = useCallback(async (setupConfig) => {
-    setLoading(true);
+    const useBank = shouldUseQuestionBank(journey, activity);
     setGenError(null);
+    setImprovingQuality(false);
+    if (!useBank) {
+      setLoading(true);
+      setContentSource('generating');
+    } else {
+      setContentSource('questionBank');
+    }
     try {
       await updateSession.mutateAsync({
         sessionId: session.sessionId,
@@ -178,22 +314,38 @@ export default function PracticeQuizSession({ session, activity, module, journey
           sessionData: {
             ...session.sessionData,
             quizConfig: setupConfig,
-            aiGeneration: { status: 'generating', startedAt: Date.now() },
+            aiGeneration: {
+              status: 'generating',
+              startedAt: Date.now(),
+              source: useBank ? 'questionBank' : 'ai',
+            },
           },
         },
       });
 
-      const nextQuestions = await generateQuestions(setupConfig);
+      const result = await generateQuestions(setupConfig, {
+        onImproving: (v) => setImprovingQuality(v),
+      });
+      const nextQuestions = result?.questions ?? result;
+      const nextConfig = result?.config ?? setupConfig;
       setQuestions(nextQuestions);
-      setConfig(setupConfig);
+      setConfig(nextConfig);
+      setContentSource(result?.source ?? (useBank ? 'questionBank' : 'ai'));
       setPhase(session.sessionData?.confidenceSlider?.submittedAt ? 'active' : 'confidence');
     } catch (err) {
-      setGenError(err instanceof Error ? err : new Error(String(err)));
+      const message = err instanceof Error ? err.message : String(err);
+      setGenError(new Error(
+        message.includes('questions')
+          ? 'We could not assemble a solid quiz set. Try again, or use a smaller question count.'
+          : message || 'Could not prepare questions',
+      ));
       setPhase('setup');
+      setContentSource(null);
     } finally {
       setLoading(false);
+      setImprovingQuality(false);
     }
-  }, [generateQuestions, journeyId, session.sessionData, session.sessionId, updateSession]);
+  }, [activity, generateQuestions, journey, journeyId, session.sessionData, session.sessionId, updateSession]);
 
   useEffect(() => {
     const pendingConfig = session.sessionData?.quizConfig;
@@ -234,7 +386,15 @@ export default function PracticeQuizSession({ session, activity, module, journey
       { confidenceSlider: confidenceSlider ?? session.sessionData?.confidenceSlider },
     );
 
-    setSummaryData({ answers, totalTimeSec });
+    const profile = computeFailureProfile(module);
+    const failureInsight = formatSessionInsight(profile);
+
+    setSummaryData({
+      answers,
+      totalTimeSec,
+      failureInsight,
+      failureModeId: profile?.primaryMode ?? null,
+    });
     setPhase('summary');
 
     completeSessionInBackground({
@@ -279,14 +439,17 @@ export default function PracticeQuizSession({ session, activity, module, journey
         journeyTitle={journey?.title}
         moduleTitle={module?.name}
         returnHref="/home"
+        failureInsight={summaryData.failureInsight}
+        failureModeId={summaryData.failureModeId}
+        contentSource={contentSource}
       />
     );
   }
 
-  if (loading && !questions.length) {
+  if ((loading || improvingQuality) && !questions.length) {
     return (
       <AiGenerationLoading
-        action="generatePracticeQuestions"
+        action={improvingQuality ? 'improvePracticeQuestions' : 'generatePracticeQuestions'}
         className="study-mode-view guide-mode-view guide-mode-view--loading"
       />
     );
@@ -303,6 +466,8 @@ export default function PracticeQuizSession({ session, activity, module, journey
     );
   }
 
+  const prescription = module ? resolveModulePrescription(module) : null;
+
   return (
     <>
       <QuizSetupModal
@@ -311,7 +476,12 @@ export default function PracticeQuizSession({ session, activity, module, journey
         onClose={handleExit}
         onStart={handleStart}
         loading={loading}
+        prescriptionSummary={prescription?.shouldApply ? prescription.summary : null}
+        bankAvailable={bankAvailable}
       />
+      {apFallbackNotice && phase === 'active' && (
+        <p className="quiz-ap-fallback-notice">{apFallbackNotice}</p>
+      )}
       {phase === 'confidence' && questions.length > 0 && (
         <PreQuizConfidenceStep
           onSubmit={submitConfidence}
@@ -320,24 +490,29 @@ export default function PracticeQuizSession({ session, activity, module, journey
         />
       )}
       {phase === 'active' && questions.length > 0 && (
-        config.uiPreset === 'apClassroom' ? (
-          <ApClassroomQuizRunner
-            questions={questions}
-            config={config}
-            moduleName={module?.name}
-            onComplete={handleComplete}
-            onExit={handleExit}
-          />
-        ) : (
-          <QuizRunner
-            questions={questions}
-            config={config}
-            onComplete={handleComplete}
-            onExit={handleExit}
-            onIntervention={handleIntervention}
-            refresherContent={refresherContent}
-          />
-        )
+        <>
+          <div className="quiz-content-source-row">
+            <QuizContentSourceBadge source={contentSource} />
+          </div>
+          {config.uiPreset === 'apClassroom' ? (
+            <ApClassroomQuizRunner
+              questions={questions}
+              config={config}
+              moduleName={module?.name}
+              onComplete={handleComplete}
+              onExit={handleExit}
+            />
+          ) : (
+            <QuizRunner
+              questions={questions}
+              config={config}
+              onComplete={handleComplete}
+              onExit={handleExit}
+              onIntervention={handleIntervention}
+              refresherContent={refresherContent}
+            />
+          )}
+        </>
       )}
     </>
   );

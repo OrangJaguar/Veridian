@@ -5,6 +5,15 @@ function splitSentences(text) {
     .filter(Boolean);
 }
 
+function deriveTermLabel(sentence, index) {
+  const words = String(sentence ?? '').trim().split(/\s+/).filter(Boolean);
+  if (words.length >= 3) {
+    const phrase = words.slice(0, Math.min(5, words.length)).join(' ');
+    return phrase.length > 48 ? `${phrase.slice(0, 45)}…` : phrase;
+  }
+  return `Key idea ${index + 1}`;
+}
+
 /**
  * Fallback side-panel content for guides generated before keyTerms/takeaways existed.
  */
@@ -30,7 +39,7 @@ export function resolveGuideSidePanels(section) {
   const derivedTerms = keyTerms.length
     ? keyTerms
     : sentences.slice(0, 3).map((sentence, index) => ({
-      term: `Point ${index + 1}`,
+      term: deriveTermLabel(sentence, index),
       definition: sentence.length > 140 ? `${sentence.slice(0, 137)}…` : sentence,
     }));
 

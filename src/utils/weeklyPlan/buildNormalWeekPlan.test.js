@@ -82,9 +82,21 @@ describe('buildCramDayPlan', () => {
 });
 
 describe('moduleUrgency', () => {
-  it('sorts lower mastery first', () => {
-    const contexts = modules.map((m) => buildModuleContext(m, activities, []));
-    const sorted = sortModulesByUrgency(contexts, 14);
+  it('sorts lower mastery first among same-stage modules', () => {
+    const weak = buildModuleContext(
+      { moduleId: 'm2', name: 'Module Two', stage: 'B', order: 1, masteryScore: 40 },
+      activities,
+      [],
+    );
+    const stronger = buildModuleContext(
+      { moduleId: 'm3', name: 'Module Three', stage: 'B', order: 2, masteryScore: 80 },
+      [
+        ...activities,
+        { activityId: 'a4', moduleId: 'm3', type: 'practiceQuiz', status: 'ready', journeyId: 'j1', stats: { avgAccuracy: 85 } },
+      ],
+      [],
+    );
+    const sorted = sortModulesByUrgency([stronger, weak], 14);
     expect(sorted[0].module.moduleId).toBe('m2');
   });
 });

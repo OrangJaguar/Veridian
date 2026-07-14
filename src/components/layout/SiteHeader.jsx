@@ -1,31 +1,42 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useLandingChrome } from '@/contexts/LandingChromeContext';
-import { getBaselineCompleted } from '@/lib/baselineStorage';
+import { getBaselineCompleted, getBaselineOutcome, getBaselineUnlocked } from '@/lib/baselineStorage';
 import { trackProductEvent } from '@/lib/analytics';
 
 export default function SiteHeader({ actions, variant = 'default' }) {
   const { user, isLoading } = useAuth();
   const location = useLocation();
-  const { baselineLocked } = useLandingChrome() ?? {};
+  useLandingChrome();
   const isLanding = variant === 'landing' || location.pathname === '/';
-  const showSignup = isLanding && getBaselineCompleted();
+  const baselineUnlocked = getBaselineUnlocked();
+  const baselineOutcome = getBaselineOutcome();
+  const showPrimaryCta = isLanding && baselineUnlocked;
 
   const landingActions = !isLoading && (
-    <>
-      {showSignup && (
-        <Link
-          to="/signup"
-          className="btn btn-primary site-header-signup-compact"
-          onClick={() => trackProductEvent('signup_click', { source: 'header' })}
-        >
-          Sign Up
-        </Link>
-      )}
-      <Link to="/signin" className="site-header-text-link">
-        Sign In
+    user ? (
+      <Link
+        to="/home"
+        className="btn btn-primary site-header-signup-compact"
+      >
+        Go to App
       </Link>
-    </>
+    ) : (
+      <>
+        {showPrimaryCta && (
+          <Link
+            to={getBaselineCompleted() ? '/signup' : '/signin'}
+            className="btn btn-primary site-header-signup-compact"
+            onClick={() => trackProductEvent('signup_click', { source: 'header', outcome: baselineOutcome })}
+          >
+            {getBaselineCompleted() ? 'Sign Up' : 'Get Started'}
+          </Link>
+        )}
+        <Link to="/signin" className="site-header-text-link">
+          Sign In
+        </Link>
+      </>
+    )
   );
 
   const defaultActions = !isLoading && (

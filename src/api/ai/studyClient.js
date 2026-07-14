@@ -200,7 +200,10 @@ export async function invokeAiStudy(action, payload, options = {}) {
 export function parseAiStudyResponse(result) {
   if (!result) throw new Error('Empty response from AI service');
 
-  storeDebugAndRawFromPayload(result, 'parse');
+  // Debug metadata only — raw text already captured on invoke success.
+  if (result._debug) {
+    window.__veridianLastServerAiDebug = result._debug;
+  }
 
   // Debug responses attach rawAiText for inspection — only skip parsing for explicit raw-dump mode.
   const explicitRawDump = result.data?.parsedSkipped === true;

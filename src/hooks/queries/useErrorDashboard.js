@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { invokeAdminFunction } from '@/api/admin/invokeAdminFunction';
 
 export const errorDashboardKeys = {
   all: ['errorDashboard'],
@@ -8,7 +8,7 @@ export const errorDashboardKeys = {
 };
 
 async function invokeDashboard(payload) {
-  return base44.functions.invoke('getErrorDashboard', payload);
+  return invokeAdminFunction('getErrorDashboard', payload);
 }
 
 export function useErrorGroups(filters = {}) {

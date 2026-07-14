@@ -65,6 +65,9 @@ export function disableRawDumpMode() {
 
 export function captureRawAi(text, meta = {}) {
   if (!text) return null;
+  if (window.__veridianLastRawAi === text) {
+    return text;
+  }
   window.__veridianLastRawAi = text;
   window.__veridianLastRawAiMeta = meta;
 

@@ -29,6 +29,17 @@
  * @property {boolean} [isCombinedFsrsDeck]
  * @property {boolean} [planAssignment]
  * @property {string[]} [cardIds]
+ * @property {string|null} [prescriptionType]
+ * @property {string|null} [primaryMode]
+ * @property {string|null} [prescriptionSummary]
+ * @property {object|null} [prescription]
+ * @property {object|null} [quizConfig]
+ * @property {string|null} [flashcardMode]
+ * @property {boolean} [mixedPhrasing]
+ * @property {boolean} [timed]
+ * @property {boolean} [prescriptionDriven]
+ * @property {boolean} [journeyLevel]
+ * @property {boolean} [isProfileFocus]
  */
 
 export {};

@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import ShareLinkButton from '@/components/shared/ShareLinkButton';
 import LibraryTagPicker from '@/components/library/LibraryTagPicker';
 import VeridianSwitch from '@/components/shared/form/VeridianSwitch';
 import PublishJourneyModal from '@/components/journey-detail/PublishJourneyModal';
 import { usePublishEligibility } from '@/hooks/queries/usePublishEligibility';
+import { useModules } from '@/hooks/queries/useModules';
 import {
   usePublishJourney,
   useUnpublishJourney,
@@ -12,10 +13,12 @@ import {
 } from '@/hooks/mutations/usePublishJourney';
 import { MIN_TAGS_TO_PUBLISH } from '@/lib/library/libraryTags';
 import { useIsJourneyOwner } from '@/hooks/useIsJourneyOwner';
+import { scanJourneyForModeration } from '@/utils/library/contentModeration';
 
 export default function JourneySharingPanel({ journey }) {
   const isOwner = useIsJourneyOwner(journey);
   const journeyId = journey.journeyId;
+  const { data: modules = [] } = useModules(journeyId);
   const { data: eligibility } = usePublishEligibility(journeyId);
   const publish = usePublishJourney();
   const unpublish = useUnpublishJourney();
@@ -33,14 +36,23 @@ export default function JourneySharingPanel({ journey }) {
 
   const saving = publish.isPending || unpublish.isPending || updateLibrary.isPending;
 
+  const moderation = useMemo(
+    () => scanJourneyForModeration({ journey, modules, tags }),
+    [journey, modules, tags],
+  );
+
   const effectiveEligibility = eligibility
     ? {
       ...eligibility,
       tagCount: tags.length,
       tagsOk: tags.length >= MIN_TAGS_TO_PUBLISH,
+      moderationOk: moderation.allowed,
+      moderationIssues: moderation.issues,
+      moderationSummary: moderation.summary,
       canPublish: eligibility.modulesOk
         && eligibility.activitiesOk
-        && tags.length >= MIN_TAGS_TO_PUBLISH,
+        && tags.length >= MIN_TAGS_TO_PUBLISH
+        && moderation.allowed,
     }
     : null;
 
@@ -100,6 +112,13 @@ export default function JourneySharingPanel({ journey }) {
         Share your journey in the Community Library so other students can preview and clone it.
         Cloned copies are independent — your progress stays private.
       </p>
+
+      {journey.libraryPublishBlocked && !journey.isPublic && (
+        <p className="journey-publish-blocked" role="status">
+          {journey.libraryPublishBlockReason
+            || 'This journey cannot be published to the community library yet. Review titles, module names, and tags, then try again.'}
+        </p>
+      )}
 
       <LibraryTagPicker value={tags} onChange={setTags} />
 

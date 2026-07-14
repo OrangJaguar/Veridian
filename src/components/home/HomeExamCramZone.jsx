@@ -3,13 +3,14 @@ import { useActivitiesByJourney } from '@/hooks/queries/useActivities';
 import { useModules } from '@/hooks/queries/useModules';
 import { useLaunchStudy } from '@/hooks/study/useLaunchStudy';
 import { journeyWideActivitiesUnlocked } from '@/utils/study/journeyUnlock';
+import { daysUntilExam, isExamWeek } from '@/utils/weeklyPlan/weekKey';
 
-function CramBanner({ journey }) {
+function ExamWeekBanner({ journey }) {
   const { data: activities = [] } = useActivitiesByJourney(journey.journeyId);
   const { data: modules = [] } = useModules(journey.journeyId);
   const launchStudy = useLaunchStudy();
   const cram = activities.find((a) => a.type === 'cramSession');
-  const daysUntilExam = Math.ceil((journey.examDate - Date.now()) / 86400000);
+  const days = daysUntilExam(journey.examDate) ?? 0;
   const unlocked = journeyWideActivitiesUnlocked(modules);
 
   const handleCram = () => {
@@ -30,17 +31,17 @@ function CramBanner({ journey }) {
   };
 
   return (
-    <div className="home-cram-banner">
+    <div className="home-cram-banner home-exam-week-banner">
       <div className="home-cram-banner-text">
         <strong>{journey.title}</strong>
         <span>
-          Exam in {daysUntilExam} day{daysUntilExam === 1 ? '' : 's'} — build a focused cram session
+          Exam in {days} day{days === 1 ? '' : 's'} — denser plan + optional Cram Session
         </span>
       </div>
       <div className="home-cram-banner-actions">
         {cram && unlocked ? (
           <button type="button" className="btn btn-primary btn-sm" onClick={handleCram}>
-            Cram Session (15 min)
+            Cram Session
           </button>
         ) : (
           <Link to={`/journeys/${journey.journeyId}`} className="btn btn-secondary btn-sm">
@@ -53,18 +54,16 @@ function CramBanner({ journey }) {
 }
 
 export default function HomeExamCramZone({ journeys = [] }) {
-  const examNear = journeys.filter(
-    (j) => j.examDate && Math.ceil((j.examDate - Date.now()) / 86400000) <= 7,
-  );
+  const examNear = journeys.filter((j) => isExamWeek(j.examDate));
 
   if (examNear.length === 0) return null;
 
   return (
-    <section className="home-exam-cram" aria-labelledby="exam-cram-heading">
-      <h2 id="exam-cram-heading" className="home-exam-cram-title">Exam coming up</h2>
+    <section className="home-exam-cram home-exam-week" aria-labelledby="exam-week-heading">
+      <h2 id="exam-week-heading" className="home-exam-cram-title">Exam week</h2>
       <div className="home-cram-stack">
         {examNear.map((journey) => (
-          <CramBanner key={journey.journeyId ?? journey.id} journey={journey} />
+          <ExamWeekBanner key={journey.journeyId ?? journey.id} journey={journey} />
         ))}
       </div>
     </section>

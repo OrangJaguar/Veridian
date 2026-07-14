@@ -6,6 +6,7 @@ import { listActivitiesByJourney } from '@/api/entities/activities';
 import { getPreferences } from '@/api/entities/preferences';
 import { setModulesLibraryVisible } from '@/api/entities/syncLibraryVisibility';
 import { getModuleConcepts } from '@/utils/library/moduleConcepts';
+import { scanJourneyForModeration } from '@/utils/library/contentModeration';
 import {
   MIN_MODULES_TO_PUBLISH,
   MIN_TAGS_TO_PUBLISH,
@@ -145,9 +146,14 @@ export async function getPublishEligibility(journeyId) {
     tagCount: (journey.tags ?? []).length,
   };
 
+  const moderation = scanJourneyForModeration({ journey, modules, tags: journey.tags });
+
   return {
     ...checks,
-    canPublish: checks.modulesOk && checks.activitiesOk && checks.tagsOk,
+    moderationOk: moderation.allowed,
+    moderationIssues: moderation.issues,
+    moderationSummary: moderation.summary,
+    canPublish: checks.modulesOk && checks.activitiesOk && checks.tagsOk && moderation.allowed,
   };
 }
 
@@ -162,8 +168,20 @@ export async function publishJourney(journeyId, { tags } = {}) {
 
   const eligibility = await getPublishEligibility(journeyId);
   if (!eligibility.canPublish) {
+    if (!eligibility.moderationOk) {
+      await updateJourney(journeyId, {
+        libraryPublishBlocked: true,
+        libraryPublishBlockReason: eligibility.moderationSummary,
+      });
+      throw new Error(eligibility.moderationSummary || 'Journey content cannot be published to the community library.');
+    }
     throw new Error('Journey does not meet publish requirements');
   }
+
+  await updateJourney(journeyId, {
+    libraryPublishBlocked: false,
+    libraryPublishBlockReason: null,
+  });
 
   let creatorUsername = journey.creatorUsername;
   if (!creatorUsername) {

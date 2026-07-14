@@ -1,6 +1,15 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 
-async function requireAdmin(base44: ReturnType<typeof createClientFromRequest>) {
+type Base44Client = ReturnType<typeof createClientFromRequest>;
+
+function serviceEntities(base44: Base44Client) {
+  if (!base44.asServiceRole) {
+    throw new Error("Service role is not available in this context.");
+  }
+  return base44.asServiceRole.entities;
+}
+
+async function requireAdmin(base44: Base44Client) {
   const user = await base44.auth.me();
   if (!user?.email) {
     return { error: Response.json({ error: { message: "Unauthorized" } }, { status: 401 }) };
@@ -40,11 +49,12 @@ Deno.serve(async (req) => {
     const exportKey = String(body.exportKey ?? "");
     const adminEmail = (auth.user as { email?: string }).email ?? "";
 
+    const entities = serviceEntities(base44);
     const [prefs, journeys, sessions, modules] = await Promise.all([
-      base44.entities.UserPreferences.list(),
-      base44.entities.Journey.list(),
-      base44.entities.Session.list(),
-      base44.entities.Module.list(),
+      entities.UserPreferences.list(),
+      entities.Journey.list(),
+      entities.Session.list(),
+      entities.Module.list(),
     ]);
 
     const prefsArr = prefs as Array<Record<string, unknown>>;

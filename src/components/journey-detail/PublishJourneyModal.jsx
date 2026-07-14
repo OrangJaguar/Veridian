@@ -29,6 +29,11 @@ export default function PublishJourneyModal({
       met: eligibility?.tagsOk,
       label: `${MIN_TAGS_TO_PUBLISH}+ tag${MIN_TAGS_TO_PUBLISH === 1 ? '' : 's'} selected (${tagCount})`,
     },
+    {
+      key: 'moderation',
+      met: eligibility?.moderationOk !== false,
+      label: 'Content meets community guidelines',
+    },
   ];
 
   const canPublish = eligibility?.canPublish;
@@ -71,6 +76,16 @@ export default function PublishJourneyModal({
                   </li>
                 ))}
               </ul>
+              {!eligibility?.moderationOk && eligibility?.moderationIssues?.length > 0 && (
+                <div className="publish-moderation-detail">
+                  <p>Community guideline issues:</p>
+                  <ul>
+                    {eligibility.moderationIssues.map((issue, i) => (
+                      <li key={`${issue.field}-${i}`}>{issue.message}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </>
           )}
         </div>

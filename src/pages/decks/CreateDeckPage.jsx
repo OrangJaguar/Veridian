@@ -12,6 +12,7 @@ import StepDeckProcessing from '@/components/deck-create/StepDeckProcessing';
 import { useDeckCreateStore } from '@/store/deckCreateStore';
 
 const STEPS = ['Setup', 'Content', 'Preview', 'Generate'];
+const AUTO_STEPS = ['Setup', 'Generate'];
 
 export default function CreateDeckPage() {
   const { id: journeyId, moduleId } = useParams();
@@ -85,10 +86,17 @@ export default function CreateDeckPage() {
     await generateAndSave();
   };
 
-  const visibleSteps = draft.sourceMode === 'pdf' ? STEPS : STEPS.filter((s) => s !== 'Preview');
-  const displayStep = draft.sourceMode === 'pdf'
-    ? step
-    : step > 3 ? step - 1 : step;
+  const isAutoMode = draft.sourceMode === 'moduleAuto';
+  const visibleSteps = isAutoMode
+    ? AUTO_STEPS
+    : draft.sourceMode === 'pdf'
+      ? STEPS
+      : STEPS.filter((s) => s !== 'Preview');
+  const displayStep = isAutoMode
+    ? (step === 4 ? 2 : 1)
+    : draft.sourceMode === 'pdf'
+      ? step
+      : step > 3 ? step - 1 : step;
 
   if (!isAuthenticated) {
     return (
@@ -128,7 +136,15 @@ export default function CreateDeckPage() {
         </ol>
       </header>
 
-      {step === 1 && <StepDeckSetup onNext={() => setStep(2)} />}
+      {step === 1 && (
+        <StepDeckSetup
+          onNext={() => setStep(2)}
+          onAutoGenerate={async () => {
+            setStep(4);
+            await generateAndSave();
+          }}
+        />
+      )}
 
       {step === 2 && (
         <StepDeckSource onBack={() => setStep(1)} onNext={handleSourceNext} />

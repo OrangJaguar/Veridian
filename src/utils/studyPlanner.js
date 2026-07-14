@@ -232,21 +232,6 @@ export function generateStudyPlan(journey, modules, activities, sessions, cards)
     }
   }
 
-  // 7. Journey-level activities
-  const stageBCount = modules.filter((m) => m.stage === 'B').length;
-  if (stageBCount >= 2) {
-    const interleaved = findJourneyActivity(journeyActivities, 'interleavedReview');
-    if (interleaved) {
-      addCandidate(buildItem({
-        journey,
-        module: null,
-        activity: interleaved,
-        reason: 'Journey-wide review recommended',
-        urgency: 'low',
-      }));
-    }
-  }
-
   candidates.sort((a, b) => {
     const urg = URGENCY_ORDER[a.urgency] - URGENCY_ORDER[b.urgency];
     if (urg !== 0) return urg;

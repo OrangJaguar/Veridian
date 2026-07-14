@@ -8,6 +8,9 @@ import {
   triggerAnswerFeedback,
   formatStudyTime,
 } from '@/utils/study/feedback';
+import { gradeMcqResponse, resolveCorrectAnswer } from '@/utils/study/resolveCorrectAnswer';
+import { gradeQuestionResponse } from '@/utils/quiz/gradeQuestionResponse';
+import QuizQuestionView from '@/components/study/quiz/QuizQuestionView';
 
 const URGENCY_THRESHOLDS = [
   { sec: 300, message: '5 minutes left' },
@@ -118,16 +121,9 @@ export default function QuizRunner({
     }
   }, [remainingSec, strictTimedMode, paused, onComplete]);
 
-  const isCorrect = useCallback((response, question) => {
-    if (!question) return false;
-    if (Array.isArray(question.correctAnswer)) {
-      return Array.isArray(response)
-        && response.length === question.correctAnswer.length
-        && response.every((r) => question.correctAnswer.includes(r));
-    }
-    if (question.type === 'shortAnswer') return fuzzyMatchAnswer(response, question.correctAnswer);
-    return response === question.correctAnswer;
-  }, []);
+  const isCorrect = useCallback((response, question) => (
+    gradeQuestionResponse(response, question)
+  ), []);
 
   const restoreQuestionState = useCallback((i) => {
     const existing = answersByIndex[i];
@@ -234,6 +230,13 @@ export default function QuizRunner({
   const questionIsBroken = useCallback((question) => {
     if (!question) return false;
     if (question.type === 'shortAnswer' || question.type === 'trueFalse') return false;
+    if (question.type === 'ordering') {
+      return !(question.items?.length || question.options?.length);
+    }
+    if (question.type === 'matching') {
+      return !(question.leftItems?.length && question.rightItems?.length);
+    }
+    if (question.type === 'multiSelect') return !(question.options?.length);
     return !(question.options?.length);
   }, []);
 
@@ -283,6 +286,7 @@ export default function QuizRunner({
   useEffect(() => {
     const onKeyDown = (e) => {
       if (paused || !q) return;
+      const isMcq = q.type === 'multipleChoice' || q.type === 'trueFalse' || !q.type;
       const options = q.type === 'trueFalse' ? ['True', 'False'] : (q.options ?? []);
 
       if (e.key === ' ' || e.key === 'Spacebar') {
@@ -290,6 +294,8 @@ export default function QuizRunner({
         advance();
         return;
       }
+
+      if (!isMcq) return;
 
       const num = Number(e.key);
       if (num >= 1 && num <= options.length) {
@@ -321,6 +327,7 @@ export default function QuizRunner({
   const progressPct = activeQuestions.length ? (answeredCount / activeQuestions.length) * 100 : 0;
   const completionPct = Math.round(progressPct);
   const selectedCorrect = selected != null && isCorrect(selected, q);
+  const resolvedCorrect = resolveCorrectAnswer(q.correctAnswer, options);
   const timerDisplay = strictTimedMode
     ? formatStudyTime(remainingSec ?? 0)
     : formatStudyTime(elapsedSec);
@@ -333,7 +340,7 @@ export default function QuizRunner({
     if (selected === opt) {
       return selectedCorrect ? ' option-correct' : ' option-wrong';
     }
-    if (!selectedCorrect && opt === q.correctAnswer) {
+    if (!selectedCorrect && resolvedCorrect && opt === resolvedCorrect) {
       return ' option-correct';
     }
     return '';
@@ -419,43 +426,29 @@ export default function QuizRunner({
             </div>
           )}
 
-          <div className="question-block">
-            <div className="question-text">
-              <LatexRenderer text={q.stem} />
-            </div>
-            <div className="options-grid">
-              {options.map((opt, i) => (
-                <button
-                  key={opt}
-                  type="button"
-                  className={`option-btn${optionClass(opt)}`}
-                  disabled={paused}
-                  onClick={() => handleSelect(opt)}
-                >
-                  <span className="option-key">{i + 1}</span>
-                  <LatexRenderer text={opt} />
+          <QuizQuestionView
+            question={q}
+            selected={selected}
+            answered={answered}
+            disabled={paused}
+            instantFeedback={instantFeedback}
+            onSelect={handleSelect}
+            onSubmit={recordAnswer}
+            optionClass={optionClass}
+          />
+          {isBroken && (
+            <div className="quiz-broken-question">
+              <p>This question has no answer choices. Skip it or remove it from this quiz.</p>
+              <div className="quiz-broken-question-actions">
+                <button type="button" className="btn btn-secondary btn-sm" onClick={advance}>
+                  Skip for now
                 </button>
-              ))}
+                <button type="button" className="btn btn-primary btn-sm" onClick={removeBrokenQuestion}>
+                  Remove question
+                </button>
+              </div>
             </div>
-            {isBroken && (
-              <div className="quiz-broken-question">
-                <p>This question has no answer choices. Skip it or remove it from this quiz.</p>
-                <div className="quiz-broken-question-actions">
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={advance}>
-                    Skip for now
-                  </button>
-                  <button type="button" className="btn btn-primary btn-sm" onClick={removeBrokenQuestion}>
-                    Remove question
-                  </button>
-                </div>
-              </div>
-            )}
-            {instantFeedback && selected != null && q.explanation && (
-              <div className={`feedback-text${selectedCorrect ? ' feedback-correct' : ' feedback-wrong'}`}>
-                <LatexRenderer text={q.explanation} />
-              </div>
-            )}
-          </div>
+          )}
 
           <div className="action-row">
             <QuizQuestionNav

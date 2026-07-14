@@ -30,9 +30,8 @@ import NotFoundPage from '@/pages/NotFoundPage';
 import RequireAdmin from '@/components/routing/RequireAdmin';
 import BaselineCheckPage from '@/pages/journeys/BaselineCheckPage';
 import MaiSurveyPage from '@/pages/survey/MaiSurveyPage';
-import ResearchDataPage from '@/pages/admin/ResearchDataPage';
+import DataDashboardPage, { ResearchDataRedirect } from '@/pages/admin/DataDashboardPage';
 import ErrorsDashboardPage from '@/pages/admin/ErrorsDashboardPage';
-import DataDashboardPage from '@/pages/admin/DataDashboardPage';
 import AdminJourneysPage from '@/pages/admin/AdminJourneysPage';
 import AdminJourneyNewPage from '@/pages/admin/AdminJourneyNewPage';
 import AdminJourneyEditorPage from '@/pages/admin/AdminJourneyEditorPage';
@@ -126,7 +125,7 @@ export default function App() {
           path="/admin/research"
           element={(
             <RequireAdmin>
-              <ResearchDataPage />
+              <ResearchDataRedirect />
             </RequireAdmin>
           )}
         />

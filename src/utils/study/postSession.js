@@ -7,7 +7,7 @@ import { listActivitiesByJourney } from '@/api/entities/activities';
 import { listModulesByJourney } from '@/api/entities/modules';
 import { listSessionsByJourney } from '@/api/entities/sessions';
 import { listCardsByJourney } from '@/api/entities/cards';
-import { rebuildWeeklyPlan } from '@/api/entities/weeklyPlan';
+import { rebuildGlobalPlan } from '@/api/entities/globalPlan';
 import { STAGE_C_PROMOTION_THRESHOLD } from '@/utils/weeklyPlan/constants';
 import { isQuizSessionActivityType } from '@/utils/research/quizSessionTypes';
 import { getPendingMasterySnapshots } from '@/utils/research/masterySnapshots';
@@ -18,12 +18,28 @@ import {
   computePressureReadiness,
 } from '@/utils/study/conceptPerformance';
 import { parseModuleDiagnosticSummary } from '@/utils/study/diagnosticWeakness';
+import { ingestSessionEvidence } from '@/api/entities/failureEvidence';
+import { computeFailureProfile } from '@/utils/failures/computeFailureProfile';
+import {
+  snapshotModuleProfile,
+  shouldRebuildAfterEvidence,
+  shouldDebounceEvidenceRebuild,
+} from '@/utils/planner/shouldRebuildAfterEvidence';
+import { getPreferences, updatePreferences } from '@/api/entities/preferences';
+import { queuePrescriptionBankTopUp } from '@/utils/planner/queuePrescriptionBankTopUp';
 
 function patchActivityStats(existing, session) {
   const stats = { ...(existing.stats ?? {}) };
   const total = (stats.totalSessions ?? 0) + 1;
   stats.totalSessions = total;
   stats.lastCompletedAt = session.endedAt ?? Date.now();
+
+  if (session.durationSec != null && session.durationSec > 0) {
+    const prevAvg = stats.avgDurationSec ?? session.durationSec;
+    stats.avgDurationSec = Math.round(
+      ((prevAvg * (total - 1)) + session.durationSec) / total,
+    );
+  }
 
   if (session.score != null) {
     stats.lastScore = session.score;
@@ -91,6 +107,59 @@ export async function runPostSessionEffects(session, activity) {
 
       await updateModule(moduleId, stagePatch);
 
+      const updatedMod = { ...mod, ...stagePatch };
+      const beforeProfile = snapshotModuleProfile(updatedMod, now);
+      const stageChanged = stagePatch.stage === 'B' || stagePatch.stage === 'C';
+
+      let mergedEvidence = null;
+      try {
+        mergedEvidence = await ingestSessionEvidence({
+          module: updatedMod,
+          session: { ...session, status: 'completed', endedAt: session.endedAt ?? now },
+          activity,
+          cards,
+        });
+      } catch {
+        /* best effort evidence capture */
+      }
+
+      const afterProfile = mergedEvidence
+        ? computeFailureProfile({ ...updatedMod, failureEvidence: JSON.stringify(mergedEvidence) }, now)
+        : snapshotModuleProfile(updatedMod, now);
+
+      const evidenceRebuild = shouldRebuildAfterEvidence({
+        beforeProfile,
+        afterProfile,
+        stageChanged,
+      });
+
+      if (evidenceRebuild) {
+        const prefs = await getPreferences().catch(() => null);
+        const lastAt = prefs?.lastEvidencePlanRebuildAt ?? 0;
+        if (!shouldDebounceEvidenceRebuild(lastAt, now)) {
+          await rebuildGlobalPlan({ force: true });
+          await updatePreferences({ lastEvidencePlanRebuildAt: now }).catch(() => {});
+        }
+      } else if (stageChanged) {
+        await rebuildGlobalPlan({ force: true });
+      }
+
+      const prescription = session.sessionData?.prescription;
+      if (
+        afterProfile.primaryConfidence === 'confirmed'
+        && (beforeProfile.primaryMode !== afterProfile.primaryMode
+          || beforeProfile.primaryConfidence !== 'confirmed')
+        && prescription?.prescriptionType
+      ) {
+        queuePrescriptionBankTopUp({
+          module: updatedMod,
+          journeyId,
+          activityId: activity.activityId,
+          prescriptionType: prescription.prescriptionType,
+          primaryMode: afterProfile.primaryMode,
+        });
+      }
+
       const isTimedQuiz = session.activityType === 'practiceQuiz' && (
         session.sessionData?.config?.timedMode === true
         || session.sessionData?.quizConfig?.strictMode === true
@@ -146,11 +215,7 @@ export async function runPostSessionEffects(session, activity) {
         }
       }
 
-      if (stagePatch.stage === 'B' || stagePatch.stage === 'C') {
-        await rebuildWeeklyPlan(journeyId, { force: true });
-      }
 
-      const updatedMod = { ...mod, ...stagePatch };
       const allSessions = sessions.map((s) => (
         s.sessionId === session.sessionId
           ? { ...s, status: 'completed', endedAt: session.endedAt ?? now }

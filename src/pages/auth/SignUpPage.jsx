@@ -3,14 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import PublicOnly from '@/components/routing/PublicOnly';
 import AuthForm from '@/components/auth/AuthForm';
 import { useAuth } from '@/hooks/useAuth';
-import { getBaselineCompleted } from '@/lib/baselineStorage';
+import { getBaselineUnlocked } from '@/lib/baselineStorage';
 
 export default function SignUpPage() {
   const navigate = useNavigate();
   const { setUser } = useAuth();
 
   useEffect(() => {
-    if (!getBaselineCompleted()) {
+    if (!getBaselineUnlocked()) {
       navigate('/', { replace: true });
     }
   }, [navigate]);

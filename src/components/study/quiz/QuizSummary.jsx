@@ -1,11 +1,35 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import LatexRenderer from '@/components/shared/LatexRenderer';
+import SessionFailureInsight from '@/components/failures/SessionFailureInsight';
+import QuizContentSourceBadge from '@/components/study/quiz/QuizContentSourceBadge';
 import { formatStudyTime } from '@/utils/study/feedback';
 
 function formatCorrectAnswer(q) {
+  if (q.type === 'matching' && q.correctAnswer && typeof q.correctAnswer === 'object') {
+    return Object.entries(q.correctAnswer)
+      .map(([left, right]) => `${left} → ${right}`)
+      .join('; ');
+  }
+  if (q.type === 'ordering' && Array.isArray(q.correctAnswer)) {
+    return q.correctAnswer.join(' → ');
+  }
   if (Array.isArray(q.correctAnswer)) return q.correctAnswer.join(', ');
   return String(q.correctAnswer ?? '');
+}
+
+function formatResponse(q, response) {
+  if (response == null) return 'Skipped';
+  if (q.type === 'matching' && typeof response === 'object' && !Array.isArray(response)) {
+    return Object.entries(response)
+      .map(([left, right]) => `${left} → ${right}`)
+      .join('; ');
+  }
+  if (q.type === 'ordering' && Array.isArray(response)) {
+    return response.join(' → ');
+  }
+  if (Array.isArray(response)) return response.join(', ');
+  return String(response);
 }
 
 export default function QuizSummary({
@@ -15,6 +39,9 @@ export default function QuizSummary({
   journeyTitle,
   moduleTitle,
   returnHref = '/home',
+  failureInsight = null,
+  failureModeId = null,
+  contentSource = null,
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -39,7 +66,7 @@ export default function QuizSummary({
 
     questions.forEach((q, idx) => {
       const ans = answerByQuestionId[q.id];
-      const selected = ans?.response != null ? String(ans.response) : 'Skipped';
+      const selected = formatResponse(q, ans?.response);
       const correct = formatCorrectAnswer(q);
       const time = ans?.timeSec != null ? `${ans.timeSec.toFixed(1)}s` : '—';
       lines.push(`${idx + 1}. ${q.stem}`);
@@ -64,6 +91,11 @@ export default function QuizSummary({
 
   return (
     <main className="study-mode-view session-summary-view">
+      {contentSource && (
+        <div className="quiz-content-source-row">
+          <QuizContentSourceBadge source={contentSource} />
+        </div>
+      )}
       <div className="summary-stats">
         <div className="stat-box">
           <span className="stat-value">{accuracy}%</span>
@@ -79,7 +111,7 @@ export default function QuizSummary({
         {questions.map((q, idx) => {
           const ans = answerByQuestionId[q.id];
           const isCorrect = ans?.correct === true;
-          const selected = ans?.response != null ? String(ans.response) : 'Skipped';
+          const selected = formatResponse(q, ans?.response);
           const correct = formatCorrectAnswer(q);
           const timeLabel = ans?.timeSec != null ? `${ans.timeSec.toFixed(1)}s` : '—';
 
@@ -111,6 +143,8 @@ export default function QuizSummary({
           );
         })}
       </div>
+
+      <SessionFailureInsight insight={failureInsight} modeId={failureModeId} />
 
       <div className="action-row summary-actions">
         <div>

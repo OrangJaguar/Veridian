@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useLaunchStudy } from '@/hooks/study/useLaunchStudy';
 import { getActivity } from '@/api/entities/activities';
+import { buildLaunchSessionData } from '@/utils/planner/buildLaunchSessionData';
 
 const ACTION_VERBS = {
   flashcardSet: 'Review',
@@ -27,6 +28,7 @@ export function useLaunchDueItem() {
       journeyId: item.journeyId,
       activity,
       moduleId: item.moduleId ?? undefined,
+      initialSessionData: buildLaunchSessionData(item),
     });
   }, [launchStudy]);
 }

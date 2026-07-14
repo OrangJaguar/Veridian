@@ -15,7 +15,7 @@ const initialDraft = {
   title: '',
   purpose: 'definitions',
   cardCount: 20,
-  sourceMode: 'notes',
+  sourceMode: 'moduleAuto',
   rawContent: '',
   extractedPreview: '',
   extractedSummary: '',
@@ -94,16 +94,19 @@ export const useDeckCreateStore = create((set, get) => ({
         set((s) => ({ draft: { ...s.draft, parsedPairs } }));
       }
 
-      const userContent = draft.sourceMode === 'pdf'
-        ? draft.extractedPreview
-        : draft.sourceMode === 'quizlet'
-          ? ''
-          : draft.rawContent;
+      const userContent = draft.sourceMode === 'moduleAuto'
+        ? ''
+        : draft.sourceMode === 'pdf'
+          ? draft.extractedPreview
+          : draft.sourceMode === 'quizlet'
+            ? ''
+            : draft.rawContent;
 
       const payload = buildGenerateFlashcardsPayload({
         deckTitle: draft.title,
         deckPurpose: draft.purpose,
         cardCount: draft.cardCount,
+        sourceMode: draft.sourceMode,
         userProvidedContent: userContent,
         parsedPairs,
         moduleName: context?.moduleName,
@@ -111,6 +114,7 @@ export const useDeckCreateStore = create((set, get) => ({
         concepts: context?.concepts ?? [],
         journeyTitle: context?.journeyTitle,
         subject: context?.subject,
+        priorKnowledge: context?.priorKnowledge,
       });
 
       const cardCount = Number(payload.cardCount ?? 20);

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { trackProductEvent } from '@/lib/analytics';
-import { clearBaseline } from '@/lib/baselineStorage';
+import { useAuth } from '@/hooks/useAuth';
+import { getBaselineCompleted, getBaselineUnlocked, clearBaseline } from '@/lib/baselineStorage';
 
 const VALUE_PROPS = [
   { title: 'Know what to do next', desc: 'One daily queue — no guessing' },
@@ -14,6 +15,15 @@ function handleRedoBaseline() {
 }
 
 export default function LandingFinalCta() {
+  const { isAuthenticated } = useAuth();
+  const baselineUnlocked = getBaselineUnlocked();
+  const ctaHref = isAuthenticated
+    ? '/journeys/new'
+    : (getBaselineCompleted() ? '/signup' : '/signin');
+  const ctaLabel = isAuthenticated
+    ? 'Create your first journey'
+    : (getBaselineCompleted() ? 'Create Free Account' : 'Sign in to start');
+
   return (
     <section className="landing-section landing-closing">
       <div className="landing-section-inner">
@@ -33,13 +43,15 @@ export default function LandingFinalCta() {
               ))}
             </ul>
             <div className="landing-cta-row landing-closing-cta">
-              <Link
-                to="/signup"
-                className="btn btn-primary"
-                onClick={() => trackProductEvent('signup_click')}
-              >
-                Create Free Account
-              </Link>
+              {baselineUnlocked && (
+                <Link
+                  to={ctaHref}
+                  className="btn btn-primary"
+                  onClick={() => trackProductEvent('signup_click', { source: 'landing_final' })}
+                >
+                  {ctaLabel}
+                </Link>
+              )}
               <button
                 type="button"
                 className="btn landing-closing-redo"

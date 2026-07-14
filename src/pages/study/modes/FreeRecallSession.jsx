@@ -49,6 +49,7 @@ export default function FreeRecallSession({ session, activity, module, journeyId
   const [hints, setHints] = useState([]);
   const [preloadedHints, setPreloadedHints] = useState([]);
   const [hintsPreloading, setHintsPreloading] = useState(true);
+  const [hintGenerating, setHintGenerating] = useState(false);
   const [hintModalOpen, setHintModalOpen] = useState(false);
   const hintsPreloadStarted = useRef(false);
   const [submitting, setSubmitting] = useState(false);
@@ -86,8 +87,8 @@ export default function FreeRecallSession({ session, activity, module, journeyId
     abandonSession({ sessionId: session.sessionId, journeyId, returnPath });
   };
 
-  const handleGenerateHint = () => {
-    if (hints.length >= MAX_HINTS) return;
+  const handleGenerateHint = async () => {
+    if (hints.length >= MAX_HINTS || hintGenerating) return;
 
     const next = preloadedHints[hints.length];
     if (next) {
@@ -97,8 +98,36 @@ export default function FreeRecallSession({ session, activity, module, journeyId
 
     if (hintsPreloading) {
       toast.message('Hints are still loading — try again in a moment.');
-    } else {
-      toast.error('Hints unavailable right now.');
+      return;
+    }
+
+    setHintGenerating(true);
+    try {
+      const tier = hints.length + 1;
+      const data = await generateFreeRecallHint({
+        moduleName: module?.name ?? 'this module',
+        moduleDescription: module?.description,
+        knowledgeMap: module?.knowledgeMap,
+        studentResponseSoFar: response,
+        tier,
+        previousHints: hints.map((h) => h.text),
+      });
+      const text = String(data?.hint ?? data?.text ?? '').trim();
+      if (!text) {
+        toast.error('Could not generate a hint. Try again.');
+        return;
+      }
+      const hint = { tier, text };
+      setPreloadedHints((prev) => {
+        const copy = [...prev];
+        copy[tier - 1] = hint;
+        return copy;
+      });
+      setHints((prev) => [...prev, hint]);
+    } catch (err) {
+      toast.error(err?.message || 'Hint generation failed. Try again.');
+    } finally {
+      setHintGenerating(false);
     }
   };
 
@@ -114,6 +143,7 @@ export default function FreeRecallSession({ session, activity, module, journeyId
         hintsUsed: hints.length,
         hints: hints.map((h) => h.text),
         knowledgeMap: module?.knowledgeMap,
+        concepts: module?.knowledgeMap?.concepts ?? [],
       });
 
       const sessionData = {
@@ -206,6 +236,7 @@ export default function FreeRecallSession({ session, activity, module, journeyId
       onResponseChange={setResponse}
       hints={hints}
       hintsPreloading={hintsPreloading}
+      hintGenerating={hintGenerating}
       hintModalOpen={hintModalOpen}
       onHintModalOpen={() => setHintModalOpen(true)}
       onHintModalClose={() => setHintModalOpen(false)}

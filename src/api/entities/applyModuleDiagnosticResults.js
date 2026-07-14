@@ -1,4 +1,6 @@
 import { updateModule } from '@/api/entities/modules';
+import { ingestDiagnosticEvidence } from '@/api/entities/failureEvidence';
+import { rebuildGlobalPlan } from '@/api/entities/globalPlan';
 
 /**
  * Persist the optional per-module AI diagnostic outcome onto the module itself.
@@ -29,5 +31,23 @@ export async function applyModuleDiagnosticResults(module, placement, sessionId)
     patch.baselineCapturedAt = Date.now();
   }
 
-  return updateModule(module.moduleId, patch);
+  const updated = await updateModule(module.moduleId, patch);
+
+  try {
+    await ingestDiagnosticEvidence({
+      module: { ...module, ...patch },
+      placement,
+      sessionId,
+    });
+  } catch {
+    /* best effort evidence capture */
+  }
+
+  try {
+    await rebuildGlobalPlan({ force: true });
+  } catch {
+    /* best effort plan refresh after baseline */
+  }
+
+  return updated;
 }

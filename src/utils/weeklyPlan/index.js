@@ -13,7 +13,17 @@ export {
   FSRS_NEW_CARDS_MAX,
 } from '@/utils/weeklyPlan/constants';
 
-export { getWeekKey, getDateKey, getMondayStart, getWeekDayKeys, daysUntilExam, isCramMode } from '@/utils/weeklyPlan/weekKey';
+export {
+  getWeekKey,
+  getDateKey,
+  getMondayStart,
+  getWeekDayKeys,
+  daysUntilExam,
+  isExamWeek,
+  isCramMode,
+  normalizePlanMode,
+  isExamWeekMode,
+} from '@/utils/weeklyPlan/weekKey';
 export { buildWeeklyPlan, getTodayPlanDay } from '@/utils/weeklyPlan/buildWeeklyPlan';
 export { shouldRebuildPlan, getPlanWeekKey } from '@/utils/weeklyPlan/planStale';
 export { buildAllModuleContexts, moduleAbbr } from '@/utils/weeklyPlan/moduleContext';

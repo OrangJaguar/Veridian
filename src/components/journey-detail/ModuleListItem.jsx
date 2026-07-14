@@ -9,6 +9,7 @@ import {
 } from '@/utils/study/activityUi';
 import ActivityLabelWithTooltip from '@/components/study/ActivityLabelWithTooltip';
 import { isLegacyGeneratingActivity } from '@/utils/study/activityContent';
+import ModuleFailureModePill from '@/components/failures/ModuleFailureModePill';
 import { stageActivityTypes } from '@/components/module-detail/ActivityRow';
 
 const STAGE_LABELS = { A: 'Learn', B: 'Practice', C: 'Mastery' };
@@ -97,6 +98,7 @@ export default function ModuleListItem({
   cardsByActivity = {},
   expanded,
   onToggle,
+  failureSummary = null,
 }) {
   const mastery = mod.masteryScore ?? 0;
   const stage = mod.stage || 'A';
@@ -117,6 +119,13 @@ export default function ModuleListItem({
           )}
         </div>
         <div className="journey-module-card-right">
+          {failureSummary?.primaryMode && (
+            <ModuleFailureModePill
+              modeId={failureSummary.primaryMode}
+              confidence={failureSummary.confidence}
+              compact
+            />
+          )}
           <span className={`journey-module-stage stage-${stage}`}>
             Stage {stage} · {STAGE_LABELS[stage]}
           </span>

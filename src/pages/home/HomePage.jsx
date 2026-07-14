@@ -7,6 +7,8 @@ import { queryKeys } from '@/api/query-keys';
 import { listAllSessions } from '@/api/entities/sessions';
 import { useRemoveStarterJourney } from '@/hooks/useRemoveStarterJourney';
 import { countCompletedToday } from '@/utils/dueToday/completedToday';
+import { isExamWeek } from '@/utils/weeklyPlan/weekKey';
+import { resolveJourneyPacingMode } from '@/utils/planner/pacingMode';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
 import VeridianLoading from '@/components/shared/VeridianLoading';
 import HomeWelcomeHeader from '@/components/home/HomeWelcomeHeader';
@@ -15,7 +17,9 @@ import HomeContextNotice from '@/components/home/HomeContextNotice';
 import DueTodayZone from '@/components/home/DueTodayZone';
 import HomeUpcomingSection from '@/components/home/HomeUpcomingSection';
 import HomeExamCramZone from '@/components/home/HomeExamCramZone';
+import HomeKeepSharpZone from '@/components/home/HomeKeepSharpZone';
 import HomeEmptyState from '@/components/home/HomeEmptyState';
+import HomeFirstSessionReady from '@/components/home/HomeFirstSessionReady';
 import MaiSurveyPromptModal from '@/components/survey/MaiSurveyPromptModal';
 import { useMaiSurveyEligibility } from '@/hooks/useMaiSurveyEligibility';
 
@@ -62,11 +66,19 @@ export default function HomePage() {
   const dueLoading = duePending && dueItems.length === 0;
   const plannedIds = dueItems.map((i) => i.activityId).filter((id) => !id.startsWith('fsrs-'));
   const completedToday = countCompletedToday(plannedIds, sessions);
-  const cramJourneys = journeys.filter((j) => {
-    if (!j.examDate) return false;
-    const days = Math.ceil((j.examDate - Date.now()) / 86400000);
-    return days >= 0 && days <= 7;
-  });
+  const examWeekJourneys = journeys.filter((j) => isExamWeek(j.examDate));
+  const keepSharpJourneys = journeys.filter(
+    (j) => resolveJourneyPacingMode(j.examDate) === 'keepSharp',
+  );
+  const completedSessions = sessions.filter((s) => s.status === 'completed').length;
+  const focusItem = dueItems.find((i) => i.tier === 'focus') ?? dueItems[0] ?? null;
+  const hasReadyJourney = journeys.some(
+    (j) => j.generationStatus === 'completed' || (!j.generationStatus && j.journeyId),
+  );
+  const showFirstSessionReady = hasReadyJourney
+    && !hasProcessing
+    && Boolean(focusItem)
+    && completedSessions <= 2;
 
   if (showEmpty) {
     return (
@@ -83,7 +95,12 @@ export default function HomePage() {
       <HomeContextNotice dueItems={dueItems} journeys={journeys} />
       {journeys.length > 0 && <HomeWelcomeHeader />}
       <MaiDay60Banner />
-      {cramJourneys.length > 0 && <HomeExamCramZone journeys={cramJourneys} />}
+      {showFirstSessionReady && (
+        <HomeFirstSessionReady
+          focusItem={focusItem}
+          completedSessionCount={completedSessions}
+        />
+      )}
       <DueTodayZone
         items={dueItems}
         loading={dueLoading}
@@ -91,6 +108,8 @@ export default function HomePage() {
         completedToday={completedToday}
         journeys={journeys}
       />
+      {examWeekJourneys.length > 0 && <HomeExamCramZone journeys={examWeekJourneys} />}
+      {keepSharpJourneys.length > 0 && <HomeKeepSharpZone journeys={keepSharpJourneys} />}
       <HomeUpcomingSection journeys={journeys} />
     </div>
   );

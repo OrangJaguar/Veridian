@@ -6,6 +6,7 @@ import { buildModuleNumberMap } from '@/utils/weeklyPlan/moduleContext';
 import { sortModulesByUrgency } from '@/utils/weeklyPlan/moduleUrgency';
 import { buildModuleSummaries } from '@/utils/weeklyPlan/modulePriorityText';
 import { packDayAssignments } from '@/utils/weeklyPlan/planPacking';
+import { applyFallbackWeekPack } from '@/utils/weeklyPlan/fallbackWeekPack';
 import { getDueCards } from '@/utils/fsrs';
 
 function countFsrsForDay(cards, dayDate) {
@@ -73,6 +74,8 @@ export function buildNormalWeekPlan({
       daysUntilExam,
     });
   }
+
+  applyFallbackWeekPack(days, activeModules, moduleNumberMap);
 
   const moduleSummaries = buildModuleSummaries(sorted, days);
 

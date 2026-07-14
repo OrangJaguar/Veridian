@@ -1,4 +1,8 @@
 import { parseDiagnosticSummary } from '@/utils/study/conceptPerformance';
+import { normalizeFailureModeId } from '@/utils/failures/legacyFailureMap';
+import { computeFailureProfile } from '@/utils/failures/computeFailureProfile';
+import { getFailureModeMeta } from '@/utils/failures/taxonomy';
+import { getPrescriptionForMode } from '@/utils/failures/prescriptionMatrix';
 
 const VARIANT_ORDER = ['verbatim', 'application', 'transfer'];
 
@@ -130,22 +134,47 @@ export function getWeakestConcept(journey, moduleId, modules = []) {
   return null;
 }
 
+export function failureModeToActivityFromMatrix(modeId, stage = 'B') {
+  const spec = getPrescriptionForMode(modeId, stage);
+  return spec?.activityType ?? null;
+}
+
 export function failureModeToActivity(failureSignal, stage = 'A') {
-  switch (failureSignal) {
+  const modeId = normalizeFailureModeId(failureSignal) ?? failureSignal;
+  const fromMatrix = failureModeToActivityFromMatrix(modeId, stage);
+  if (fromMatrix) return fromMatrix;
+
+  switch (modeId) {
+    case 'verbatim_trap':
     case 'verbatimTrap':
       return stage === 'A' ? 'learningGuide' : 'feynman';
+    case 'transfer_failure':
     case 'transferFailure':
       return 'practiceQuiz';
+    case 'pressure_collapse':
     case 'pressureCollapse':
       return 'practiceQuiz';
+    case 'understanding_gap':
     case 'conceptualGap':
       return 'learningGuide';
+    case 'interference':
+      return stage === 'C' ? 'feynman' : 'practiceQuiz';
+    case 'retention_decay':
+      return 'flashcardSet';
     default:
       return stage === 'A' ? 'learningGuide' : 'practiceQuiz';
   }
 }
 
 export function getDiagnosticWeakConceptLabels(journey, module, limit = 3) {
+  const profile = computeFailureProfile(module);
+  if (profile.hasData && profile.topConcepts.length) {
+    const labels = profile.topConcepts.map((c) => c.label);
+    const meta = profile.primaryMode ? getFailureModeMeta(profile.primaryMode) : null;
+    if (meta?.evidenceLabel) labels.push(meta.evidenceLabel);
+    return [...new Set(labels)].slice(0, limit);
+  }
+
   const moduleResult = moduleResultFromModule(module);
   if (!moduleResult) {
     // Backward compat: journey-wide summary.

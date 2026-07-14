@@ -1,5 +1,5 @@
 /**
- * @typedef {'normal' | 'cram'} PlanMode
+ * @typedef {'normal' | 'examWeek' | 'cram'} PlanMode
  */
 
 /**
@@ -14,6 +14,16 @@
  * @property {string} activityId
  * @property {ModuleActivityType} activityType
  * @property {string} reasonCode
+ * @property {string} [prescriptionType]
+ * @property {string|null} [primaryMode]
+ * @property {string|null} [prescriptionSummary]
+ * @property {object|null} [prescription]
+ * @property {object|null} [quizConfig]
+ * @property {string|null} [flashcardMode]
+ * @property {boolean} [mixedPhrasing]
+ * @property {boolean} [timed]
+ * @property {boolean} [prescriptionDriven]
+ * @property {boolean} [journeyLevel]
  */
 
 /**

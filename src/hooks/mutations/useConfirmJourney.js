@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { queryKeys } from '@/api/query-keys';
 import { confirmJourney } from '@/api/entities/confirmJourney';
 import { dismissHomeWelcomeHint } from '@/utils/preferences/dismissHomeWelcomeHint';
@@ -24,9 +25,16 @@ export function useConfirmJourney() {
 
   return useMutation({
     mutationFn: confirmJourney,
-    onSuccess: async ({ journey }) => {
+    onSuccess: async ({ journey, publishBlocked, publishBlockReason }) => {
       await dismissHomeWelcomeHint(queryClient, user?.email);
       invalidateAll(queryClient, journey.journeyId);
+      if (publishBlocked) {
+        toast.warning(
+          publishBlockReason
+            || 'Your journey was saved privately because it cannot be published to the community library yet.',
+          { duration: 8000 },
+        );
+      }
       navigate(`/journeys/${journey.journeyId}`);
     },
   });

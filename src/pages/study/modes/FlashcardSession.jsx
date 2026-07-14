@@ -1,14 +1,21 @@
-import { useState, useRef } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import FlashcardReview from '@/components/study/flashcard/FlashcardReview';
 import FlashcardTypingDrill from '@/components/study/flashcard/FlashcardTypingDrill';
 import FlashcardSummary from '@/components/study/flashcard/FlashcardSummary';
 import { useCompleteSession } from '@/hooks/study/useCompleteSession';
 import { useAbandonSession } from '@/hooks/study/useAbandonSession';
 import { useUpdateCard } from '@/hooks/mutations/useCardMutations';
+import { getDueCards } from '@/utils/fsrs';
 
 function initialPhase(session) {
   if (session.status === 'completed' && session.sessionData?.reviews?.length) return 'summary';
   return 'review';
+}
+
+function resolveFlashcardMode(session) {
+  return session.sessionData?.flashcardMode
+    ?? session.sessionData?.prescription?.spec?.flashcardMode
+    ?? 'browse';
 }
 
 export default function FlashcardSession({ session, activity, module, journeyId, cards = [] }) {
@@ -21,7 +28,19 @@ export default function FlashcardSession({ session, activity, module, journeyId,
   const abandonSession = useAbandonSession();
   const updateCard = useUpdateCard();
 
-  const reviewCards = cards.filter((c) => !c.suspended);
+  const flashcardMode = resolveFlashcardMode(session);
+  const mixedPhrasing = session.sessionData?.mixedPhrasing
+    ?? session.sessionData?.prescription?.spec?.mixedPhrasing
+    ?? false;
+
+  const reviewCards = useMemo(() => {
+    const active = cards.filter((c) => !c.suspended);
+    if (flashcardMode === 'due') {
+      const due = getDueCards(active);
+      return due.length ? due : active;
+    }
+    return active;
+  }, [cards, flashcardMode]);
 
   const handleExit = () => {
     abandonSession({ sessionId: session.sessionId, journeyId, returnPath: '/home' });
@@ -46,10 +65,13 @@ export default function FlashcardSession({ session, activity, module, journeyId,
     setTotalTimeSec(elapsed);
 
     const sessionData = {
-      mode: 'browse',
+      mode: flashcardMode === 'due' ? 'due' : 'browse',
+      flashcardMode,
+      mixedPhrasing,
       reviews: pendingUpdates.current,
       typingResults,
       masteryStats: masteryStatsRef.current,
+      prescription: session.sessionData?.prescription ?? null,
     };
 
     setPhase('summary');

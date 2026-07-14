@@ -1,6 +1,15 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 
-async function requireAdmin(base44: ReturnType<typeof createClientFromRequest>) {
+type Base44Client = ReturnType<typeof createClientFromRequest>;
+
+function serviceEntities(base44: Base44Client) {
+  if (!base44.asServiceRole) {
+    throw new Error("Service role is not available in this context.");
+  }
+  return base44.asServiceRole.entities;
+}
+
+async function requireAdmin(base44: Base44Client) {
   const user = await base44.auth.me();
   if (!user?.email) {
     return { error: Response.json({ error: { message: "Unauthorized" } }, { status: 401 }) };
@@ -52,14 +61,15 @@ function sanitizeQuestion(raw: string): string {
     .slice(0, 300);
 }
 
-async function loadAll(base44: ReturnType<typeof createClientFromRequest>) {
+async function loadAll(base44: Base44Client) {
+  const entities = serviceEntities(base44);
   const [prefs, journeys, modules, sessions, activities, productEvents] = await Promise.all([
-    base44.entities.UserPreferences.list(),
-    base44.entities.Journey.list(),
-    base44.entities.Module.list(),
-    base44.entities.Session.list(),
-    base44.entities.Activity.list(),
-    base44.entities.ProductEvent.list().catch(() => []),
+    entities.UserPreferences.list(),
+    entities.Journey.list(),
+    entities.Module.list(),
+    entities.Session.list(),
+    entities.Activity.list(),
+    entities.ProductEvent.list().catch(() => []),
   ]);
   return {
     prefs: prefs as Array<Record<string, unknown>>,

@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Pause } from 'lucide-react';
-import LatexRenderer from '@/components/shared/LatexRenderer';
 import CramQuestionNav from '@/components/study/cram/CramQuestionNav';
+import QuizQuestionView from '@/components/study/quiz/QuizQuestionView';
+import { gradeQuestionResponse } from '@/utils/quiz/gradeQuestionResponse';
 import {
-  fuzzyMatchAnswer,
   playStudySound,
   triggerStudyHaptic,
   formatStudyTime,
@@ -58,16 +58,9 @@ export default function CramRunner({
     if (remainingSec === 0) finish();
   }, [remainingSec, paused, finish]);
 
-  const isCorrect = useCallback((response, question) => {
-    if (!question) return false;
-    if (Array.isArray(question.correctAnswer)) {
-      return Array.isArray(response)
-        && response.length === question.correctAnswer.length
-        && response.every((r) => question.correctAnswer.includes(r));
-    }
-    if (question.type === 'shortAnswer') return fuzzyMatchAnswer(response, question.correctAnswer);
-    return response === question.correctAnswer;
-  }, []);
+  const isCorrect = useCallback((response, question) => (
+    gradeQuestionResponse(response, question)
+  ), []);
 
   const restoreQuestionState = useCallback((i) => {
     const existing = answersByIndex[i];
@@ -134,8 +127,6 @@ export default function CramRunner({
     );
   }
 
-  const options = q.options ?? (q.type === 'trueFalse' ? ['True', 'False'] : []);
-
   return (
     <div className="study-mode-view cram-runner">
       <div className="quiz-runner-header">
@@ -158,35 +149,15 @@ export default function CramRunner({
 
       {!paused && (
         <>
-          <div className="quiz-question-stem">
-            <LatexRenderer text={q.stem} />
-          </div>
-          <div className="quiz-options">
-            {options.map((opt) => {
-              let cls = 'quiz-option';
-              if (answered) {
-                if (opt === q.correctAnswer || (Array.isArray(q.correctAnswer) && q.correctAnswer.includes(opt))) {
-                  cls += ' correct';
-                } else if (opt === selected) cls += ' wrong';
-              } else if (opt === selected) cls += ' selected';
-              return (
-                <button
-                  key={opt}
-                  type="button"
-                  className={cls}
-                  disabled={answered}
-                  onClick={() => handleSelect(opt)}
-                >
-                  <LatexRenderer text={opt} />
-                </button>
-              );
-            })}
-          </div>
-          {answered && q.explanation && (
-            <div className="quiz-explanation">
-              <LatexRenderer text={q.explanation} />
-            </div>
-          )}
+          <QuizQuestionView
+            question={q}
+            selected={selected}
+            answered={answered}
+            disabled={paused}
+            instantFeedback
+            onSelect={handleSelect}
+            onSubmit={recordAnswer}
+          />
           {answered && (
             <button type="button" className="btn btn-primary quiz-next-btn" onClick={advance}>
               {index + 1 >= questions.length ? 'Finish' : 'Next'}

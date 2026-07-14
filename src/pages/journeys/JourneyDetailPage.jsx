@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useJourney } from '@/hooks/queries/useJourneys';
 import { useModules } from '@/hooks/queries/useModules';
@@ -14,6 +14,8 @@ import JourneyDetailGuideBanner from '@/components/journey-detail/JourneyDetailG
 import VeridianCertifiedBanner from '@/components/journeys/VeridianCertifiedBanner';
 import JourneySharingPanel from '@/components/journey-detail/JourneySharingPanel';
 import RecommendedStudyPlan from '@/components/journey-detail/RecommendedStudyPlan';
+import JourneyFailureRollup from '@/components/journey-detail/JourneyFailureRollup';
+import { useJourneyFailureRollupMemo } from '@/hooks/queries/useJourneyFailureRollup';
 import ModuleListItem from '@/components/journey-detail/ModuleListItem';
 import JourneyLevelActions from '@/components/journey-detail/JourneyLevelActions';
 import JourneyDetailActions from '@/components/journey-detail/JourneyDetailActions';
@@ -31,6 +33,10 @@ export default function JourneyDetailPage() {
   const { data: sessions = [] } = useSessions(journeyId);
   const { data: cards = [] } = useCardsByJourney(journeyId);
   const { data: plan, isLoading: planLoading } = useStudyPlan(journeyId);
+  const failureRollup = useJourneyFailureRollupMemo(journey, modules);
+  const failureSummaryByModule = Object.fromEntries(
+    (failureRollup.moduleSummaries ?? []).map((s) => [s.moduleId, s]),
+  );
 
   useRecoverStaleGeneratingActivities(journeyId, activities, sessions);
 
@@ -61,6 +67,10 @@ export default function JourneyDetailPage() {
     );
   }
 
+  if (journey.generationStatus === 'processing') {
+    return <Navigate to="/journeys" replace />;
+  }
+
   return (
     <div className="journey-detail-page">
       <JourneyDetailHeader journey={journey} modules={modules} />
@@ -68,6 +78,12 @@ export default function JourneyDetailPage() {
       <JourneyDetailGuideBanner />
 
       <JourneySharingPanel journey={journey} />
+
+      <JourneyFailureRollup
+        rollup={failureRollup}
+        journeyId={journeyId}
+        totalModules={modules.length}
+      />
 
       <section className="journey-detail-modules detail-section-box">
         <h2 className="journey-detail-section-title">Modules</h2>
@@ -87,12 +103,13 @@ export default function JourneyDetailPage() {
               onToggle={() => setExpandedModuleId(
                 expandedModuleId === mod.moduleId ? null : mod.moduleId,
               )}
+              failureSummary={failureSummaryByModule[mod.moduleId] ?? null}
             />
           ))}
         </ul>
       </section>
 
-      <RecommendedStudyPlan plan={plan} loading={planLoading} />
+      <RecommendedStudyPlan plan={plan} loading={planLoading} journey={journey} />
 
       <JourneyDetailActions journey={journey} />
 
@@ -103,7 +120,7 @@ export default function JourneyDetailPage() {
         journey={journey}
       />
 
-      <JourneyInsightsPanel sessions={sessions} modules={modules} />
+      <JourneyInsightsPanel sessions={sessions} modules={modules} journey={journey} />
     </div>
   );
 }

@@ -1,6 +1,70 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
-import { requireAdmin } from "../_shared/requireAdmin.ts";
-import { buildAnonMap } from "../_shared/researchSalt.ts";
+
+type Base44Client = ReturnType<typeof createClientFromRequest>;
+
+function serviceEntities(base44: Base44Client) {
+  if (!base44.asServiceRole) {
+    throw new Error("Service role is not available in this context.");
+  }
+  return base44.asServiceRole.entities;
+}
+
+async function requireAdmin(base44: Base44Client) {
+  const user = await base44.auth.me();
+  if (!user?.email) {
+    return { error: Response.json({ error: { message: "Unauthorized" } }, { status: 401 }) };
+  }
+  const role = (user as { role?: string }).role;
+  if (role !== "admin") {
+    return { error: Response.json({ error: { message: "Forbidden" } }, { status: 403 }) };
+  }
+  return { user };
+}
+
+function getResearchSalt(): string {
+  const salt = Deno.env.get("RESEARCH_SALT")?.trim();
+  if (!salt) {
+    throw new Error(
+      "RESEARCH_SALT is not configured. Set it in Base44 secrets: base44 secrets set RESEARCH_SALT=<random-string>",
+    );
+  }
+  return salt;
+}
+
+function toHex(bytes: ArrayBuffer) {
+  return Array.from(new Uint8Array(bytes))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function hashEmailToAnonId(email: string, salt: string): Promise<string> {
+  const normalized = String(email ?? "").trim().toLowerCase();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(salt),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(normalized),
+  );
+  return toHex(signature);
+}
+
+async function buildAnonMap(emails: Iterable<string>) {
+  const salt = getResearchSalt();
+  const map: Record<string, string> = {};
+  const unique = [...new Set(emails)].filter(Boolean);
+  await Promise.all(
+    unique.map(async (email) => {
+      map[email] = await hashEmailToAnonId(email, salt);
+    }),
+  );
+  return map;
+}
 
 const QUIZ_TYPES = new Set([
   "practiceQuiz",
@@ -30,14 +94,15 @@ function meanBrier(sessions: Array<Record<string, unknown>>) {
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 
-async function loadAll(base44: ReturnType<typeof createClientFromRequest>) {
+async function loadAll(base44: Base44Client) {
+  const entities = serviceEntities(base44);
   const [prefs, modules, sessions, journeys, snapshots, surveys] = await Promise.all([
-    base44.entities.UserPreferences.list(),
-    base44.entities.Module.list(),
-    base44.entities.Session.list(),
-    base44.entities.Journey.list(),
-    base44.entities.MasterySnapshot.list(),
-    base44.entities.SurveyResponse.list(),
+    entities.UserPreferences.list(),
+    entities.Module.list(),
+    entities.Session.list(),
+    entities.Journey.list(),
+    entities.MasterySnapshot.list(),
+    entities.SurveyResponse.list(),
   ]);
   return {
     prefs: prefs as Array<Record<string, unknown>>,

@@ -17,6 +17,7 @@ export default function FreeRecallEditor({
   onResponseChange,
   hints,
   hintsPreloading,
+  hintGenerating = false,
   hintModalOpen,
   onHintModalOpen,
   onHintModalClose,
@@ -174,6 +175,7 @@ export default function FreeRecallEditor({
         open={hintModalOpen}
         hints={hints}
         preloading={hintsPreloading}
+        generating={hintGenerating}
         onClose={onHintModalClose}
         onGenerateNext={onGenerateHint}
       />

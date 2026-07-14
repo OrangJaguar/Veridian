@@ -1,8 +1,10 @@
-import { createJourney, getJourney } from '@/api/entities/journeys';
+import { createJourney, getJourney, updateJourney } from '@/api/entities/journeys';
 import { createModules } from '@/api/entities/modules';
 import { scaffoldJourneyActivities } from '@/api/entities/journeyScaffold';
 import { publishJourney } from '@/api/entities/library';
 import { generateJourneyId, generateModuleId } from '@/utils/schemas/ids';
+import { scanJourneyForModeration } from '@/utils/library/contentModeration';
+import { rebuildGlobalPlan } from '@/api/entities/globalPlan';
 
 /**
  * Persist a confirmed journey proposal to Base44.
@@ -53,14 +55,49 @@ export async function confirmJourney(input) {
 
   const activities = await scaffoldJourneyActivities(journeyId, modules);
 
+  try {
+    await rebuildGlobalPlan({ force: true });
+  } catch {
+    /* plan will rebuild on next ensure */
+  }
+
+  let publishBlocked = false;
+  let publishBlockReason = null;
+
   if (wantPublic && (input.tags ?? []).length > 0) {
-    try {
-      await publishJourney(journeyId, { tags: input.tags });
-    } catch {
-      // Journey stays private if publish gate fails
+    const moderation = scanJourneyForModeration({
+      journey: { ...journey, title: input.title, subject: input.subject, priorKnowledge: input.priorKnowledge },
+      modules,
+      tags: input.tags,
+    });
+
+    if (!moderation.allowed) {
+      publishBlocked = true;
+      publishBlockReason = moderation.summary;
+      await updateJourney(journeyId, {
+        libraryPublishBlocked: true,
+        libraryPublishBlockReason: moderation.summary,
+      });
+    } else {
+      try {
+        await publishJourney(journeyId, { tags: input.tags });
+      } catch (err) {
+        publishBlocked = true;
+        publishBlockReason = err.message || 'Could not publish to the community library.';
+        await updateJourney(journeyId, {
+          libraryPublishBlocked: true,
+          libraryPublishBlockReason: publishBlockReason,
+        });
+      }
     }
   }
 
   const finalJourney = await getJourney(journeyId);
-  return { journey: finalJourney ?? journey, modules, activities };
+  return {
+    journey: finalJourney ?? journey,
+    modules,
+    activities,
+    publishBlocked,
+    publishBlockReason,
+  };
 }

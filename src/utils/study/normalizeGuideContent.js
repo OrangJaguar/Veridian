@@ -1,4 +1,18 @@
 import { coerceStudyAiPayload } from '@/utils/study/normalizeStudyAiResponse';
+import { resolveCorrectAnswer } from '@/utils/study/resolveCorrectAnswer';
+
+function deriveSectionTitle(section, index) {
+  const explicit = String(section.title ?? section.name ?? '').trim();
+  if (explicit && !/^section\s+\d+$/i.test(explicit)) return explicit;
+  const fromBody = String(section.explanation ?? section.content ?? section.body ?? section.summary ?? '').trim();
+  if (fromBody) {
+    const sentence = fromBody.split(/[.!?]/)[0]?.trim() ?? '';
+    if (sentence.length > 8) {
+      return sentence.length > 64 ? `${sentence.slice(0, 61)}…` : sentence;
+    }
+  }
+  return `Section ${index + 1}`;
+}
 
 /**
  * Normalize AI learning guide output to match UI expectations.
@@ -44,9 +58,12 @@ export function normalizeGuideContent(raw) {
       .filter(Boolean)
       .slice(0, 4);
 
+    const rawCorrect = checkIn.correctAnswer ?? checkIn.answer ?? options[0];
+    const resolvedCorrect = resolveCorrectAnswer(rawCorrect, options) ?? options[0];
+
     return {
       sectionId: section.sectionId || `section-${index + 1}`,
-      title: String(section.title ?? section.name ?? `Section ${index + 1}`).trim(),
+      title: deriveSectionTitle(section, index),
       explanation: String(section.explanation ?? section.content ?? section.body ?? section.summary ?? '').trim()
         || 'Review the module concepts for this section.',
       workedExamples,
@@ -54,7 +71,7 @@ export function normalizeGuideContent(raw) {
         question: String(checkIn.question ?? checkIn.stem ?? checkIn.prompt ?? 'What is the main idea of this section?').trim(),
         type: 'multipleChoice',
         options,
-        correctAnswer: String(checkIn.correctAnswer ?? checkIn.answer ?? options[0]).trim(),
+        correctAnswer: String(resolvedCorrect).trim(),
         explanation: String(checkIn.explanation ?? checkIn.rationale ?? '').trim(),
       },
       keyTerms,

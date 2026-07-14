@@ -9,7 +9,7 @@ export default function JourneyDetailActions({ journey }) {
   const deleteJourney = useDeleteJourney();
   const [busy, setBusy] = useState(false);
 
-  if (!journey || journey.archived) return null;
+  if (!journey) return null;
 
   const handleArchive = async () => {
     if (busy) return;
@@ -33,6 +33,23 @@ export default function JourneyDetailActions({ journey }) {
     }
   };
 
+  const handleUnarchive = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await archiveJourney.mutateAsync({
+        journeyId: journey.journeyId,
+        archived: false,
+      });
+      toast.success('Journey restored — Keep sharp plan will rebuild');
+      navigate(`/journeys/${journey.journeyId}`);
+    } catch (err) {
+      toast.error(err?.message || 'Could not restore journey');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (busy) return;
     const ok = window.confirm(
@@ -50,6 +67,32 @@ export default function JourneyDetailActions({ journey }) {
       setBusy(false);
     }
   };
+
+  if (journey.archived) {
+    return (
+      <section className="journey-detail-actions detail-section-box">
+        <h2 className="journey-detail-section-title">Journey options</h2>
+        <div className="journey-detail-actions-row">
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={handleUnarchive}
+            disabled={busy || archiveJourney.isPending || deleteJourney.isPending}
+          >
+            Unarchive
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm journey-delete-btn"
+            onClick={handleDelete}
+            disabled={busy || archiveJourney.isPending || deleteJourney.isPending}
+          >
+            Delete journey
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="journey-detail-actions detail-section-box">

@@ -52,7 +52,7 @@ export default function SettingsAiQuotaSection() {
           </div>
 
           <ul className="ai-quota-category-list">
-            {quota.categories.map((cat) => (
+            {(quota.categories ?? []).map((cat) => (
               <li key={cat.key} className="ai-quota-category-item">
                 <div className="ai-quota-category-head">
                   <span>{cat.label}</span>

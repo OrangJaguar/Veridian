@@ -8,6 +8,7 @@ export function useGuideNarration(segments, { rate = 0.96, voiceURI = '' } = {})
   const [status, setStatus] = useState('idle');
   const [activeKey, setActiveKey] = useState(null);
   const cancelledRef = useRef(false);
+  const utteranceGenRef = useRef(0);
   const currentIndexRef = useRef(0);
   const segmentsRef = useRef(segments);
   const prefsRef = useRef({ rate, voiceURI });
@@ -21,11 +22,18 @@ export function useGuideNarration(segments, { rate = 0.96, voiceURI = '' } = {})
     prefsRef.current = { rate, voiceURI };
   }, [rate, voiceURI]);
 
-  const speakAt = useCallback((i) => {
+  const speakAt = useCallback((i, generation) => {
     const segs = segmentsRef.current;
-    if (cancelledRef.current || !segs?.length || i >= segs.length) {
-      setStatus('idle');
-      setActiveKey(null);
+    if (
+      cancelledRef.current
+      || generation !== utteranceGenRef.current
+      || !segs?.length
+      || i >= segs.length
+    ) {
+      if (generation === utteranceGenRef.current) {
+        setStatus('idle');
+        setActiveKey(null);
+      }
       return;
     }
 
@@ -41,19 +49,21 @@ export function useGuideNarration(segments, { rate = 0.96, voiceURI = '' } = {})
     if (voice) utter.voice = voice;
 
     utter.onstart = () => {
-      if (!cancelledRef.current) setStatus('speaking');
+      if (!cancelledRef.current && generation === utteranceGenRef.current) setStatus('speaking');
     };
     utter.onpause = () => {
-      if (!cancelledRef.current) setStatus('paused');
+      if (!cancelledRef.current && generation === utteranceGenRef.current) setStatus('paused');
     };
     utter.onresume = () => {
-      if (!cancelledRef.current) setStatus('speaking');
+      if (!cancelledRef.current && generation === utteranceGenRef.current) setStatus('speaking');
     };
     utter.onend = () => {
-      if (!cancelledRef.current) speakAtRef.current?.(i + 1);
+      if (cancelledRef.current || generation !== utteranceGenRef.current) return;
+      speakAtRef.current?.(i + 1, generation);
     };
     utter.onerror = () => {
-      if (!cancelledRef.current) speakAtRef.current?.(i + 1);
+      if (cancelledRef.current || generation !== utteranceGenRef.current) return;
+      speakAtRef.current?.(i + 1, generation);
     };
 
     window.speechSynthesis.speak(utter);
@@ -65,6 +75,7 @@ export function useGuideNarration(segments, { rate = 0.96, voiceURI = '' } = {})
 
   const stop = useCallback(() => {
     cancelledRef.current = true;
+    utteranceGenRef.current += 1;
     window.speechSynthesis?.cancel();
     setStatus('idle');
     setActiveKey(null);
@@ -74,15 +85,16 @@ export function useGuideNarration(segments, { rate = 0.96, voiceURI = '' } = {})
     const list = segmentsRef.current;
     if (!list?.length || index < 0 || index >= list.length) return;
 
-    cancelledRef.current = false;
-    currentIndexRef.current = index;
+    cancelledRef.current = true;
     window.speechSynthesis?.cancel();
+    const generation = utteranceGenRef.current + 1;
+    utteranceGenRef.current = generation;
 
-    // Let the browser finish cancel before starting the next utterance (Safari/Chrome).
     window.setTimeout(() => {
-      if (cancelledRef.current) return;
-      speakAt(index);
-    }, 0);
+      if (generation !== utteranceGenRef.current) return;
+      cancelledRef.current = false;
+      speakAt(index, generation);
+    }, 50);
   }, [speakAt]);
 
   const pause = useCallback(() => {

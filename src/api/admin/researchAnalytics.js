@@ -1,7 +1,7 @@
-import { base44 } from '@/api/base44Client';
+import { invokeAdminFunction } from '@/api/admin/invokeAdminFunction';
 
 function invoke(action, payload = {}) {
-  return base44.functions.invoke('getResearchAnalytics', { action, ...payload });
+  return invokeAdminFunction('getResearchAnalytics', { action, ...payload });
 }
 
 export async function fetchResearchDataHealth() {
@@ -20,6 +20,5 @@ export async function fetchDataQualityFlags() {
 }
 
 export async function exportResearchCsv(exportKey) {
-  const res = await base44.functions.invoke('exportResearchData', { exportKey });
-  return res?.data ?? res;
+  return invokeAdminFunction('exportResearchData', { exportKey });
 }

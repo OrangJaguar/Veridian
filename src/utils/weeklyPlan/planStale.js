@@ -1,4 +1,10 @@
-import { getWeekKey, getDateKey, isCramMode } from '@/utils/weeklyPlan/weekKey';
+import {
+  getWeekKey,
+  getDateKey,
+  isExamWeek,
+  normalizePlanMode,
+  isExamWeekMode,
+} from '@/utils/weeklyPlan/weekKey';
 
 /**
  * Determine if a stored weekly plan should be rebuilt.
@@ -8,19 +14,18 @@ export function shouldRebuildPlan(journey, now = new Date()) {
     return true;
   }
 
-  const cram = isCramMode(journey.examDate, now);
-  if (cram) {
-    return journey.weeklyPlanWeekKey !== getDateKey(now)
-      || journey.weeklyPlanMode !== 'cram';
+  const examWeek = isExamWeek(journey.examDate, now);
+  const storedMode = normalizePlanMode(journey.weeklyPlanMode);
+
+  if (examWeek) {
+    return journey.weeklyPlanWeekKey !== getWeekKey(now)
+      || storedMode !== 'examWeek';
   }
 
   return journey.weeklyPlanWeekKey !== getWeekKey(now)
-    || journey.weeklyPlanMode === 'cram';
+    || isExamWeekMode(journey.weeklyPlanMode);
 }
 
 export function getPlanWeekKey(journey, now = new Date()) {
-  if (isCramMode(journey.examDate, now)) {
-    return getDateKey(now);
-  }
   return getWeekKey(now);
 }

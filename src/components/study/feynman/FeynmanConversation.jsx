@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import StudyBackButton from '@/components/study/shared/StudyBackButton';
 import FeynmanMessageBubble, { FeynmanTypingIndicator } from '@/components/study/feynman/FeynmanMessageBubble';
 import FeynmanChatInput from '@/components/study/feynman/FeynmanChatInput';
-import { MAX_FEYNMAN_AI_TURNS } from '@/api/ai/prompts/feynman';
+import { MAX_FEYNMAN_AI_TURNS, threadHasUserMessages } from '@/api/ai/prompts/feynman';
 
 export default function FeynmanConversation({
   concepts,
@@ -12,7 +12,9 @@ export default function FeynmanConversation({
   onDraftChange,
   onSend,
   onConceptChange,
+  topicLocked = false,
   onDone,
+  onDoneWithTopic,
   onExploreAnother,
   onConfirmTopic,
   showTopicPicker,
@@ -34,6 +36,7 @@ export default function FeynmanConversation({
   }, [messages, sending, showDone, showTopicPicker]);
 
   const inputDisabled = atTurnLimit || sending;
+  const hasUserMessages = threadHasUserMessages({ messages });
 
   return (
     <div className="feynman-mode-view">
@@ -50,6 +53,7 @@ export default function FeynmanConversation({
               concepts={concepts}
               currentConceptId={currentConceptId}
               onConceptChange={onConceptChange}
+              topicLocked={topicLocked}
             />
           ))}
           {sending && <FeynmanTypingIndicator />}
@@ -100,6 +104,15 @@ export default function FeynmanConversation({
       </div>
 
       <div className="feynman-chat-input-wrap">
+        {hasUserMessages && !showDone && !atTurnLimit && !sending && onDoneWithTopic && (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm feynman-done-topic-btn"
+            onClick={onDoneWithTopic}
+          >
+            I&apos;m done with this topic
+          </button>
+        )}
         <FeynmanChatInput
           value={draft}
           onChange={onDraftChange}

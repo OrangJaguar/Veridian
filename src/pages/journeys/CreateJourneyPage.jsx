@@ -39,10 +39,11 @@ export default function CreateJourneyPage() {
     }
   }, [preferences?.defaultPrivacy, updateDraft]);
 
-  const dismissWelcome = async (goHome) => {
+  const dismissWelcome = async (destination) => {
     await updatePreferences({ hasSeenCreateWelcome: true });
     queryClient.invalidateQueries({ queryKey: queryKeys.preferences(user?.email) });
-    if (goHome) navigate('/home', { replace: true });
+    if (destination === 'home') navigate('/home', { replace: true });
+    if (destination === 'library') navigate('/library', { replace: true });
   };
 
   const handleGenerate = async () => {
@@ -51,7 +52,8 @@ export default function CreateJourneyPage() {
       const { journeyId } = await startAsyncJourneyGeneration(draft);
       trackProductEvent('journey_create_complete', { journeyId });
       resetWizard();
-      navigate(`/journeys/${journeyId}`, { replace: true });
+      queryClient.invalidateQueries({ queryKey: queryKeys.journeys.all });
+      navigate('/journeys', { replace: true });
     } catch (err) {
       toast.error(err?.message || 'Could not start journey generation.');
     }
@@ -70,8 +72,9 @@ export default function CreateJourneyPage() {
     <div className="create-journey-page">
       <CreateJourneyWelcomeModal
         open={showWelcome}
-        onBuild={() => dismissWelcome(false)}
-        onSkip={() => dismissWelcome(true)}
+        onBuild={() => dismissWelcome(null)}
+        onSkip={() => dismissWelcome('home')}
+        onBrowseLibrary={() => dismissWelcome('library')}
       />
 
       <Link to="/journeys" className="journey-detail-back">← Journeys</Link>

@@ -1,6 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog';
 
-export default function CreateJourneyWelcomeModal({ open, onBuild, onSkip }) {
+export default function CreateJourneyWelcomeModal({ open, onBuild, onSkip, onBrowseLibrary }) {
   return (
     <Dialog.Root open={open}>
       <Dialog.Portal>
@@ -16,6 +16,11 @@ export default function CreateJourneyWelcomeModal({ open, onBuild, onSkip }) {
             <button type="button" className="btn btn-primary" onClick={onBuild}>
               Let&apos;s Build It
             </button>
+            {onBrowseLibrary && (
+              <button type="button" className="btn btn-secondary" onClick={onBrowseLibrary}>
+                Browse a ready-made journey
+              </button>
+            )}
             <button type="button" className="btn btn-secondary" onClick={onSkip}>
               Skip for now
             </button>

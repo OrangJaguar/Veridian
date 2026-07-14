@@ -1,7 +1,8 @@
 import { differenceInDays } from 'date-fns';
 import { getWeakConceptIds } from '@/utils/study/conceptWeakness';
-import { getDiagnosticWeakConceptLabels } from '@/utils/study/diagnosticWeakness';
+import { getDiagnosticWeakConceptLabels, parseModuleDiagnosticSummary } from '@/utils/study/diagnosticWeakness';
 import { learningGuideIncomplete } from '@/utils/study/activityContent';
+import { computeFailureProfile } from '@/utils/failures/computeFailureProfile';
 
 export { learningGuideIncomplete };
 
@@ -74,6 +75,12 @@ export function buildModuleContext(module, activities, sessions, journey) {
     && learningGuideActivity.status !== 'notGenerated'
     && !guideComplete;
   const focusBoost = journey?.moduleFocusBoosts?.[module.moduleId] ?? 0;
+  const diagnostic = parseModuleDiagnosticSummary(module);
+  const failureSignals = diagnostic?.failureSignals ?? [];
+  const failureProfile = computeFailureProfile(module);
+  const primaryFailureMode = failureProfile.hasData
+    ? failureProfile.primaryMode
+    : null;
 
   return {
     module,
@@ -83,6 +90,9 @@ export function buildModuleContext(module, activities, sessions, journey) {
     quizAccuracy: getModuleQuizAccuracy(module.moduleId, activities),
     daysSinceLastQuiz: getDaysSinceLastQuiz(module.moduleId, sessions),
     weakConceptLabels: getWeakConceptLabels(sessions, module, 3, journey),
+    failureSignals,
+    failureProfile,
+    primaryFailureMode,
     learningGuideActivity,
     practiceQuizActivity: findActivity(activities, module.moduleId, 'practiceQuiz'),
     flashcardActivity: findActivity(activities, module.moduleId, 'flashcardSet'),

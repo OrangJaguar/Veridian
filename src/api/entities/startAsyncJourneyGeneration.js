@@ -6,6 +6,7 @@ import { generateJourneyId, generateModuleId } from '@/utils/schemas/ids';
 import { queryClient } from '@/lib/query-client';
 import { queryKeys } from '@/api/query-keys';
 import { buildTopicMaterial } from '@/utils/journey/topicMaterial';
+import { rebuildGlobalPlan } from '@/api/entities/globalPlan';
 
 async function persistProposal(journeyId, draft, proposal) {
   const now = Date.now();
@@ -53,6 +54,11 @@ async function runGeneration(journeyId, draft) {
   });
 
   await persistProposal(journeyId, { ...draft, title, subject }, proposal);
+  try {
+    await rebuildGlobalPlan({ force: true });
+  } catch {
+    /* plan will rebuild on next ensure */
+  }
   await updateJourney(journeyId, {
     generationStatus: 'completed',
     generationError: null,
@@ -83,10 +89,13 @@ export async function startAsyncJourneyGeneration(draft) {
     knowledgeMap: { summary: 'Generating…', extractedAt: now, moduleCount: 0 },
   });
 
+  queryClient.invalidateQueries({ queryKey: queryKeys.journeys.all });
+
   void runGeneration(journeyId, draft)
     .then(() => {
       queryClient.invalidateQueries({ queryKey: queryKeys.journeys.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.dueToday });
+      queryClient.invalidateQueries({ queryKey: queryKeys.globalPlan });
     })
     .catch(async (err) => {
       await updateJourney(journeyId, {

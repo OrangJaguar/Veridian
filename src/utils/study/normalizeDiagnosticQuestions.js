@@ -2,6 +2,7 @@
  * Normalize AI diagnostic output — force correct moduleId tags and ids.
  */
 import { extractAiList, coerceStudyAiPayload } from '@/utils/study/normalizeStudyAiResponse';
+import { resolveCorrectAnswer } from '@/utils/study/resolveCorrectAnswer';
 
 function extractQuestionList(rawQuestions) {
   if (Array.isArray(rawQuestions)) return rawQuestions;
@@ -19,11 +20,18 @@ export function normalizeDiagnosticQuestions(rawQuestions, modules, perModule = 
   const moduleByName = Object.fromEntries(
     modules.map((m) => [String(m.name ?? '').trim().toLowerCase(), m]),
   );
+  const singleModuleId = modules.length === 1 ? modules[0].moduleId : null;
 
   const resolveModuleId = (q) => {
-    if (q?.moduleId && moduleById[q.moduleId]) return q.moduleId;
+    const rawId = String(q?.moduleId ?? '').trim();
+    if (rawId && moduleById[rawId]) return rawId;
+    if (rawId) {
+      const byIdName = moduleByName[rawId.toLowerCase()];
+      if (byIdName) return byIdName.moduleId;
+    }
     const byName = moduleByName[String(q?.moduleName ?? q?.module ?? '').trim().toLowerCase()];
     if (byName) return byName.moduleId;
+    if (singleModuleId) return singleModuleId;
     return null;
   };
 
@@ -36,12 +44,15 @@ export function normalizeDiagnosticQuestions(rawQuestions, modules, perModule = 
       while (options.length < 4) options.push(`Option ${options.length + 1}`);
     }
 
+    const rawCorrect = q.correctAnswer ?? q.answer ?? q.correct ?? options?.[0];
+    const correctAnswer = resolveCorrectAnswer(rawCorrect, options) ?? options?.[0];
+
     return {
       id: String(q.id ?? `diag-${moduleId ?? 'x'}-${index + 1}`).trim(),
       type,
       stem: String(q.stem ?? q.question ?? q.prompt ?? '').trim(),
       options,
-      correctAnswer: q.correctAnswer ?? q.answer ?? q.correct ?? options?.[0],
+      correctAnswer,
       explanation: String(q.explanation ?? q.rationale ?? '').trim(),
       conceptId: q.conceptId ? String(q.conceptId) : undefined,
       moduleId,

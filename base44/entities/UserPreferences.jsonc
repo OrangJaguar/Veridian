@@ -77,7 +77,25 @@
     },
     "dailyTimeBudgetMin": {
       "type": "number",
-      "description": "Daily study time budget in minutes (default 35)"
+      "description": "Daily study time budget in minutes (default 150)"
+    },
+    "studyBudgetTier": {
+      "type": "string",
+      "description": "light | standard | intensive — maps to daily study budget"
+    },
+    "globalPlanSnapshot": {
+      "type": "object",
+      "description": "User-level weekly study allocation across all journeys"
+    },
+    "globalPlanWeekKey": {
+      "type": "string"
+    },
+    "globalPlanBuiltAt": {
+      "type": "number"
+    },
+    "globalPlanMode": {
+      "type": "string",
+      "description": "normal | cram"
     },
     "usernameChangedAt": {
       "type": "number",

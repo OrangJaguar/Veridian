@@ -5,7 +5,6 @@ import { getBaselineCompleted } from '@/lib/baselineStorage';
 
 export default function LandingUploadCta({ variant = 'primary', source = 'landing', className = '' }) {
   const { isAuthenticated } = useAuth();
-  const signupReady = getBaselineCompleted();
 
   const handleClick = () => {
     trackProductEvent('upload_cta_click', { source, authenticated: isAuthenticated });
@@ -23,7 +22,7 @@ export default function LandingUploadCta({ variant = 'primary', source = 'landin
     );
   }
 
-  const href = signupReady ? '/signup' : '/signin';
+  const href = getBaselineCompleted() ? '/signup' : '/signin';
 
   return (
     <Link

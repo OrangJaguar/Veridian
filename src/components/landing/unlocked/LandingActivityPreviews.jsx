@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUp, Flag, Lightbulb, Mic, Pause } from 'lucide-react';
+import { ArrowUp, Flag, Lightbulb, Mic } from 'lucide-react';
 
 export function LandingActivityPreviewFrame({ children }) {
   return (

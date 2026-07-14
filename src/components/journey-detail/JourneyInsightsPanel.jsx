@@ -2,13 +2,22 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { ACTIVITY_LABELS } from '@/utils/studyPlanner';
 import ExpandToggle from '@/components/shared/ExpandToggle';
+import { computeJourneyFailureRollup } from '@/utils/failures/computeJourneyFailureRollup';
+import { formatJourneyDiagnosticSummary } from '@/utils/failures/formatFailureCopy';
 
-export default function JourneyInsightsPanel({ sessions = [], modules = [] }) {
+export default function JourneyInsightsPanel({ sessions = [], modules = [], journey = null }) {
   const [open, setOpen] = useState(false);
 
   const completed = sessions
     .filter((s) => s.status === 'completed')
     .sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0));
+
+  const rollup = computeJourneyFailureRollup(journey, modules);
+  const diagnosticSummary = formatJourneyDiagnosticSummary({
+    modulesWithEvidence: rollup.modulesWithEvidence,
+    totalModules: modules.length,
+    topConcernTitle: rollup.rankedConcerns?.[0]?.title ?? null,
+  });
 
   const moduleName = (moduleId) => {
     if (!moduleId) return 'Journey-wide';
@@ -18,6 +27,9 @@ export default function JourneyInsightsPanel({ sessions = [], modules = [] }) {
   return (
     <section className="journey-activity-log detail-section-box">
       <h2 className="journey-detail-section-title">Activity log</h2>
+      {diagnosticSummary && (
+        <p className="journey-insights-diagnostic-summary">{diagnosticSummary}</p>
+      )}
       <ExpandToggle
         expanded={open}
         onClick={() => setOpen(!open)}

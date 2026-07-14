@@ -1,5 +1,5 @@
 import { updateJourney } from '@/api/entities/journeys';
-import { rebuildWeeklyPlan } from '@/api/entities/weeklyPlan';
+import { rebuildGlobalPlan } from '@/api/entities/globalPlan';
 
 /**
  * Boost weekly plan urgency for weak modules after a journey challenge.
@@ -22,7 +22,7 @@ export async function applyChallengePlanBoost(journeyId, modules, perModuleAccur
   const reweighted = focusNames.length > 0;
   if (reweighted) {
     await updateJourney(journeyId, { moduleFocusBoosts: boosts });
-    await rebuildWeeklyPlan(journeyId, { force: true });
+    await rebuildGlobalPlan({ force: true });
   }
 
   return {

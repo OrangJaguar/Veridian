@@ -126,13 +126,14 @@ export default function FeynmanSession({ session, activity, module, journeyId })
   }, [pickerConceptId, currentConceptId, currentThread]);
 
   const handleConceptChange = useCallback((newConceptId) => {
+    if (threadHasUserMessages(currentThread)) return;
     setSessionState((prev) => {
       const nextThreads = { ...prev.conceptThreads };
       nextThreads[newConceptId] = ensureThread(prev.conceptThreads, newConceptId);
       return { currentConceptId: newConceptId, conceptThreads: nextThreads };
     });
     setDraft('');
-  }, []);
+  }, [currentThread]);
 
   const handleSend = async () => {
     const text = draft.trim();
@@ -214,6 +215,74 @@ export default function FeynmanSession({ session, activity, module, journeyId })
     }
   };
 
+  const summarizeConcept = useCallback(async (conceptId, threads) => {
+    const concept = concepts.find((c) => c.id === conceptId);
+    const thread = threads[conceptId];
+    if (!thread || thread.summary) return thread;
+
+    const history = thread.messages
+      .filter((m) => m.type !== 'opening')
+      .map((m) => ({ role: m.role, text: m.text }));
+
+    const summary = await feynmanSummarizeConcept({
+      concept,
+      moduleName: module?.name,
+      knowledgeMap: module?.knowledgeMap,
+      conversationHistory: history,
+    });
+
+    return {
+      ...thread,
+      summary: {
+        confidencePercent: summary?.confidencePercent ?? 0,
+        thoroughness: summary?.thoroughness ?? '',
+        strengths: summary?.strengths ?? [],
+        weaknesses: summary?.weaknesses ?? [],
+        suggestedNextSteps: summary?.suggestedNextSteps ?? [],
+      },
+    };
+  }, [concepts, module?.name, module?.knowledgeMap]);
+
+  const handleDoneWithTopic = useCallback(async () => {
+    if (!hasUserMessages || !currentConceptId) return;
+
+    setSummarizing(true);
+    try {
+      const enriched = { ...conceptThreads };
+      enriched[currentConceptId] = await summarizeConcept(currentConceptId, enriched);
+
+      setSessionState((prev) => ({
+        ...prev,
+        conceptThreads: enriched,
+      }));
+      setFinishedConceptIds((prev) => (
+        prev.includes(currentConceptId) ? prev : [...prev, currentConceptId]
+      ));
+
+      const remaining = concepts.filter((c) => (
+        c.id !== currentConceptId && !finishedConceptIds.includes(c.id)
+      ));
+      if (remaining.length) {
+        setPickerConceptId(remaining[0].id);
+        setShowTopicPicker(true);
+        toast.message('Topic saved — pick your next concept or finish the session.');
+      } else {
+        toast.message('All concepts covered — tap Done when you\'re ready.');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to summarize this topic');
+    } finally {
+      setSummarizing(false);
+    }
+  }, [
+    hasUserMessages,
+    currentConceptId,
+    conceptThreads,
+    summarizeConcept,
+    concepts,
+    finishedConceptIds,
+  ]);
+
   const handleDone = async () => {
     const discussedIds = getDiscussedConceptIds(conceptThreads);
     if (!discussedIds.length) {
@@ -225,29 +294,8 @@ export default function FeynmanSession({ session, activity, module, journeyId })
     try {
       const enriched = { ...conceptThreads };
       await Promise.all(discussedIds.map(async (conceptId) => {
-        const concept = concepts.find((c) => c.id === conceptId);
-        const thread = enriched[conceptId];
-        const history = thread.messages
-          .filter((m) => m.type !== 'opening')
-          .map((m) => ({ role: m.role, text: m.text }));
-
-        const summary = await feynmanSummarizeConcept({
-          concept,
-          moduleName: module?.name,
-          knowledgeMap: module?.knowledgeMap,
-          conversationHistory: history,
-        });
-
-        enriched[conceptId] = {
-          ...thread,
-          summary: {
-            confidencePercent: summary?.confidencePercent ?? 0,
-            thoroughness: summary?.thoroughness ?? '',
-            strengths: summary?.strengths ?? [],
-            weaknesses: summary?.weaknesses ?? [],
-            suggestedNextSteps: summary?.suggestedNextSteps ?? [],
-          },
-        };
+        if (enriched[conceptId]?.summary) return;
+        enriched[conceptId] = await summarizeConcept(conceptId, enriched);
       }));
 
       const overallScore = averageConfidence(enriched, discussedIds);
@@ -326,7 +374,9 @@ export default function FeynmanSession({ session, activity, module, journeyId })
       onDraftChange={setDraft}
       onSend={handleSend}
       onConceptChange={handleConceptChange}
+      topicLocked={hasUserMessages}
       onDone={handleDone}
+      onDoneWithTopic={handleDoneWithTopic}
       onExploreAnother={handleExploreAnother}
       onConfirmTopic={handleConfirmTopic}
       showTopicPicker={showTopicPicker}

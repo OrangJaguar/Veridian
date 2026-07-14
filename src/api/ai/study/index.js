@@ -51,6 +51,10 @@ export function generatePracticeQuestions(payload, options) {
   return callStudy('generatePracticeQuestions', payload, options);
 }
 
+export function generateQuestionBankSlice(payload, options) {
+  return callStudy('generateQuestionBankSlice', payload, options);
+}
+
 export function generateFlashcards(payload, options) {
   return callStudy('generateFlashcards', payload, options);
 }

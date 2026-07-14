@@ -1,5 +1,40 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
 
+function validateBankQuestion(q: Record<string, unknown>, index: number): string | null {
+  if (!String(q.stem ?? "").trim()) return `Question ${index + 1} missing stem.`;
+  const type = String(q.type ?? "multipleChoice");
+  if (type === "matching") {
+    const left = q.leftItems as unknown[];
+    const right = q.rightItems as unknown[];
+    if (!Array.isArray(left) || !left.length || !Array.isArray(right) || !right.length) {
+      return `Question ${index + 1} matching needs leftItems and rightItems.`;
+    }
+    return null;
+  }
+  if (type === "ordering") {
+    const items = q.items as unknown[];
+    if (!Array.isArray(items) || items.length < 2) return `Question ${index + 1} ordering needs items.`;
+    return null;
+  }
+  if (q.correctAnswer == null || String(q.correctAnswer).trim() === "") {
+    if (type !== "multiSelect") return `Question ${index + 1} missing correctAnswer.`;
+  }
+  return null;
+}
+
+function validateQuestionBank(bank: unknown, moduleName: string): string[] {
+  const issues: string[] = [];
+  if (!Array.isArray(bank) || bank.length < 1) {
+    issues.push(`Module "${moduleName}" needs practice questions.`);
+    return issues;
+  }
+  bank.forEach((q, i) => {
+    const err = validateBankQuestion(q as Record<string, unknown>, i);
+    if (err) issues.push(`Module "${moduleName}": ${err}`);
+  });
+  return issues;
+}
+
 async function requireAdmin(base44: ReturnType<typeof createClientFromRequest>) {
   const user = await base44.auth.me();
   if (!user?.email) {
@@ -53,9 +88,7 @@ Deno.serve(async (req) => {
           issues.push(`Module "${mod.name}" needs learning guide sections.`);
         }
         const bank = (quiz?.content as Record<string, unknown> | undefined)?.questionBank;
-        if (!Array.isArray(bank) || bank.length < 1) {
-          issues.push(`Module "${mod.name}" needs practice questions.`);
-        }
+        issues.push(...validateQuestionBank(bank, String(mod.name)));
         const deckCards = cards.filter((c) => c.activityId === deck?.activityId);
         if (!deckCards.length) {
           issues.push(`Module "${mod.name}" needs flashcards.`);
@@ -78,9 +111,7 @@ Deno.serve(async (req) => {
           issues.push(`Module "${mod.name}" needs learning guide sections.`);
         }
         const bank = (quiz?.content as Record<string, unknown> | undefined)?.questionBank;
-        if (!Array.isArray(bank) || bank.length < 1) {
-          issues.push(`Module "${mod.name}" needs practice questions.`);
-        }
+        issues.push(...validateQuestionBank(bank, String(mod.name)));
         const deckCards = cards.filter((c) => c.activityId === deck?.activityId);
         if (!deckCards.length) issues.push(`Module "${mod.name}" needs flashcards.`);
       }

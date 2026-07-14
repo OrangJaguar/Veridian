@@ -31,10 +31,33 @@ export function isTodayKey(dateKey) {
 
 export function daysUntilExam(examDate, now = new Date()) {
   if (!examDate) return null;
-  return Math.max(0, differenceInDays(new Date(examDate), now));
+  const delta = differenceInDays(new Date(examDate), now);
+  if (delta < 0) return null;
+  return delta;
 }
 
-export function isCramMode(examDate, now = new Date()) {
+/** Exam within 7 days (future) → denser per-journey packing (Exam week). */
+export function isExamWeek(examDate, now = new Date()) {
   const days = daysUntilExam(examDate, now);
   return days != null && days <= 7;
+}
+
+/** @deprecated Use isExamWeek */
+export function isCramMode(examDate, now = new Date()) {
+  return isExamWeek(examDate, now);
+}
+
+/** Normalize stored plan mode; legacy `cram` → `examWeek`. */
+export function normalizePlanMode(mode) {
+  if (mode === 'cram' || mode === 'examWeek') return 'examWeek';
+  if (mode === 'keepSharp') return 'keepSharp';
+  return 'normal';
+}
+
+export function isExamWeekMode(mode) {
+  return normalizePlanMode(mode) === 'examWeek';
+}
+
+export function isKeepSharpMode(mode) {
+  return normalizePlanMode(mode) === 'keepSharp';
 }

@@ -142,11 +142,17 @@ const questionAiSchema = z.object({
   type: z.string().optional(),
   stem: z.string().optional(),
   options: z.array(z.string()).optional(),
+  items: z.array(z.string()).optional(),
+  leftItems: z.array(z.string()).optional(),
+  rightItems: z.array(z.string()).optional(),
+  acceptableAnswers: z.array(z.string()).optional(),
+  matchMode: z.enum(["fuzzy", "exact"]).optional(),
   correctAnswer: coercedAnswerSchema.optional(),
   explanation: z.string().optional(),
   conceptId: z.string().optional(),
   moduleId: z.string().optional(),
   variantType: z.enum(["verbatim", "application", "transfer"]).optional(),
+  mixCategory: z.enum(["understanding", "application", "transfer", "discrimination", "review"]).optional(),
 });
 
 const questionsAiOutputSchema = z.object({
@@ -209,6 +215,57 @@ function clipString(value: unknown, max: number) {
   const text = String(value ?? "").trim();
   if (!text) return "";
   return text.length > max ? text.slice(0, max).trim() : text;
+}
+
+function resolveCorrectAnswer(rawCorrect: unknown, options: unknown[] = []): string | null {
+  const opts = (Array.isArray(options) ? options : [])
+    .map((o) => String(o ?? "").trim())
+    .filter(Boolean);
+  const ans = String(rawCorrect ?? "").trim();
+  if (!opts.length) return ans || null;
+  if (!ans) return opts[0] ?? null;
+
+  const exact = opts.find((o) => o === ans);
+  if (exact) return exact;
+
+  const ci = opts.find((o) => o.toLowerCase() === ans.toLowerCase());
+  if (ci) return ci;
+
+  if (/^[A-D]$/i.test(ans)) {
+    const index = ans.toUpperCase().charCodeAt(0) - 65;
+    if (opts[index]) return opts[index];
+  }
+
+  if (/^\d+$/.test(ans)) {
+    let index = Number(ans);
+    if (index >= 1 && index <= opts.length) index -= 1;
+    if (opts[index]) return opts[index];
+  }
+
+  const stripPrefix = (s: string) => s.replace(/^[A-Da-d][).:\s]+/, "").trim();
+  const strippedAns = stripPrefix(ans);
+  if (strippedAns && strippedAns.length > 2) {
+    const byStripped = opts.find((o) => stripPrefix(o).toLowerCase() === strippedAns.toLowerCase());
+    if (byStripped) return byStripped;
+  }
+
+  const prefixed = opts.find((o) => stripPrefix(o).toLowerCase() === ans.toLowerCase());
+  if (prefixed) return prefixed;
+
+  return opts.includes(ans) ? ans : null;
+}
+
+function deriveSectionTitle(section: { title?: string; explanation?: string }, index: number): string {
+  const explicit = clipString(section.title, 120);
+  if (explicit && !/^section\s+\d+$/i.test(explicit)) return explicit;
+  const fromBody = clipString(section.explanation, 4000);
+  if (fromBody) {
+    const sentence = fromBody.split(/[.!?]/)[0]?.trim() ?? "";
+    if (sentence.length > 8) {
+      return sentence.length > 64 ? `${sentence.slice(0, 61)}…` : sentence;
+    }
+  }
+  return `Section ${index + 1}`;
 }
 
 function extractJsonText(raw: string) {
@@ -533,7 +590,92 @@ function finalizeQuestion(
   const stem = clipString(q.stem, 4000);
   if (!stem) return null;
 
-  const type = q.type === "trueFalse" || q.type === "shortAnswer" ? q.type : "multipleChoice";
+  const rawType = q.type ?? "multipleChoice";
+  const type = [
+    "trueFalse",
+    "shortAnswer",
+    "multiSelect",
+    "ordering",
+    "matching",
+    "multipleChoice",
+  ].includes(rawType) ? rawType : "multipleChoice";
+
+  if (type === "matching") {
+    const leftItems = [...(q.leftItems ?? [])].map((s) => String(s).trim()).filter(Boolean);
+    const rightItems = [...(q.rightItems ?? [])].map((s) => String(s).trim()).filter(Boolean);
+    const correctAnswer = q.correctAnswer && typeof q.correctAnswer === "object" && !Array.isArray(q.correctAnswer)
+      ? q.correctAnswer as Record<string, string>
+      : Object.fromEntries(leftItems.map((left, i) => [left, rightItems[i] ?? ""]));
+    return {
+      id: String(q.id ?? `${prefix}-${index + 1}`).trim(),
+      type,
+      stem,
+      leftItems,
+      rightItems,
+      correctAnswer,
+      explanation: String(q.explanation ?? "").trim() || "Review the key concepts for this question.",
+      conceptId: q.conceptId ? String(q.conceptId) : undefined,
+      moduleId: q.moduleId ? String(q.moduleId) : undefined,
+      variantType: q.variantType,
+      mixCategory: q.mixCategory,
+    };
+  }
+
+  if (type === "ordering") {
+    const items = [...(q.items ?? q.options ?? [])].map((s) => String(s).trim()).filter(Boolean);
+    const correctAnswer = Array.isArray(q.correctAnswer)
+      ? q.correctAnswer.map((s) => String(s).trim()).filter(Boolean)
+      : items;
+    return {
+      id: String(q.id ?? `${prefix}-${index + 1}`).trim(),
+      type,
+      stem,
+      items,
+      options: items,
+      correctAnswer,
+      explanation: String(q.explanation ?? "").trim() || "Review the key concepts for this question.",
+      conceptId: q.conceptId ? String(q.conceptId) : undefined,
+      moduleId: q.moduleId ? String(q.moduleId) : undefined,
+      variantType: q.variantType,
+      mixCategory: q.mixCategory,
+    };
+  }
+
+  if (type === "shortAnswer") {
+    return {
+      id: String(q.id ?? `${prefix}-${index + 1}`).trim(),
+      type,
+      stem,
+      correctAnswer: String(q.correctAnswer ?? "").trim(),
+      acceptableAnswers: (q.acceptableAnswers ?? []).map((s) => String(s).trim()).filter(Boolean),
+      matchMode: q.matchMode === "exact" ? "exact" : "fuzzy",
+      explanation: String(q.explanation ?? "").trim() || "Review the key concepts for this question.",
+      conceptId: q.conceptId ? String(q.conceptId) : undefined,
+      moduleId: q.moduleId ? String(q.moduleId) : undefined,
+      variantType: q.variantType,
+      mixCategory: q.mixCategory,
+    };
+  }
+
+  if (type === "multiSelect") {
+    const options = [...(q.options ?? [])].map((o) => String(o).trim()).filter(Boolean);
+    const correctAnswer = Array.isArray(q.correctAnswer)
+      ? q.correctAnswer.map((ans) => resolveCorrectAnswer(ans, options) ?? String(ans).trim()).filter(Boolean)
+      : [resolveCorrectAnswer(q.correctAnswer, options) ?? String(q.correctAnswer ?? "")].filter(Boolean);
+    return {
+      id: String(q.id ?? `${prefix}-${index + 1}`).trim(),
+      type,
+      stem,
+      options,
+      correctAnswer,
+      explanation: String(q.explanation ?? "").trim() || "Review the key concepts for this question.",
+      conceptId: q.conceptId ? String(q.conceptId) : undefined,
+      moduleId: q.moduleId ? String(q.moduleId) : undefined,
+      variantType: q.variantType,
+      mixCategory: q.mixCategory,
+    };
+  }
+
   let options = q.options;
   if (type === "trueFalse") {
     options = ["True", "False"];
@@ -543,17 +685,19 @@ function finalizeQuestion(
     options = options.slice(0, 4);
   }
 
-  const correctAnswer = q.correctAnswer ?? options?.[0] ?? "Unknown";
+  const correctAnswer = resolveCorrectAnswer(q.correctAnswer, options) ?? options?.[0] ?? "Unknown";
 
   return {
     id: String(q.id ?? `${prefix}-${index + 1}`).trim(),
-    type,
+    type: type === "trueFalse" ? "trueFalse" : "multipleChoice",
     stem,
     options,
     correctAnswer,
     explanation: String(q.explanation ?? "").trim() || "Review the key concepts for this question.",
     conceptId: q.conceptId ? String(q.conceptId) : undefined,
     moduleId: q.moduleId ? String(q.moduleId) : undefined,
+    variantType: q.variantType,
+    mixCategory: q.mixCategory,
   };
 }
 
@@ -566,10 +710,18 @@ function finalizeQuestionsOutput(
   const list = Array.isArray(obj?.questions) ? obj.questions : [];
   if (!list.length) throw new Error(`AI returned no ${label}. Try again.`);
 
+  const metaStem = /\bas an ai\b|\bhere(?:'s| is) (?:a |the )?question\b/i;
+
   const finalized = list
     .slice(0, expectedCount)
     .map((q, index) => finalizeQuestion(q, index, "q"))
-    .filter((q): q is NonNullable<typeof q> => q != null);
+    .filter((q): q is NonNullable<typeof q> => {
+      if (q == null) return false;
+      const stem = String((q as { stem?: string }).stem ?? "").trim();
+      if (stem.length < 12) return false;
+      if (metaStem.test(stem)) return false;
+      return true;
+    });
 
   const minAcceptable = expectedCount <= 3
     ? expectedCount
@@ -629,14 +781,14 @@ function finalizeGuideOutput(raw: unknown) {
 
     return {
       sectionId: clipString(section.sectionId, 48) || `section-${index + 1}`,
-      title: clipString(section.title, 120) || `Section ${index + 1}`,
+      title: deriveSectionTitle(section, index),
       explanation: clipString(section.explanation, 4000) || "Review the module concepts for this section.",
       workedExamples,
       checkInQuestion: {
         question: clipString(checkInStem, 500) || "What is the main idea of this section?",
         type: "multipleChoice" as const,
         options,
-        correctAnswer: clipString(checkIn.correctAnswer, 200) || options[0],
+        correctAnswer: resolveCorrectAnswer(checkIn.correctAnswer, options) ?? options[0],
         explanation: clipString(checkIn.explanation, 500) || "Review the section explanation and worked example.",
       },
       keyTerms: keyTerms.length >= 2
@@ -683,10 +835,51 @@ function aiSchemaForAction(action: string) {
     || action === "generateInterleavedQuestions"
     || action === "generateJourneyChallenge"
     || action === "generateCramSession"
+    || action === "generateQuestionBankSlice"
   ) {
     return questionsAiOutputSchema;
   }
   return null;
+}
+
+function finalizeFreeRecallGrade(raw: unknown, hintsUsed = 0) {
+  const obj = raw && typeof raw === "object" ? raw as Record<string, unknown> : {};
+  const conceptCoverage = Array.isArray(obj.conceptCoverage) ? obj.conceptCoverage : [];
+  const STATUS_WEIGHT: Record<string, number> = { covered: 1, partial: 0.4, missed: 0, incorrect: 0 };
+  let coveragePercent: number;
+  if (conceptCoverage.length) {
+    const total = conceptCoverage.reduce(
+      (sum, c) => sum + (STATUS_WEIGHT[(c as { status?: string }).status ?? ""] ?? 0),
+      0,
+    );
+    coveragePercent = Math.round((total / conceptCoverage.length) * 100);
+  } else {
+    coveragePercent = Number(obj.coveragePercent ?? 0);
+  }
+  const hintPenalty = Math.min(24, hintsUsed * 8);
+  coveragePercent = Math.max(0, Math.round(coveragePercent - hintPenalty));
+
+  const missedFromConcepts = conceptCoverage
+    .filter((c) => {
+      const status = (c as { status?: string }).status;
+      return status === "missed" || status === "incorrect";
+    })
+    .map((c) => (c as { term?: string; conceptId?: string }).term
+      || (c as { conceptId?: string }).conceptId)
+    .filter(Boolean) as string[];
+
+  return {
+    coveragePercent,
+    coverageEstimate: String(obj.coverageEstimate ?? ""),
+    conceptCoverage,
+    missedIdeas: missedFromConcepts.length
+      ? missedFromConcepts.slice(0, 6)
+      : (obj.missedIdeas as string[] ?? []),
+    incorrectIdeas: obj.incorrectIdeas ?? [],
+    hintsUsedNote: String(obj.hintsUsedNote ?? ""),
+    nextConceptToRevisit: String(obj.nextConceptToRevisit ?? ""),
+    feedback: String(obj.feedback ?? ""),
+  };
 }
 
 function finalizeForAction(
@@ -703,10 +896,19 @@ function finalizeForAction(
     || action === "generateInterleavedQuestions"
     || action === "generateJourneyChallenge"
     || action === "generateCramSession"
+    || action === "generateQuestionBankSlice"
   ) {
     const count = Number(payload.questionCount ?? 10);
-    const label = action === "generateCramSession" ? "cram questions" : "questions";
+    const label = action === "generateCramSession"
+      ? "cram questions"
+      : action === "generateQuestionBankSlice"
+        ? "bank questions"
+        : "questions";
     return finalizeQuestionsOutput(raw, count, label);
+  }
+  if (action === "gradeFreeRecall") {
+    const hintsUsed = Number(payload.hintsUsed ?? 0);
+    return finalizeFreeRecallGrade(raw, hintsUsed);
   }
   return raw;
 }
@@ -843,7 +1045,7 @@ function payloadShapeSummary(value: unknown): Record<string, unknown> {
 }
 
 
-const DEPLOY_BUILD = "nim-deepseek-v1-inline-nim-v3";
+const DEPLOY_BUILD = "nim-deepseek-v1-grading-fix-v4";
 const MAX_OUTPUT_TOKENS = 4096;
 const MAX_OUTPUT_TOKENS_GUIDE = 8192;
 const MAX_OUTPUT_TOKENS_SECTION = 1536;
@@ -880,6 +1082,7 @@ const STUDY_LIMITS = {
 const ACTIONS = [
   "generateLearningGuide",
   "generatePracticeQuestions",
+  "generateQuestionBankSlice",
   "generateFlashcards",
   "parseQuizletImport",
   "extractDeckSource",
@@ -1151,6 +1354,7 @@ const JSON_STRICT_RULE = `JSON OUTPUT (strict — the app parser requires this e
 - Return ONE JSON object only. No markdown fences, no prose before or after the JSON.
 - Learning guides: { "sections": [ ... ], "totalSections": number, "estimatedMinutes": number } — "sections" MUST be a non-empty array at the top level.
 - Quizzes/diagnostic: { "questions": [ ... ] } — each item uses stem, options, correctAnswer, explanation (not "question" or "answer" as the primary keys).
+- correctAnswer MUST be the exact verbatim string from the options array — NEVER a letter (A/B/C/D) or numeric index.
 - Flashcards: { "cards": [ ... ] } — each item uses front and back.
 - Diagnostic: every question MUST include moduleId exactly as provided in the prompt.
 - Generate EXACTLY the requested counts. Do not wrap the payload inside extra keys like "data", "output", or "result".`;
@@ -1238,8 +1442,15 @@ const feynmanConceptSummarySchema = z.object({
   suggestedNextSteps: z.array(z.string()),
 });
 
+const freeRecallConceptCoverageSchema = z.object({
+  conceptId: z.string(),
+  term: z.string(),
+  status: z.enum(['covered', 'partial', 'missed', 'incorrect']),
+});
+
 const freeRecallOutputSchema = z.object({
-  coveragePercent: z.number().min(0).max(100),
+  coveragePercent: z.number().min(0).max(100).optional(),
+  conceptCoverage: z.array(freeRecallConceptCoverageSchema).optional(),
   coverageEstimate: z.string(),
   missedIdeas: z.array(z.string()),
   incorrectIdeas: z.array(z.string()),
@@ -1281,8 +1492,10 @@ EXPLANATION (most important):
 - Define key terms inline; use analogies and concrete examples.
 
 SIDE PANELS:
-- keyTerms: 2–3 objects { term, definition } — important terms from THIS section only.
+- keyTerms: 2–3 objects { term, definition } — important terms from THIS section only. term MUST be a real concept name, not "Point 1".
 - takeaways: 2 short bullet strings — exam-relevant points to remember.
+
+SECTION TITLES: Each section needs a meaningful title derived from the topic (not "Section 1").
 
 WORKED EXAMPLE (exactly one per section):
 - scenario: specific realistic problem (1–2 sentences).
@@ -1290,7 +1503,7 @@ WORKED EXAMPLE (exactly one per section):
 - answer: final result in plain language.
 - reasoning: 1–2 sentences tying back to concepts.
 
-CHECK-IN: type "multipleChoice" with exactly 4 options. Correct answer must be supported by the explanation and worked example. Distractors = plausible misconceptions.
+CHECK-IN: type "multipleChoice" with exactly 4 options. correctAnswer MUST be the exact text of one option (not A/B/C/D). Correct answer must be supported by the explanation and worked example. Distractors = plausible misconceptions.
 
 Do NOT include narrationText.`;
 
@@ -1370,14 +1583,17 @@ Rules:
 - Use $...$ for inline math when needed.
 - Be truthful but kind — help the student see gaps without being harsh or sarcastic.
 - feedback: MAX 2 short paragraphs (~120 words total). Friendly, specific, actionable.
-- coveragePercent: 0–100 based on how thoroughly the response covers the module's important concepts.
+- conceptCoverage: REQUIRED array — one entry per concept in the provided concepts list.
+  - conceptId and term from the input concepts list.
+  - status: "covered" (clearly explained), "partial" (mentioned but thin), "missed" (not addressed), "incorrect" (wrong or confused).
+- coveragePercent: optional — server recomputes from conceptCoverage; you may omit or provide a rough estimate.
 - coverageEstimate: one short phrase (e.g. "Solid core with notable gaps" or "Partial — key ideas missing").
 - missedIdeas: 2–6 important concepts or ideas they omitted (short phrases).
 - incorrectIdeas: 0–4 misconceptions or errors (empty array if none).
 - hintsUsedNote: one sentence on whether hints suggest partial recall vs independent knowledge.
 - nextConceptToRevisit: the single best concept term to study next.
 
-Grade against the knowledge map only — do not invent module content.`;
+Grade against the knowledge map only — do not invent module content. Copy-pasting concept names without explanation should score as partial or missed, not covered.`;
 
 const FEYNMAN_TURN_SYSTEM = `You are a curious student in a Feynman Technique tutoring session on Veridian. The human is teaching YOU the concept — stay in character as an eager learner who asks sharp, friendly questions.
 
@@ -1389,7 +1605,9 @@ Rules:
 - Each turn, internally assess: missing pieces, vagueness, misconceptions, weakest point in their explanation so far.
 - Reflect those gaps naturally in your reply — do not list bullet labels or say "missing pieces:".
 - readyToComplete: true when they show decent understanding (be lenient — core idea + key relationships is enough; perfection not required).
-- On turn 5 (turnNumber === 5), wrap up warmly and set readyToComplete true unless they said almost nothing.
+- Set readyToComplete true on turn 2+ when they gave a clear definition AND (a relationship/mechanism OR a concrete example).
+- When readyToComplete is true, reply with warm closure ONLY — do NOT ask another follow-up question.
+- On turn 3 (turnNumber === maxTurns), wrap up warmly and set readyToComplete true unless they said almost nothing.
 - Never reveal you are grading. Never dump the knowledge map definition verbatim.
 - If they have a misconception, gently probe with an open-ended question — never give away the answer.
 - NEVER ask binary or multiple-choice style questions ("Is it X or Y?", "Would you say A or B?", "Which of these…"). The student must explain in their own words — do not offer 50/50 guesses.
@@ -1424,10 +1642,34 @@ Rules:
 - Every question MUST include conceptId from the provided concepts list.
 - Each question needs a unique id (short slug + index).
 - NEVER repeat or lightly rephrase avoidQuestionIds or avoidStemPreviews.
-- Mostly multipleChoice with exactly 4 plausible options; some trueFalse; occasional shortAnswer.
-- Include concise explanation (1–2 sentences) per question.
+- NEVER write meta stems (no "as an AI", "here is a question", or chatty preface). One clear stem per item.
+- Mostly multipleChoice with exactly 4 distinct, plausible distractors; some trueFalse; occasional shortAnswer, multiSelect, ordering, or matching when compositionSlots request them.
+- When compositionSlots is provided, generate EXACTLY one question per slot matching type, conceptId, variantType, and mixCategory.
+- When prescriptionSummary is provided, prioritize that failure-mode target across stems and distractors.
+- ordering: provide items array and correctAnswer as the correct sequence of item strings.
+- matching: provide leftItems, rightItems, and correctAnswer as a map from left term to right definition.
+- Tag variantType (verbatim/application/transfer) and mixCategory when specified in compositionSlots.
+- multipleChoice: exactly 4 plausible options; correctAnswer MUST be the exact verbatim string from options (not A/B/C/D or index).
+- Include a concise explanation (1–2 sentences) per question.
 - Follow focusGuidance for concept distribution (fullReview / weakSpots / newMaterial).
 - Match difficulty to moduleStage. Be concise in stems — high quality, token-efficient.`;
+
+/** After changing generateQuestionBankSlice / finalizeQuestionsOutput, republish aiStudy. */
+const QUESTION_BANK_SYSTEM = `You generate durable practice questions for Veridian certified question banks.
+
+${LATEX_RULE}
+
+${JSON_STRICT_RULE}
+
+Rules:
+- Output ONLY valid JSON. No markdown.
+- Generate EXACTLY the requested count — one question per slot when compositionSlots provided.
+- Every question MUST include conceptId from the concepts list.
+- Supported types: multipleChoice, trueFalse, shortAnswer, multiSelect, ordering, matching.
+- Include variantType and mixCategory when specified in slots.
+- multipleChoice: exactly 4 distinct plausible options; correctAnswer must match an option verbatim.
+- NEVER write meta or chatty stems.
+- Explanations: 1–2 sentences each.`;
 
 const AP_STYLE_INSTRUCTION = `Generate all questions in authentic AP exam style. AP questions are precise, analytical, and often scenario-based or stimulus-based — they present a specific situation, data set, experiment description, experimental result, passage excerpt, or diagram description before asking the student to analyze, evaluate, or apply a concept. Questions do not test simple recall of definitions. Instead they require the student to apply understanding to novel situations, justify claims with evidence, reason through cause and effect, evaluate the validity of an argument or claim, interpret data or graphs described in text form, or connect concepts across the subject. Answer choices in AP questions are all plausible and substantively similar in length and structure — wrong answers represent common misconceptions or partially correct reasoning, not obviously wrong distractors. The correct answer requires precise understanding, not elimination by process of obvious incorrectness. Question stems use formal academic language and precise subject-specific vocabulary. Multi-part reasoning is common: a stem may ask which of the following best explains, best justifies, best supports, or is most consistent with a given claim or observation. Avoid question stems that begin with 'What is' or 'Define' — instead use 'Which of the following best explains', 'A student observes X, which of the following conclusions is best supported', 'Based on the information given, which of the following', or 'Which of the following best justifies the claim that.' All questions should feel like they belong on an official AP Progress Check or exam regardless of which subject or topic is being tested.`;
 
@@ -1440,9 +1682,12 @@ ${JSON_STRICT_RULE}
 Rules:
 - Output ONLY valid JSON: { cards: [{ front, back, conceptTag? }] }.
 - Generate EXACTLY the requested cardCount when enough source material exists.
-- PRIORITY: userProvidedContent and parsedPairs first — module/journey context ONLY fills gaps.
+- Real flashcards only: front = term, short question, or prompt worth memorizing; back = direct answer, definition, or explanation.
+- NEVER pair two loosely related phrases. The back must answer the front.
+- One concept per card. Atomic pairs. No duplicate fronts.
 - Match deckPurpose (definitions / conceptual / procedures / exam_facts).
-- One concept per card. Atomic pairs. Fronts concise when possible.`;
+- If sourceMode is moduleAuto, build the entire deck from module concepts, module description, journey subject/title, and prior knowledge only.
+- Otherwise prioritize userProvidedContent and parsedPairs; use module/journey context only to fill gaps.`;
 
 const DIAGNOSTIC_SYSTEM = `You are designing a diagnostic assessment to measure true mastery — not guessability.
 
@@ -1687,6 +1932,7 @@ function buildSystem(action: string, payload?: Record<string, unknown>) {
   const map: Record<string, string> = {
     generateLearningGuide: LEARNING_GUIDE_SYSTEM,
     generatePracticeQuestions: PRACTICE_QUIZ_SYSTEM,
+    generateQuestionBankSlice: QUESTION_BANK_SYSTEM,
     generateFlashcards: GENERATE_FLASHCARDS_SYSTEM,
     parseQuizletImport: `${base} Parse Quizlet-style imports into { pairs: [{ front, back }] }. Output JSON only. Do not invent content.`,
     extractDeckSource: `${base} Extract testable source from raw text into { cleanedText, summary }. Do not generate flashcards yet.`,

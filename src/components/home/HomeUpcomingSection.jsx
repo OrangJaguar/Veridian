@@ -40,7 +40,7 @@ function UpcomingRow({ journey }) {
 export default function HomeUpcomingSection({ journeys = [] }) {
   const withExam = useMemo(
     () => journeys
-      .filter((j) => j.examDate && daysUntilExam(j.examDate) >= 0)
+      .filter((j) => j.generationStatus !== 'processing' && j.examDate && daysUntilExam(j.examDate) >= 0)
       .sort((a, b) => a.examDate - b.examDate)
       .slice(0, 5),
     [journeys],

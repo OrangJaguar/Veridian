@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import LatexRenderer from '@/components/shared/LatexRenderer';
 import { playStudySound, triggerStudyHaptic } from '@/utils/study/feedback';
+import { gradeMcqResponse, resolveCorrectAnswer } from '@/utils/study/resolveCorrectAnswer';
+import { gradeQuestionResponse } from '@/utils/quiz/gradeQuestionResponse';
+import ShortAnswerInput from '@/components/study/quiz/inputs/ShortAnswerInput';
 
 export default function LearningGuideCheckIn({ checkIn, onAnswered, initialAnswer }) {
   const [selected, setSelected] = useState(initialAnswer?.selected ?? null);
@@ -8,16 +11,26 @@ export default function LearningGuideCheckIn({ checkIn, onAnswered, initialAnswe
     Boolean(initialAnswer?.revealed || initialAnswer?.skipped || initialAnswer?.selected != null),
   );
 
+  const options = checkIn?.options ?? [];
+  const resolvedCorrect = useMemo(
+    () => resolveCorrectAnswer(checkIn?.correctAnswer, options),
+    [checkIn?.correctAnswer, options],
+  );
+
   if (!checkIn?.question) return null;
 
-  const options = checkIn.options ?? [];
-  const isCorrect = selected === checkIn.correctAnswer;
+  const checkType = checkIn?.type ?? (options.length === 2 && options.includes('True') ? 'trueFalse' : 'multipleChoice');
+  const isCorrect = selected != null && (
+    checkType === 'shortAnswer'
+      ? gradeQuestionResponse(selected, { type: 'shortAnswer', correctAnswer: checkIn.correctAnswer })
+      : gradeMcqResponse(selected, checkIn.correctAnswer, options)
+  );
 
   const handleSelect = (opt) => {
     if (revealed) return;
     setSelected(opt);
     setRevealed(true);
-    const correct = opt === checkIn.correctAnswer;
+    const correct = gradeMcqResponse(opt, checkIn.correctAnswer, options);
     playStudySound(correct ? 'correct' : 'wrong');
     triggerStudyHaptic(correct ? 'correct' : 'wrong');
     onAnswered?.({ selected: opt, correct, skipped: false });
@@ -38,11 +51,26 @@ export default function LearningGuideCheckIn({ checkIn, onAnswered, initialAnswe
         </h3>
       </div>
 
-      {options.length > 0 ? (
+      {checkType === 'shortAnswer' ? (
+        <ShortAnswerInput
+          value={typeof selected === 'string' ? selected : ''}
+          onSubmit={(text) => {
+            if (revealed) return;
+            setSelected(text);
+            setRevealed(true);
+            const correct = gradeQuestionResponse(text, { type: 'shortAnswer', correctAnswer: checkIn.correctAnswer });
+            playStudySound(correct ? 'correct' : 'wrong');
+            triggerStudyHaptic(correct ? 'correct' : 'wrong');
+            onAnswered?.({ selected: text, correct, skipped: false });
+          }}
+          disabled={revealed}
+          answered={revealed}
+        />
+      ) : options.length > 0 ? (
         <div className="guide-checkin-options" role="listbox" aria-label="Answer choices">
           {options.map((opt) => {
             let stateClass = '';
-            if (revealed && opt === checkIn.correctAnswer) stateClass = ' correct';
+            if (revealed && resolvedCorrect && opt === resolvedCorrect) stateClass = ' correct';
             else if (revealed && opt === selected && !isCorrect) stateClass = ' wrong';
             else if (selected === opt) stateClass = ' selected';
 
@@ -63,6 +91,13 @@ export default function LearningGuideCheckIn({ checkIn, onAnswered, initialAnswe
         </div>
       ) : (
         <p className="guide-checkin-open">Reflect on the question above before continuing.</p>
+      )}
+
+      {revealed && !isCorrect && resolvedCorrect && (
+        <p className="guide-checkin-correct-answer">
+          <strong>Correct answer:</strong>{' '}
+          <LatexRenderer text={resolvedCorrect} />
+        </p>
       )}
 
       {revealed && checkIn.explanation && (

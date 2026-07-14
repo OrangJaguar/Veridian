@@ -7,6 +7,7 @@ export default function FreeRecallHintModal({
   open,
   hints,
   preloading,
+  generating = false,
   onClose,
   onGenerateNext,
 }) {
@@ -15,7 +16,8 @@ export default function FreeRecallHintModal({
   const tier = hints.length;
   const title = `Hint ${Math.min(tier + 1, MAX_HINTS)}/${MAX_HINTS}`;
   const canGenerate = tier < MAX_HINTS;
-  const waitingForPreload = canGenerate && preloading && tier >= hints.length;
+  const waitingForPreload = canGenerate && preloading && tier >= hints.length && !generating;
+  const busy = generating || waitingForPreload;
 
   return createPortal(
     <div className="study-modal-overlay" onClick={onClose} role="presentation">
@@ -54,13 +56,15 @@ export default function FreeRecallHintModal({
                 type="button"
                 className="btn btn-primary"
                 onClick={onGenerateNext}
-                disabled={waitingForPreload}
+                disabled={busy}
               >
-                {waitingForPreload
-                  ? 'Preparing hints…'
-                  : tier === 0
-                    ? 'Get first hint'
-                    : 'Show next hint'}
+                {generating
+                  ? 'Generating hint…'
+                  : waitingForPreload
+                    ? 'Preparing hints…'
+                    : tier === 0
+                      ? 'Get first hint'
+                      : 'Show next hint'}
               </button>
             )}
             {tier >= MAX_HINTS && (

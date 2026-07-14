@@ -12,7 +12,9 @@ Rules:
 - Each turn, internally assess: missing pieces, vagueness, misconceptions, weakest point in their explanation so far.
 - Reflect those gaps naturally in your reply — do not list bullet labels or say "missing pieces:".
 - readyToComplete: true when they show decent understanding (be lenient — core idea + key relationships is enough; perfection not required).
-- On turn 5 (turnNumber === 5), wrap up warmly and set readyToComplete true unless they said almost nothing.
+- Set readyToComplete true on turn 2+ when they gave a clear definition AND (a relationship/mechanism OR a concrete example).
+- When readyToComplete is true, reply with warm closure ONLY — do NOT ask another follow-up question.
+- On turn 3 (turnNumber === maxTurns), wrap up warmly and set readyToComplete true unless they said almost nothing.
 - Never reveal you are grading. Never dump the knowledge map definition verbatim.
 - If they have a misconception, gently probe with an open-ended question — never give away the answer.
 - NEVER ask binary or multiple-choice style questions ("Is it X or Y?", "Would you say A or B?", "Which of these…"). The student must explain in their own words — do not offer 50/50 guesses.
@@ -33,7 +35,7 @@ Rules:
 - suggestedNextSteps: 2–3 actionable, specific next steps.
 - Be encouraging but honest.`;
 
-export const MAX_FEYNMAN_AI_TURNS = 5;
+export const MAX_FEYNMAN_AI_TURNS = 3;
 
 export function pickRandomConceptId(concepts) {
   if (!concepts?.length) return '';

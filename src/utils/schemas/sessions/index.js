@@ -1,47 +1,47 @@
 import { z } from 'zod';
+import { quizConfigSchema } from '@/utils/failures/prescriptionSchema';
+import { quizQuestionUnionSchema, quizAnswerResponseSchema } from '@/utils/quiz/questionSchemas';
 
 export const confidenceSliderSchema = z.object({
   value: z.number().min(0).max(100),
   submittedAt: z.string(),
 });
 
-export const quizQuestionSchema = z.object({
-  id: z.string(),
-  type: z.enum(['multipleChoice', 'trueFalse', 'multiSelect', 'shortAnswer', 'scenario', 'calculation']),
-  stem: z.string(),
-  options: z.array(z.string()).optional(),
-  correctAnswer: z.union([z.string(), z.array(z.string())]),
-  explanation: z.string(),
-  conceptId: z.string().optional(),
-  moduleId: z.string().optional(),
-  variantType: z.enum(['verbatim', 'application', 'transfer']).optional(),
-});
+/** Legacy flat question schema — prefer quizQuestionUnionSchema for new code. */
+export const quizQuestionSchema = quizQuestionUnionSchema;
 
 export const practiceQuizSessionDataSchema = z.object({
   confidenceSlider: confidenceSliderSchema.optional(),
-  config: z.object({
-    questionCount: z.number(),
-    focusPreset: z.enum(['weakSpots', 'newMaterial', 'fullReview']),
-    timedMode: z.boolean(),
-    timeLimitMinutes: z.number().nullable().optional(),
-  }),
-  questions: z.array(quizQuestionSchema),
+  config: quizConfigSchema.optional(),
+  quizConfig: quizConfigSchema.optional(),
+  prescription: z.object({
+    prescriptionType: z.string().optional(),
+    primaryMode: z.string().nullable().optional(),
+    summary: z.string().optional(),
+    compositionPlan: z.record(z.unknown()).optional(),
+  }).optional(),
+  compositionPlan: z.record(z.unknown()).optional(),
+  questions: z.array(quizQuestionUnionSchema),
   answers: z.array(z.object({
     questionId: z.string(),
-    response: z.union([z.string(), z.array(z.string())]),
+    response: quizAnswerResponseSchema,
     correct: z.boolean(),
     timeSec: z.number().optional(),
     conceptId: z.string().optional(),
+    skipped: z.boolean().optional(),
   })),
   interventions: z.array(z.object({
     conceptId: z.string(),
     shown: z.boolean(),
     accepted: z.boolean(),
   })).optional(),
-});
+}).passthrough();
 
 export const flashcardSessionDataSchema = z.object({
   mode: z.enum(['due', 'browse']),
+  flashcardMode: z.string().optional(),
+  mixedPhrasing: z.boolean().optional(),
+  prescription: sessionPrescriptionSchema.optional(),
   reviews: z.array(z.object({
     cardId: z.string(),
     rating: z.enum(['again', 'hard', 'good', 'easy']),
@@ -57,6 +57,7 @@ export const flashcardSessionDataSchema = z.object({
 });
 
 export const learningGuideSessionDataSchema = z.object({
+  prescription: sessionPrescriptionSchema.optional(),
   completedSectionIds: z.array(z.string()),
   checkInResults: z.array(z.object({
     sectionId: z.string(),
@@ -66,6 +67,7 @@ export const learningGuideSessionDataSchema = z.object({
 });
 
 export const feynmanSessionDataSchema = z.object({
+  prescription: sessionPrescriptionSchema.optional(),
   discussedConceptIds: z.array(z.string()),
   overallScore: z.number().optional(),
   conceptThreads: z.record(z.object({
@@ -88,6 +90,7 @@ export const feynmanSessionDataSchema = z.object({
 });
 
 export const freeRecallSessionDataSchema = z.object({
+  prescription: sessionPrescriptionSchema.optional(),
   recallPrompt: z.string(),
   rawStudentResponse: z.string(),
   wasVoiceInput: z.boolean(),
@@ -107,6 +110,8 @@ export const freeRecallSessionDataSchema = z.object({
 
 export const interleavedSessionDataSchema = z.object({
   confidenceSlider: confidenceSliderSchema.optional(),
+  prescription: sessionPrescriptionSchema.optional(),
+  quizConfig: quizConfigSchema.optional(),
   selectedModuleIds: z.array(z.string()),
   questions: z.array(quizQuestionSchema),
   answers: z.array(z.object({

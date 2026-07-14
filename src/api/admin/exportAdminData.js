@@ -1,8 +1,7 @@
-import { base44 } from '@/api/base44Client';
+import { invokeAdminFunction } from '@/api/admin/invokeAdminFunction';
 
 export async function exportAdminCsv(exportKey) {
-  const res = await base44.functions.invoke('exportAdminData', { exportKey });
-  const { csv, filename } = res?.data ?? res;
+  const { csv, filename } = await invokeAdminFunction('exportAdminData', { exportKey });
   if (!csv) throw new Error('Empty export');
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
