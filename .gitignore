@@ -38,3 +38,4 @@ scripts/.cache
 # Spec PDFs (keep out of repo)
 *.pdf
 Veridian*.pdf
+base44/.app.jsonc
