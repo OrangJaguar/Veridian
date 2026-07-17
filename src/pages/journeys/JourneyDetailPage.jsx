@@ -109,7 +109,15 @@ export default function JourneyDetailPage() {
         </ul>
       </section>
 
-      <RecommendedStudyPlan plan={plan} loading={planLoading} journey={journey} />
+      <RecommendedStudyPlan
+        plan={plan}
+        loading={planLoading}
+        journey={journey}
+        modules={modules}
+        sessions={sessions}
+        cards={cards}
+        activities={activities}
+      />
 
       <JourneyDetailActions journey={journey} />
 

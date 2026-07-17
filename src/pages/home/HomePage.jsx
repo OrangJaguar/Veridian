@@ -15,6 +15,7 @@ import HomeWelcomeHeader from '@/components/home/HomeWelcomeHeader';
 import MaiDay60Banner from '@/components/home/MaiDay60Banner';
 import HomeContextNotice from '@/components/home/HomeContextNotice';
 import DueTodayZone from '@/components/home/DueTodayZone';
+import WeeklyCommitmentCard from '@/components/home/WeeklyCommitmentCard';
 import HomeUpcomingSection from '@/components/home/HomeUpcomingSection';
 import HomeExamCramZone from '@/components/home/HomeExamCramZone';
 import HomeKeepSharpZone from '@/components/home/HomeKeepSharpZone';
@@ -22,6 +23,8 @@ import HomeEmptyState from '@/components/home/HomeEmptyState';
 import HomeFirstSessionReady from '@/components/home/HomeFirstSessionReady';
 import MaiSurveyPromptModal from '@/components/survey/MaiSurveyPromptModal';
 import { useMaiSurveyEligibility } from '@/hooks/useMaiSurveyEligibility';
+import { Link } from 'react-router-dom';
+
 
 export default function HomePage() {
   const { isAuthenticated } = useAuth();
@@ -108,6 +111,10 @@ export default function HomePage() {
         completedToday={completedToday}
         journeys={journeys}
       />
+      {journeys.length > 0 && <WeeklyCommitmentCard />}
+      <div className="home-mistakes-link-row">
+        <Link to="/mistakes" className="home-mistakes-link">Review Mistakes →</Link>
+      </div>
       {examWeekJourneys.length > 0 && <HomeExamCramZone journeys={examWeekJourneys} />}
       {keepSharpJourneys.length > 0 && <HomeKeepSharpZone journeys={keepSharpJourneys} />}
       <HomeUpcomingSection journeys={journeys} />

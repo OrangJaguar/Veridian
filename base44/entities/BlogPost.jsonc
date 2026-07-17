@@ -1,0 +1,43 @@
+{
+  "name": "BlogPost",
+  "type": "object",
+  "properties": {
+    "postId": { "type": "string" },
+    "slug": { "type": "string" },
+    "title": { "type": "string" },
+    "author": { "type": "string" },
+    "description": { "type": "string" },
+    "metaTitle": { "type": "string" },
+    "metaDescription": { "type": "string" },
+    "category": { "type": "string" },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "status": {
+      "type": "string",
+      "description": "draft | published | archived"
+    },
+    "featured": { "type": "boolean" },
+    "coverImageUrl": { "type": "string" },
+    "coverImageAlt": { "type": "string" },
+    "readTimeMinutes": { "type": "number" },
+    "blocks": {
+      "type": "array",
+      "description": "Flexible content blocks JSON"
+    },
+    "publishedAt": { "type": "number" },
+    "archivedAt": { "type": "number" },
+    "createdAt": { "type": "number" },
+    "updatedAt": { "type": "number" },
+    "createdBy": { "type": "string" },
+    "updatedBy": { "type": "string" },
+    "ownerEmail": { "type": "string" },
+    "schemaVersion": { "type": "number" },
+    "staticSourceSlug": {
+      "type": "string",
+      "description": "Original static post slug for migration idempotency"
+    }
+  },
+  "required": ["postId", "slug", "title", "status", "createdAt", "updatedAt"]
+}

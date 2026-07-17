@@ -3,6 +3,11 @@ import { Link } from 'react-router-dom';
 import LatexRenderer from '@/components/shared/LatexRenderer';
 import SessionFailureInsight from '@/components/failures/SessionFailureInsight';
 import QuizContentSourceBadge from '@/components/study/quiz/QuizContentSourceBadge';
+import {
+  ConceptDebriefSection,
+  TrapDebriefSection,
+  NextActivitySection,
+} from '@/components/study/quiz/QuizDebriefSections';
 import { formatStudyTime } from '@/utils/study/feedback';
 
 function formatCorrectAnswer(q) {
@@ -42,6 +47,13 @@ export default function QuizSummary({
   failureInsight = null,
   failureModeId = null,
   contentSource = null,
+  conceptResults = null,
+  trapDebrief = null,
+  nextActivity = null,
+  onLaunchNext = null,
+  launchingNext = false,
+  onScheduleNext = null,
+  schedulingNext = false,
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -107,6 +119,16 @@ export default function QuizSummary({
         </div>
       </div>
 
+      <ConceptDebriefSection conceptResults={conceptResults ?? []} />
+      <TrapDebriefSection trapDebrief={trapDebrief} />
+      <NextActivitySection
+        nextActivity={nextActivity}
+        onLaunch={onLaunchNext}
+        launching={launchingNext}
+        onSchedule={onScheduleNext}
+        scheduling={schedulingNext}
+      />
+
       <div className="review-list">
         {questions.map((q, idx) => {
           const ans = answerByQuestionId[q.id];
@@ -144,7 +166,9 @@ export default function QuizSummary({
         })}
       </div>
 
-      <SessionFailureInsight insight={failureInsight} modeId={failureModeId} />
+      {!trapDebrief && (
+        <SessionFailureInsight insight={failureInsight} modeId={failureModeId} />
+      )}
 
       <div className="action-row summary-actions">
         <div>

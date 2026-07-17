@@ -2,6 +2,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePreferences } from '@/hooks/queries/usePreferences';
 import { greetingForHour, formatTodayDate } from '@/components/journeys/journeyUtils';
 import { getGreetingName } from '@/utils/userDisplayName';
+import StreakBadge from '@/components/home/StreakBadge';
 
 export default function HomeWelcomeHeader() {
   const { user } = useAuth();
@@ -15,7 +16,10 @@ export default function HomeWelcomeHeader() {
         <h1 className="home-welcome-greeting">
           {name ? `${greeting}, ${name}` : greeting}
         </h1>
-        <p className="home-welcome-date">{formatTodayDate()}</p>
+        <div className="home-welcome-right">
+          <StreakBadge />
+          <p className="home-welcome-date">{formatTodayDate()}</p>
+        </div>
       </div>
     </header>
   );

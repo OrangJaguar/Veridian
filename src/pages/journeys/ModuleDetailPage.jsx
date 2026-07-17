@@ -13,6 +13,10 @@ import StageSection from '@/components/module-detail/StageSection';
 import FlashcardDeckList from '@/components/module-detail/FlashcardDeckList';
 import SessionHistoryPanel from '@/components/module-detail/SessionHistoryPanel';
 import ModuleFailureProfileCard from '@/components/module-detail/ModuleFailureProfileCard';
+import ConceptStatusBoard from '@/components/concepts/ConceptStatusBoard';
+import { buildConceptStatusBoard } from '@/utils/study/buildConceptStatusBoard';
+import { normalizeConceptRelations } from '@/utils/schemas/ai/knowledgeMap';
+import { useMemo } from 'react';
 import { useModuleFailureProfile } from '@/hooks/queries/useModuleFailureProfile';
 import { useRecoverStaleGeneratingActivities } from '@/hooks/useRecoverStaleGeneratingActivities';
 import { moduleNeedsBaseline } from '@/utils/research/baselineCheck';
@@ -99,6 +103,24 @@ export default function ModuleDetailPage() {
         stage={mod.stage}
       />
 
+      {(mod.knowledgeMap?.concepts?.length ?? 0) > 0 && (
+        <section className="module-concept-board detail-section-box">
+          <div className="module-concept-board-header">
+            <h2 className="journey-detail-section-title">Concept map</h2>
+            <Link className="module-concept-board-link" to="/concepts">
+              Open full board
+            </Link>
+          </div>
+          <ModuleConceptBoardEmbed
+            module={mod}
+            journey={journey}
+            sessions={sessions}
+            cards={journeyCards}
+            activities={activities}
+          />
+        </section>
+      )}
+
       {['A', 'B', 'C'].map((stage) => (
         <StageSection
           key={stage}
@@ -121,5 +143,30 @@ export default function ModuleDetailPage() {
       />
       <SessionHistoryPanel sessions={sessions.filter((s) => s.moduleId === moduleId)} />
     </div>
+  );
+}
+
+function ModuleConceptBoardEmbed({ module, journey, sessions, cards, activities }) {
+  const rows = useMemo(
+    () => buildConceptStatusBoard({ module, journey, sessions, cards }),
+    [module, journey, sessions, cards],
+  );
+  const relations = useMemo(
+    () => normalizeConceptRelations(
+      module?.knowledgeMap?.relations ?? [],
+      module?.knowledgeMap?.concepts ?? [],
+    ),
+    [module],
+  );
+
+  return (
+    <ConceptStatusBoard
+      rows={rows}
+      relations={relations}
+      activities={activities}
+      journeyId={module.journeyId}
+      moduleId={module.moduleId}
+      moduleName={module.name}
+    />
   );
 }

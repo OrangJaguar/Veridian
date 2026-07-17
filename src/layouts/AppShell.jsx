@@ -11,6 +11,8 @@ import ThemeSync from '@/components/ThemeSync';
 import SyncUserDisplayName from '@/components/auth/SyncUserDisplayName';
 import { applyThemeFromStorage } from '@/lib/theme';
 import { useJourneyGenerationListener } from '@/hooks/useJourneyGenerationListener';
+import GlobalSearchDialog from '@/components/search/GlobalSearchDialog';
+import ShortcutHelpOverlay from '@/components/shared/ShortcutHelpOverlay';
 
 export default function AppShell() {
   const isMobile = useIsMobile();
@@ -54,6 +56,8 @@ export default function AppShell() {
         )}
       </div>
       <AiQuotaNotice />
+      <GlobalSearchDialog />
+      <ShortcutHelpOverlay />
     </div>
   );
 }

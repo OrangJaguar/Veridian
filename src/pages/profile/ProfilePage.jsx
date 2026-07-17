@@ -4,6 +4,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePreferences } from '@/hooks/queries/usePreferences';
 import LearnerContextForm from '@/components/profile/LearnerContextForm';
 import ProfileStatsCard from '@/components/profile/ProfileStatsCard';
+import StudyActivityChart from '@/components/profile/StudyActivityChart';
+import MasteryOverviewChart from '@/components/profile/MasteryOverviewChart';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
 
 export default function ProfilePage() {
@@ -51,9 +53,8 @@ export default function ProfilePage() {
       <section className="profile-section detail-section-box">
         <h2 className="profile-section-title">Study overview</h2>
         <ProfileStatsCard />
-        <p className="profile-deferred-note">
-          Knowledge maps and trend charts are coming in a later update.
-        </p>
+        <StudyActivityChart />
+        <MasteryOverviewChart />
       </section>
 
       <section className="profile-section detail-section-box">

@@ -19,6 +19,7 @@ export function usePageMeta({
   description = DEFAULT_DESCRIPTION,
   canonicalPath,
   noindex = false,
+  ogImage,
 } = {}) {
   useEffect(() => {
     const pageTitle = title ? `${title} | ${SITE_NAME}` : SITE_NAME;
@@ -33,6 +34,10 @@ export function usePageMeta({
     upsertMeta('name', 'twitter:title', pageTitle);
     upsertMeta('name', 'twitter:description', description);
     upsertMeta('name', 'robots', noindex ? 'noindex,nofollow' : 'index,follow');
+    if (ogImage) {
+      upsertMeta('property', 'og:image', ogImage);
+      upsertMeta('name', 'twitter:image', ogImage);
+    }
 
     if (canonicalPath && typeof window !== 'undefined') {
       const href = `${window.location.origin}${canonicalPath}`;
@@ -49,5 +54,5 @@ export function usePageMeta({
     return () => {
       document.title = SITE_NAME;
     };
-  }, [title, description, canonicalPath, noindex]);
+  }, [title, description, canonicalPath, noindex, ogImage]);
 }

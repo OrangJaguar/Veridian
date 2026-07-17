@@ -4,6 +4,22 @@
 export function buildLaunchSessionData(item = {}) {
   const data = {};
 
+  if (item.assignmentId) {
+    data.assignmentId = item.assignmentId;
+  }
+
+  if (item.commitmentId) {
+    data.commitmentId = item.commitmentId;
+  }
+
+  if (item.weekKey) {
+    data.weekKey = item.weekKey;
+  }
+
+  if (item.dateKey) {
+    data.dateKey = item.dateKey;
+  }
+
   if (item.prescription) {
     data.prescription = item.prescription;
   } else if (item.prescriptionType || item.primaryMode || item.prescriptionSummary) {

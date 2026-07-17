@@ -1,0 +1,79 @@
+{
+  "name": "PlanOverride",
+  "type": "object",
+  "properties": {
+    "overrideId": {
+      "type": "string",
+      "description": "Client-side stable ID"
+    },
+    "userEmail": {
+      "type": "string"
+    },
+    "assignmentId": {
+      "type": "string"
+    },
+    "weekKey": {
+      "type": "string"
+    },
+    "originalDateKey": {
+      "type": "string"
+    },
+    "action": {
+      "type": "string",
+      "description": "skip | snooze | swap | move | pin"
+    },
+    "targetDateKey": {
+      "type": "string"
+    },
+    "swapActivityType": {
+      "type": "string"
+    },
+    "swapActivityId": {
+      "type": "string"
+    },
+    "journeyId": {
+      "type": "string"
+    },
+    "moduleId": {
+      "type": "string"
+    },
+    "activityId": {
+      "type": "string"
+    },
+    "expiresAt": {
+      "type": "number"
+    },
+    "createdAt": {
+      "type": "number"
+    },
+    "updatedAt": {
+      "type": "number"
+    },
+    "active": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "overrideId",
+    "userEmail",
+    "assignmentId",
+    "weekKey",
+    "originalDateKey",
+    "action",
+    "createdAt"
+  ],
+  "rls": {
+    "create": {
+      "data.userEmail": "{{user.email}}"
+    },
+    "read": {
+      "data.userEmail": "{{user.email}}"
+    },
+    "update": {
+      "data.userEmail": "{{user.email}}"
+    },
+    "delete": {
+      "data.userEmail": "{{user.email}}"
+    }
+  }
+}

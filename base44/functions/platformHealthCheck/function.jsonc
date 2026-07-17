@@ -1,0 +1,4 @@
+{
+  "name": "platformHealthCheck",
+  "entry": "entry.ts"
+}

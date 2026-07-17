@@ -1,0 +1,22 @@
+{
+  "name": "PlatformBackup",
+  "type": "object",
+  "properties": {
+    "backupId": { "type": "string" },
+    "schemaVersion": { "type": "number" },
+    "createdAt": { "type": "number" },
+    "createdBy": { "type": "string" },
+    "entityCounts": { "type": "object" },
+    "checksum": { "type": "string" },
+    "payloadJson": {
+      "type": "string",
+      "description": "Full-fidelity JSON backup payload (may be truncated for very large datasets; prefer file export)"
+    },
+    "byteLength": { "type": "number" },
+    "status": {
+      "type": "string",
+      "description": "ok | partial | failed"
+    }
+  },
+  "required": ["backupId", "schemaVersion", "createdAt", "checksum", "status"]
+}

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { quizConfigSchema } from '@/utils/failures/prescriptionSchema';
+import { quizConfigSchema, sessionPrescriptionSchema } from '@/utils/failures/prescriptionSchema';
 import { quizQuestionUnionSchema, quizAnswerResponseSchema } from '@/utils/quiz/questionSchemas';
 
 export const confidenceSliderSchema = z.object({

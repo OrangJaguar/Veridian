@@ -66,7 +66,40 @@
     },
     "notificationPref": {
       "type": "string",
-      "description": "daily | urgent | off"
+      "description": "weekly | urgent | off (legacy: daily maps to weekly)"
+    },
+    "timezone": {
+      "type": "string",
+      "description": "IANA timezone e.g. America/New_York"
+    },
+    "weeklyTargetSessions": {
+      "type": "number"
+    },
+    "weeklyTargetMinutes": {
+      "type": "number"
+    },
+    "preferredStudyDays": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "unavailableWeekdays": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "reminderLocalHour": {
+      "type": "number"
+    },
+    "reminderTriggers": {
+      "type": "object"
+    },
+    "commitmentWeekKey": {
+      "type": "string"
+    },
+    "commitmentAcceptedAt": {
+      "type": "number"
+    },
+    "lastEvidencePlanRebuildAt": {
+      "type": "number"
     },
     "defaultPrivacy": {
       "type": "string",

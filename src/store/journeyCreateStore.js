@@ -10,6 +10,7 @@ const initialDraft = {
   material: '',
   sourceMode: 'upload',
   uploadedFileNames: [],
+  sourceUrl: '',
   isPublic: false,
   tags: [],
 };

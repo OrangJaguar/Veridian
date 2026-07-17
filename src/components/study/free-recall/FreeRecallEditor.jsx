@@ -57,6 +57,17 @@ export default function FreeRecallEditor({
     onSubmit({ elapsedSec, wasVoice });
   };
 
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && response.trim() && !submitting) {
+        e.preventDefault();
+        handleSubmit();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [response, submitting, handleSubmit]);
+
   const handleMathInsert = (latex) => {
     const el = textareaRef.current;
     if (!el) {

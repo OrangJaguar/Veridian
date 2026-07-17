@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Download, ChevronDown } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useJourney } from '@/hooks/queries/useJourneys';
@@ -17,6 +18,7 @@ import { updateActivity } from '@/api/entities/activities';
 import { generateCardId } from '@/utils/schemas/ids';
 import { queryKeys } from '@/api/query-keys';
 import { toast } from 'sonner';
+import { exportToTsv, exportToCsv } from '@/utils/export/exportFlashcards';
 
 export default function EditDeckPage() {
   const { id: journeyId, moduleId, activityId } = useParams();
@@ -31,6 +33,17 @@ export default function EditDeckPage() {
 
   const [aiOpen, setAiOpen] = useState(false);
   const [localCards, setLocalCards] = useState(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const exportRef = useRef(null);
+
+  useEffect(() => {
+    if (!exportOpen) return;
+    const handler = (e) => {
+      if (exportRef.current && !exportRef.current.contains(e.target)) setExportOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [exportOpen]);
 
   const displayCards = localCards ?? cards;
 
@@ -133,37 +146,83 @@ export default function EditDeckPage() {
           <h1 className="edit-deck-title">{activity.title ?? 'Flashcard deck'}</h1>
           <p className="edit-deck-meta">{displayCards.length} cards · click any text to edit</p>
         </div>
-        <button type="button" className="btn btn-secondary edit-deck-ai-btn" onClick={() => setAiOpen(true)}>
-          <Sparkles size={14} />
-          Edit with AI
-        </button>
+        <div className="edit-deck-header-actions">
+          <div className="export-dropdown" ref={exportRef}>
+            <button
+              type="button"
+              className="btn btn-secondary export-dropdown-trigger"
+              onClick={() => setExportOpen((p) => !p)}
+            >
+              <Download size={14} />
+              Export
+              <ChevronDown size={12} />
+            </button>
+            {exportOpen && (
+              <div className="export-dropdown-menu">
+                <button
+                  type="button"
+                  className="export-dropdown-item"
+                  onClick={() => { exportToTsv(displayCards, activity.title); setExportOpen(false); }}
+                >
+                  TSV (Quizlet / Anki)
+                </button>
+                <button
+                  type="button"
+                  className="export-dropdown-item"
+                  onClick={() => { exportToCsv(displayCards, activity.title); setExportOpen(false); }}
+                >
+                  CSV
+                </button>
+              </div>
+            )}
+          </div>
+          <button type="button" className="btn btn-secondary edit-deck-ai-btn" onClick={() => setAiOpen(true)}>
+            <Sparkles size={14} />
+            Edit with AI
+          </button>
+        </div>
       </header>
 
       <ul className="edit-deck-card-list">
-        {displayCards.map((card, index) => (
-          <li key={card.cardId ?? card.id} className="edit-deck-card">
-            <span className="edit-deck-card-num">{index + 1}</span>
-            <div className="edit-deck-card-sides">
-              <div className="edit-deck-side">
-                <span className="edit-deck-side-label">Front</span>
-                <InlineEditable
-                  value={card.front}
-                  placeholder="Front text…"
-                  onSave={(v) => saveField(card.cardId, 'front', v)}
-                />
+        {displayCards.map((card, idx) => {
+          const fsrs = card.fsrsState;
+          const dueMs = fsrs?.due;
+          const isNew = !fsrs || fsrs.reps === 0;
+          const isDue = dueMs && dueMs <= Date.now();
+          const healthLabel = isNew ? 'New' : isDue ? 'Due' : 'Good';
+          const healthClass = isNew ? 'card-health--new' : isDue ? 'card-health--due' : 'card-health--good';
+
+          return (
+            <li key={card.cardId ?? card.id} className="edit-deck-card">
+              <span className="edit-deck-card-num">{idx + 1}</span>
+              <div className="edit-deck-card-sides">
+                <div className="edit-deck-side">
+                  <span className="edit-deck-side-label">Front</span>
+                  <InlineEditable
+                    value={card.front}
+                    placeholder="Front text…"
+                    onSave={(v) => saveField(card.cardId, 'front', v)}
+                  />
+                </div>
+                <div className="edit-deck-side">
+                  <span className="edit-deck-side-label">Back</span>
+                  <InlineEditable
+                    value={card.back}
+                    placeholder="Back text…"
+                    multiline
+                    onSave={(v) => saveField(card.cardId, 'back', v)}
+                  />
+                </div>
               </div>
-              <div className="edit-deck-side">
-                <span className="edit-deck-side-label">Back</span>
-                <InlineEditable
-                  value={card.back}
-                  placeholder="Back text…"
-                  multiline
-                  onSave={(v) => saveField(card.cardId, 'back', v)}
-                />
-              </div>
-            </div>
-          </li>
-        ))}
+              <span
+                className={`card-health-badge ${healthClass}`}
+                title={dueMs ? `Due ${formatDistanceToNow(new Date(dueMs), { addSuffix: true })}` : 'Not yet reviewed'}
+              >
+                {healthLabel}
+              </span>
+            </li>
+          );
+        })}
       </ul>
 
       <DeckAiPanel

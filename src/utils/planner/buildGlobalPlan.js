@@ -25,6 +25,8 @@ import { allocateGlobalDay } from '@/utils/planner/allocation/allocateGlobalDay'
 import { estimateFsrsMinutes } from '@/utils/planner/estimateMinutes';
 import { buildJourneyWeekProjection } from '@/utils/planner/schedule/buildJourneyWeekProjection';
 import { enforceMinJourneyTouches } from '@/utils/planner/schedule/enforceMinTouches';
+import { stampSnapshotAssignmentIds } from '@/utils/planner/assignmentId';
+import { WEEKDAY_KEYS } from '@/utils/schemas/accountability';
 
 function countFsrsForDay(cards, dayDate) {
   const end = new Date(dayDate);
@@ -45,13 +47,23 @@ export function buildGlobalPlan({
   cards = [],
   studyBudgetTier,
   dailyBudgetMin,
+  unavailableWeekdays = [],
+  weeklyTargetMinutes = null,
   now = new Date(),
 }) {
   const activeJourneys = journeys.filter(
     (j) => !j.archived && j.generationStatus !== 'processing',
   );
 
-  const globalBudgetMin = budgetMinFromTier(studyBudgetTier, dailyBudgetMin);
+  const unavailable = new Set(unavailableWeekdays ?? []);
+  const availableDayCount = Math.max(1, 7 - unavailable.size);
+  const tierBudget = budgetMinFromTier(studyBudgetTier, dailyBudgetMin);
+  const targetDaily = weeklyTargetMinutes != null && weeklyTargetMinutes > 0
+    ? Math.round(weeklyTargetMinutes / availableDayCount)
+    : null;
+  const globalBudgetMin = targetDaily != null
+    ? Math.max(10, Math.min(tierBudget, targetDaily))
+    : tierBudget;
   const perJourneyCap = {
     multi: PER_JOURNEY_CAP_MULTI,
     single: PER_JOURNEY_CAP_SINGLE,
@@ -93,6 +105,23 @@ export function buildGlobalPlan({
   for (let dayIndex = 0; dayIndex < dateKeys.length; dayIndex += 1) {
     const dateKey = dateKeys[dayIndex];
     const dayDate = addDays(monday, dayIndex);
+    const weekdayKey = WEEKDAY_KEYS[dayIndex];
+    const dayUnavailable = unavailable.has(weekdayKey);
+
+    if (dayUnavailable) {
+      globalDays.push({
+        dayIndex,
+        dateKey,
+        estimatedMin: 0,
+        assignments: [],
+        fsrsCardCount: 0,
+        fsrsByJourney: {},
+        isRestDay: true,
+        unavailable: true,
+        dayBudgetMin: globalBudgetMin,
+      });
+      continue;
+    }
 
     const journeyBudgets = allocateJourneyBudgets({
       journeys: activeJourneys,
@@ -147,6 +176,18 @@ export function buildGlobalPlan({
     }
   }
 
+  const mode = globalMode;
+  const stampedSnapshot = stampSnapshotAssignmentIds({
+    mode,
+    weekKey,
+    builtAt: now.getTime(),
+    dailyBudgetMin: globalBudgetMin,
+    studyBudgetTier: studyBudgetTier ?? null,
+    days: globalDays,
+    journeyIds: activeJourneys.map((j) => j.journeyId),
+    journeyModesById: {},
+  });
+
   const journeyProjections = {};
   const journeyModesById = {};
   for (const input of journeyInputs) {
@@ -157,7 +198,7 @@ export function buildGlobalPlan({
 
     let projection = buildJourneyWeekProjection({
       journeyId,
-      globalDays,
+      globalDays: stampedSnapshot.days,
       journey: input.journey,
       moduleContexts: input.moduleContexts,
       cards: input.cards,
@@ -176,29 +217,24 @@ export function buildGlobalPlan({
       );
       const moduleNumberMap = buildModuleNumberMap(input.moduleContexts.map((c) => c.module));
       applyFallbackWeekPack(projection.days, activeModules, moduleNumberMap);
+      projection = stampSnapshotAssignmentIds({
+        ...projection,
+        weekKey,
+      });
       projection.moduleSummaries = buildModuleSummaries(activeModules, projection.days);
     }
 
     journeyProjections[journeyId] = projection;
   }
 
-  const mode = globalMode;
+  stampedSnapshot.journeyModesById = journeyModesById;
 
   return {
-    globalSnapshot: {
-      mode,
-      weekKey,
-      builtAt: now.getTime(),
-      dailyBudgetMin: globalBudgetMin,
-      studyBudgetTier: studyBudgetTier ?? null,
-      days: globalDays,
-      journeyIds: activeJourneys.map((j) => j.journeyId),
-      journeyModesById,
-    },
+    globalSnapshot: stampedSnapshot,
     journeyProjections,
     weekKey,
     mode,
-    builtAt: now.getTime(),
+    builtAt: stampedSnapshot.builtAt,
   };
 }
 

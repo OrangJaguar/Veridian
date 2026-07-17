@@ -58,8 +58,9 @@ export const journeySchema = z.object({
   isAdminAuthored: z.boolean().optional(),
   generationStatus: z.enum(['processing', 'completed', 'failed']).optional(),
   generationError: z.string().nullable().optional(),
-  sourceMode: z.enum(['upload', 'paste', 'topic']).optional(),
+  sourceMode: z.enum(['upload', 'paste', 'topic', 'link', 'image']).optional(),
   sourceTopic: z.string().optional(),
+  sourceUrl: z.string().optional(),
 });
 
 export const createJourneySchema = journeySchema.pick({

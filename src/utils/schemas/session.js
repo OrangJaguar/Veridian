@@ -1,14 +1,14 @@
 import { z } from 'zod';
+import { outcomeSummarySchema } from '@/utils/schemas/studyIntelligence';
+
+export { outcomeSummarySchema };
+export {
+  conceptResultSchema,
+  sessionTrapDebriefSchema,
+  nextActivitySchema,
+} from '@/utils/schemas/studyIntelligence';
 
 export const sessionStatusSchema = z.enum(['in_progress', 'completed', 'abandoned']);
-
-export const outcomeSummarySchema = z.object({
-  accuracy: z.number().optional(),
-  itemsCompleted: z.number().optional(),
-  weakConcepts: z.array(z.string()).optional(),
-  strongConcepts: z.array(z.string()).optional(),
-  nextAction: z.string().optional(),
-});
 
 export const sessionSchema = z.object({
   sessionId: z.string(),

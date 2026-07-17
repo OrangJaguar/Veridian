@@ -8,6 +8,10 @@ export default function AppFooter() {
           Copyright © 2026 Developed by Sanskar Gupta. All Rights Reserved.
         </p>
         <nav className="site-footer-links" aria-label="Site">
+          <Link to="/blog">Blog</Link>
+          <span aria-hidden="true">·</span>
+          <Link to="/faq">FAQ</Link>
+          <span aria-hidden="true">·</span>
           <Link to="/feedback">Feedback</Link>
           <span aria-hidden="true">·</span>
           <Link to="/privacy">Policy</Link>

@@ -5,9 +5,13 @@ import { listAllSessions } from '@/api/entities/sessions';
 import { listAllCards } from '@/api/entities/cards';
 import { getPreferences, updatePreferences } from '@/api/entities/preferences';
 import { updateJourney } from '@/api/entities/journeys';
+import { listPlanOverrides, createPlanOverride } from '@/api/entities/planOverrides';
 import { buildGlobalPlan } from '@/utils/planner/buildGlobalPlan';
 import { shouldRebuildGlobalPlan, getGlobalPlanWeekKey } from '@/utils/planner/planStale';
 import { budgetMinFromTier } from '@/utils/planner/constants';
+import { getEffectivePlanSnapshot } from '@/utils/planner/getEffectivePlanSnapshot';
+import { applyRecoveryRepack } from '@/utils/planner/applyPlanOverrides';
+import { getDateKey } from '@/utils/weeklyPlan/weekKey';
 import { queryKeys } from '@/api/query-keys';
 
 export async function loadGlobalPlanInputs() {
@@ -32,11 +36,14 @@ export async function loadGlobalPlanInputs() {
       preferences?.studyBudgetTier,
       preferences?.dailyTimeBudgetMin,
     ),
+    unavailableWeekdays: preferences?.unavailableWeekdays ?? [],
+    weeklyTargetMinutes: preferences?.weeklyTargetMinutes ?? null,
   };
 }
 
 /**
  * Recompute global plan and project to each journey's weeklyPlanSnapshot.
+ * Stores the base plan only; overrides are applied at read time.
  */
 export async function rebuildGlobalPlan({ force = false } = {}) {
   const inputs = await loadGlobalPlanInputs();
@@ -95,8 +102,88 @@ export async function ensureGlobalPlan() {
   return rebuildGlobalPlan({ force: true });
 }
 
+/**
+ * Base snapshot + active overrides for Due Today / UI.
+ */
+export async function ensureEffectiveGlobalPlan() {
+  const result = await ensureGlobalPlan();
+  const base = result.globalSnapshot;
+  const prefs = result.preferences;
+  const weekKey = base?.weekKey;
+  const overrides = weekKey
+    ? await listPlanOverrides(weekKey).catch(() => [])
+    : [];
+
+  const effectiveSnapshot = getEffectivePlanSnapshot(base, {
+    overrides,
+    unavailableWeekdays: prefs?.unavailableWeekdays ?? [],
+  });
+
+  return {
+    ...result,
+    globalSnapshot: effectiveSnapshot,
+    baseSnapshot: base,
+    overrides,
+  };
+}
+
+/**
+ * Recovery replan: densify remaining week and persist as move overrides.
+ * Pins and explicit moves are preserved by the packer.
+ */
+export async function runRecoveryReplan({ fromDateKey = getDateKey() } = {}) {
+  const ensured = await ensureGlobalPlan();
+  const baseSnapshot = ensured.globalSnapshot;
+  const preferences = ensured.preferences;
+  if (!baseSnapshot) return null;
+
+  const weekKey = baseSnapshot.weekKey;
+  const overrides = weekKey
+    ? await listPlanOverrides(weekKey).catch(() => [])
+    : [];
+
+  const before = getEffectivePlanSnapshot(baseSnapshot, {
+    overrides,
+    unavailableWeekdays: preferences?.unavailableWeekdays ?? [],
+  });
+
+  const after = applyRecoveryRepack(before, {
+    fromDateKey,
+    dailyBudgetMin: before.dailyBudgetMin ?? preferences?.dailyTimeBudgetMin,
+  });
+
+  const beforeLoc = new Map();
+  for (const day of before.days ?? []) {
+    for (const a of day.assignments ?? []) {
+      if (a.assignmentId) beforeLoc.set(a.assignmentId, day.dateKey);
+    }
+  }
+
+  for (const day of after.days ?? []) {
+    for (const a of day.assignments ?? []) {
+      if (!a.assignmentId) continue;
+      const prev = beforeLoc.get(a.assignmentId);
+      if (prev && prev !== day.dateKey) {
+        await createPlanOverride({
+          assignmentId: a.assignmentId,
+          weekKey: after.weekKey,
+          originalDateKey: prev,
+          action: 'move',
+          targetDateKey: day.dateKey,
+          journeyId: a.journeyId,
+          moduleId: a.moduleId ?? null,
+          activityId: a.activityId,
+        });
+      }
+    }
+  }
+
+  return after;
+}
+
 export function invalidateGlobalPlan(queryClient) {
   queryClient.invalidateQueries({ queryKey: queryKeys.globalPlan });
   queryClient.invalidateQueries({ queryKey: queryKeys.dueToday });
   queryClient.invalidateQueries({ queryKey: ['studyPlan'] });
+  queryClient.invalidateQueries({ queryKey: queryKeys.planOverrides.all });
 }

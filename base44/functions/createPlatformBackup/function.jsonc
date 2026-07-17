@@ -1,0 +1,4 @@
+{
+  "name": "createPlatformBackup",
+  "entry": "entry.ts"
+}

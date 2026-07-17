@@ -118,6 +118,31 @@ export default function CramRunner({
     restoreQuestionState(nextIndex);
   }, [index, questions.length, finish, restoreQuestionState]);
 
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (paused || !q) return;
+      const isMcq = q.type === 'multipleChoice' || q.type === 'trueFalse' || !q.type;
+      const options = q.type === 'trueFalse' ? ['True', 'False'] : (q.options ?? []);
+
+      if (e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        advance();
+        return;
+      }
+
+      if (!isMcq) return;
+
+      const num = Number(e.key);
+      if (num >= 1 && num <= options.length) {
+        e.preventDefault();
+        handleSelect(options[num - 1]);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [paused, q, advance, handleSelect]);
+
   if (!q) {
     return (
       <div className="study-mode-view cram-runner">

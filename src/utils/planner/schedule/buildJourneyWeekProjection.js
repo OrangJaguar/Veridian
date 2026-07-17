@@ -38,7 +38,15 @@ export function buildJourneyWeekProjection({
     const dayDate = addDays(monday, dayIndex);
     const journeyAssignments = (globalDay?.assignments ?? [])
       .filter((a) => a.journeyId === journeyId)
-      .map(({ journeyId: _j, journeyTitle: _t, estimatedMin: _e, ...rest }) => rest);
+      .map(({ journeyId: _j, journeyTitle: _t, estimatedMin: _e, ...rest }) => ({
+        ...rest,
+        // Keep stable identity + override metadata for planner controls
+        assignmentId: rest.assignmentId,
+        dateKey: rest.dateKey ?? dateKey,
+        weekKey: rest.weekKey,
+        pinned: rest.pinned,
+        overrideAction: rest.overrideAction,
+      }));
 
     const fsrsCardCount = countFsrsForDay(cards, dayDate);
     const assignMin = journeyAssignments.reduce((s, a) => {

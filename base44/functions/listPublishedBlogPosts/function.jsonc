@@ -1,0 +1,4 @@
+{
+  "name": "listPublishedBlogPosts",
+  "entry": "entry.ts"
+}

@@ -1,6 +1,7 @@
 import { z } from 'zod';
+import { accountabilityPreferencesSchema, WEEKDAY_KEYS } from '@/utils/schemas/accountability';
 
-export const notificationPrefSchema = z.enum(['daily', 'urgent', 'off']);
+export const notificationPrefSchema = z.enum(['weekly', 'urgent', 'off', 'daily']);
 export const defaultPrivacySchema = z.enum(['private', 'public']);
 
 export const usernameSchema = z
@@ -43,6 +44,7 @@ export const preferencesSchema = z.object({
   usernameChangedAt: z.number().optional(),
   lastReminderEmailAt: z.number().optional(),
   examReminderSentFor: z.array(z.string()).optional(),
+  lastEvidencePlanRebuildAt: z.number().optional(),
   maiScoreOnboarding: z.number().min(5).max(25).nullable().optional(),
   maiScoreDay60: z.number().min(5).max(25).nullable().optional(),
   maiSurveyOnboardingCompletedAt: z.number().nullable().optional(),
@@ -50,9 +52,18 @@ export const preferencesSchema = z.object({
   maiSurveyDay60DismissedAt: z.number().nullable().optional(),
   hasSeenCreateWelcome: z.boolean().optional(),
   maiSurveyPromptDismissedAt: z.number().nullable().optional(),
-});
+}).merge(accountabilityPreferencesSchema);
 
 export const updatePreferencesSchema = preferencesSchema.partial();
+
+export { WEEKDAY_KEYS };
+
+/** Normalize legacy notificationPref values. */
+export function normalizeNotificationPref(value) {
+  if (value === 'daily') return 'weekly';
+  if (value === 'weekly' || value === 'urgent' || value === 'off') return value;
+  return 'off';
+}
 
 export function normalizeUsername(value) {
   return String(value ?? '').trim().toLowerCase();

@@ -1,8 +1,14 @@
 import { useState } from 'react';
 
+/**
+ * Lightweight expandable concept list. Accepts either an array of concepts
+ * or a knowledgeMap object with a concepts array.
+ */
 export default function ConceptMapPanel({ knowledgeMap = [] }) {
   const [open, setOpen] = useState(false);
-  const concepts = Array.isArray(knowledgeMap) ? knowledgeMap : [];
+  const concepts = Array.isArray(knowledgeMap)
+    ? knowledgeMap
+    : (knowledgeMap?.concepts ?? []);
 
   return (
     <section className="module-panel">
@@ -22,7 +28,9 @@ export default function ConceptMapPanel({ knowledgeMap = [] }) {
           ) : (
             <ul className="module-concept-list">
               {concepts.map((c, i) => (
-                <li key={c.id ?? i}>{c.name ?? c.label ?? String(c)}</li>
+                <li key={c.id ?? c.conceptId ?? i}>
+                  {c.term ?? c.name ?? c.label ?? String(c)}
+                </li>
               ))}
             </ul>
           )}

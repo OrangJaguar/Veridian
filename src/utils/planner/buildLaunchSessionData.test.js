@@ -32,4 +32,19 @@ describe('buildLaunchSessionData', () => {
   it('returns empty object when no prescription data', () => {
     expect(buildLaunchSessionData({})).toEqual({});
   });
+
+  it('passes through assignment accountability fields', () => {
+    const data = buildLaunchSessionData({
+      assignmentId: 'id-1',
+      commitmentId: 'c-1',
+      weekKey: '2026-W29',
+      dateKey: '2026-07-13',
+    });
+    expect(data).toMatchObject({
+      assignmentId: 'id-1',
+      commitmentId: 'c-1',
+      weekKey: '2026-W29',
+      dateKey: '2026-07-13',
+    });
+  });
 });

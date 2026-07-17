@@ -3,12 +3,13 @@ import { listAllModules } from '@/api/entities/modules';
 import { listAllActivities } from '@/api/entities/activities';
 import { listAllCards } from '@/api/entities/cards';
 import { listAllSessions } from '@/api/entities/sessions';
-import { ensureGlobalPlan } from '@/api/entities/globalPlan';
+import { ensureEffectiveGlobalPlan } from '@/api/entities/globalPlan';
 import { queryKeys } from '@/api/query-keys';
 import { getDueTodayItems } from '@/utils/dueToday/getDueTodayItems';
 
 /**
  * Build Due Today from shared React Query cache when possible.
+ * Uses the override-aware effective global snapshot.
  */
 export async function fetchDueTodayItems(queryClient) {
   const [journeys, modules, activities, cards, sessions, planResult] = await Promise.all([
@@ -32,7 +33,7 @@ export async function fetchDueTodayItems(queryClient) {
       queryKey: queryKeys.catalog.allSessions,
       queryFn: listAllSessions,
     }),
-    ensureGlobalPlan(),
+    ensureEffectiveGlobalPlan(),
   ]);
 
   const globalSnapshot = planResult.globalSnapshot;

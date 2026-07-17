@@ -55,8 +55,12 @@ function buildAssignmentItem(journey, assignment, urgencyDays, tier = 'primary')
       moduleName: assignment.moduleName,
     });
 
+  const assignmentId = assignment.assignmentId
+    ?? `${journey.journeyId}-${assignment.activityId}`;
+
   return {
-    id: `${journey.journeyId}-${assignment.activityId}`,
+    id: assignmentId,
+    assignmentId,
     journeyId: journey.journeyId,
     journeyTitle: journey.title,
     subject: journey.subject,
@@ -76,6 +80,10 @@ function buildAssignmentItem(journey, assignment, urgencyDays, tier = 'primary')
     planAssignment: true,
     isCombinedFsrsDeck: false,
     lastStudiedAt: journey.lastStudiedAt ?? 0,
+    dateKey: assignment.dateKey,
+    weekKey: assignment.weekKey,
+    pinned: assignment.pinned ?? false,
+    overrideAction: assignment.overrideAction ?? null,
     ...rxFields,
   };
 }

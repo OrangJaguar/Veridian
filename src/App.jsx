@@ -24,8 +24,11 @@ import TermsPage from '@/pages/legal/TermsPage';
 import AboutPage from '@/pages/about/AboutPage';
 import BlogIndexPage from '@/pages/blog/BlogIndexPage';
 import BlogPostPage from '@/pages/blog/BlogPostPage';
+import FaqPage from '@/pages/faq/FaqPage';
 import OnboardingPage from '@/pages/onboarding/OnboardingPage';
 import OnboardingGate from '@/components/onboarding/OnboardingGate';
+import ReviewMistakesPage from '@/pages/mistakes/ReviewMistakesPage';
+import ConceptsPage from '@/pages/concepts/ConceptsPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import RequireAdmin from '@/components/routing/RequireAdmin';
 import BaselineCheckPage from '@/pages/journeys/BaselineCheckPage';
@@ -36,6 +39,8 @@ import AdminJourneysPage from '@/pages/admin/AdminJourneysPage';
 import AdminJourneyNewPage from '@/pages/admin/AdminJourneyNewPage';
 import AdminJourneyEditorPage from '@/pages/admin/AdminJourneyEditorPage';
 import AdminModuleEditorPage from '@/pages/admin/AdminModuleEditorPage';
+import AdminBlogListPage from '@/pages/admin/AdminBlogListPage';
+import AdminBlogEditorPage from '@/pages/admin/AdminBlogEditorPage';
 import FeedbackPage from '@/pages/feedback/FeedbackPage';
 import AiLimitPage from '@/pages/ai/AiLimitPage';
 import { RedirectAdminJourney, RedirectAdminModule } from '@/components/routing/AdminLegacyRedirect';
@@ -58,6 +63,7 @@ export default function App() {
         <Route path="/about" element={<AboutPage />} />
         <Route path="/blog" element={<BlogIndexPage />} />
         <Route path="/blog/:slug" element={<BlogPostPage />} />
+        <Route path="/faq" element={<FaqPage />} />
       </Route>
 
       <Route element={<AppShell />}>
@@ -122,6 +128,22 @@ export default function App() {
           )}
         />
         <Route
+          path="/admin/blog"
+          element={(
+            <RequireAdmin>
+              <AdminBlogListPage />
+            </RequireAdmin>
+          )}
+        />
+        <Route
+          path="/admin/blog/:postId"
+          element={(
+            <RequireAdmin>
+              <AdminBlogEditorPage />
+            </RequireAdmin>
+          )}
+        />
+        <Route
           path="/admin/research"
           element={(
             <RequireAdmin>
@@ -141,6 +163,8 @@ export default function App() {
         <Route path="/journeys/:id/modules/:moduleId/decks/:activityId/edit" element={<EditDeckPage />} />
         <Route path="/journeys/:id/modules/:moduleId" element={<ModuleDetailPage />} />
         <Route path="/study/:sessionId" element={<StudyShell />} />
+        <Route path="/mistakes" element={<ReviewMistakesPage />} />
+        <Route path="/concepts" element={<ConceptsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<SettingsPage />} />
         </Route>

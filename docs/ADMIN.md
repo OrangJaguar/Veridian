@@ -13,6 +13,8 @@ Admin-only routes live under `/admin/*`. Legacy URLs redirect automatically.
 | `/admin/journeys/:journeyId/modules/:moduleId` | Edit module content (guide, flashcards, question bank, concepts) |
 | `/admin/errors` | Error monitoring dashboard |
 | `/admin/research` | Research data exports and analytics |
+| `/admin/blog` | Blog CMS list, migrate static posts, platform backup |
+| `/admin/blog/:postId` | Edit blocks, preview, publish, archive, delete |
 
 Legacy redirects: `/data` → `/admin/data`, `/errors` → `/admin/errors`, `/adminjourneys/*` → `/admin/journeys/*`.
 
@@ -30,6 +32,11 @@ Email-based auto-certification was removed. Only admin-published journeys are ce
 - `getAdminAnalytics` — summary stats, signup trend, pattern-matched queries (rate-limited, audit-logged)
 - `exportAdminData` — CSV exports: users, journeys, quizSessions, flashcardSessions, mastery, eventLog
 - `adminPublishCertifiedJourney` — validate readiness, publish/unpublish certified journeys
+- `listPublishedBlogPosts` / `getPublishedBlogPost` — anonymous-safe published blog reads
+- `adminBlogPost` / `adminBlogAsset` — audited blog CMS mutations and media
+- `migrateStaticBlogPosts` — idempotent static → CMS migration
+- `createPlatformBackup` — full-fidelity JSON backup with checksums
+- `platformHealthCheck` — synthetic health + backup freshness
 
 After prompt changes, also republish `geminiStudy` (AP Style question generation).
 

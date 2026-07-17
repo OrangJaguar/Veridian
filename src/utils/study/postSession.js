@@ -27,6 +27,11 @@ import {
 } from '@/utils/planner/shouldRebuildAfterEvidence';
 import { getPreferences, updatePreferences } from '@/api/entities/preferences';
 import { queuePrescriptionBankTopUp } from '@/utils/planner/queuePrescriptionBankTopUp';
+import {
+  completeCommitmentForSession,
+  completeMatchingCommitment,
+} from '@/api/entities/studyCommitments';
+import { getDateKey } from '@/utils/weeklyPlan/weekKey';
 
 function patchActivityStats(existing, session) {
   const stats = { ...(existing.stats ?? {}) };
@@ -62,6 +67,25 @@ function patchActivityStats(existing, session) {
 export async function runPostSessionEffects(session, activity) {
   const { journeyId, moduleId } = session;
   const now = Date.now();
+
+  // Satisfy at most one commitment for this completed session
+  try {
+    const linked = await completeCommitmentForSession(session.sessionId, {
+      completedAt: session.endedAt ?? now,
+    });
+    if (!linked) {
+      await completeMatchingCommitment({
+        journeyId,
+        activityId: session.activityId ?? activity?.activityId,
+        moduleId: moduleId ?? activity?.moduleId ?? null,
+        dateKey: getDateKey(new Date(session.endedAt ?? now)),
+        sessionId: session.sessionId,
+        completedAt: session.endedAt ?? now,
+      });
+    }
+  } catch {
+    // commitment completion is best-effort
+  }
 
   const stats = patchActivityStats(activity, session);
   if (activity.type === 'flashcardSet' && session.sessionData?.reviews) {

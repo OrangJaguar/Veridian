@@ -29,6 +29,7 @@ import { useUpdateSession } from '@/hooks/mutations/useSessionMutations';
 import { useUpdateActivity } from '@/hooks/mutations/useActivityMutations';
 import { useJourney } from '@/hooks/queries/useJourneys';
 import { useSessions } from '@/hooks/queries/useSessions';
+import { useActivities } from '@/hooks/queries/useActivities';
 import PreQuizConfidenceStep from '@/components/research/PreQuizConfidenceStep';
 import { usePreQuizConfidence } from '@/hooks/research/usePreQuizConfidence';
 import { quizPhaseAfterQuestions, withConfidenceSlider } from '@/utils/research/sessionConfidence';
@@ -37,6 +38,15 @@ import { computeFailureProfile } from '@/utils/failures/computeFailureProfile';
 import { buildQuizCompositionPlan } from '@/utils/quiz/buildQuizCompositionPlan';
 import { compositionNeedsClassicRunner } from '@/utils/quiz/questionTypes';
 import { formatSessionInsight } from '@/utils/failures/formatFailureCopy';
+import {
+  aggregateQuizConceptResults,
+  weakConceptIdsFromResults,
+  strongConceptIdsFromResults,
+} from '@/utils/study/aggregateQuizConceptResults';
+import { buildSessionTrapDebrief } from '@/utils/study/buildSessionTrapDebrief';
+import { resolvePostQuizNextActivity } from '@/utils/study/resolvePostQuizNextActivity';
+import { useLaunchDueItem } from '@/hooks/home/useLaunchDueItem';
+import { useScheduleNextSession } from '@/hooks/mutations/useStudyCommitmentMutations';
 
 function initialPhase(session) {
   return quizPhaseAfterQuestions(session, 'setup');
@@ -58,6 +68,10 @@ export default function PracticeQuizSession({ session, activity, module, journey
   const initialConfig = session.sessionData?.quizConfig;
   const { data: journey } = useJourney(journeyId);
   const { data: sessions = [] } = useSessions(journeyId);
+  const { data: moduleActivities = [] } = useActivities(module?.moduleId);
+  const launchDueItem = useLaunchDueItem();
+  const scheduleNext = useScheduleNextSession();
+  const [launchingNext, setLaunchingNext] = useState(false);
   const autoStartedRef = useRef(false);
 
   const [phase, setPhase] = useState(() => initialPhase(session));
@@ -381,10 +395,50 @@ export default function PracticeQuizSession({ session, activity, module, journey
     const graded = answers.filter((a) => !a.skipped);
     const correct = graded.filter((a) => a.correct).length;
     const accuracy = graded.length ? Math.round((correct / graded.length) * 100) : 0;
+
+    const priorData = session.sessionData ?? {};
     const sessionData = withConfidenceSlider(
-      { quizConfig: config, questions, answers, interventions: [] },
-      { confidenceSlider: confidenceSlider ?? session.sessionData?.confidenceSlider },
+      {
+        ...priorData,
+        quizConfig: config,
+        questions,
+        answers,
+        interventions: priorData.interventions ?? [],
+        prescription: priorData.prescription,
+        compositionPlan: priorData.compositionPlan,
+        aiGeneration: priorData.aiGeneration,
+      },
+      { confidenceSlider: confidenceSlider ?? priorData.confidenceSlider },
     );
+
+    const conceptResults = aggregateQuizConceptResults({
+      questions,
+      answers,
+      concepts: module?.knowledgeMap?.concepts ?? [],
+    });
+
+    const completedLikeSession = {
+      ...session,
+      activityType: 'practiceQuiz',
+      sessionData,
+      endedAt: Date.now(),
+      status: 'completed',
+    };
+
+    const trapDebrief = buildSessionTrapDebrief({
+      session: completedLikeSession,
+      activity,
+      module,
+    });
+
+    const nextActivity = resolvePostQuizNextActivity({
+      module,
+      journeyId,
+      activities: moduleActivities.length ? moduleActivities : [activity],
+      conceptResults,
+      accuracy,
+      trapDebrief,
+    });
 
     const profile = computeFailureProfile(module);
     const failureInsight = formatSessionInsight(profile);
@@ -393,7 +447,10 @@ export default function PracticeQuizSession({ session, activity, module, journey
       answers,
       totalTimeSec,
       failureInsight,
-      failureModeId: profile?.primaryMode ?? null,
+      failureModeId: trapDebrief.primaryMode ?? profile?.primaryMode ?? null,
+      conceptResults,
+      trapDebrief,
+      nextActivity,
     });
     setPhase('summary');
 
@@ -407,8 +464,12 @@ export default function PracticeQuizSession({ session, activity, module, journey
       outcomeSummary: {
         accuracy,
         itemsCompleted: answers.length,
-        weakConcepts: answers.filter((a) => !a.correct).map((a) => a.conceptId).filter(Boolean),
-        nextAction: accuracy >= 70 ? 'Try Stage C activities' : 'Run another Weak Spots quiz',
+        weakConcepts: weakConceptIdsFromResults(conceptResults),
+        strongConcepts: strongConceptIdsFromResults(conceptResults),
+        nextAction: nextActivity?.reason,
+        conceptResults,
+        trapDebrief,
+        nextActivity: nextActivity ?? undefined,
       },
       startedAt: session.startedAt,
     });
@@ -430,6 +491,30 @@ export default function PracticeQuizSession({ session, activity, module, journey
     }
   };
 
+  const handleLaunchNext = async (nextActivity) => {
+    if (!nextActivity?.activityId || !nextActivity?.journeyId) return;
+    setLaunchingNext(true);
+    try {
+      await launchDueItem({
+        ...nextActivity,
+        journeyTitle: journey?.title,
+        moduleName: module?.name,
+        activityLabel: nextActivity.label,
+      });
+    } finally {
+      setLaunchingNext(false);
+    }
+  };
+
+  const handleScheduleNext = (nextActivity) => {
+    if (!nextActivity?.activityId) return;
+    scheduleNext.mutate({
+      ...nextActivity,
+      journeyId: nextActivity.journeyId ?? journeyId,
+      moduleId: nextActivity.moduleId ?? module?.moduleId,
+    });
+  };
+
   if (phase === 'summary' && summaryData) {
     return (
       <QuizSummary
@@ -442,6 +527,13 @@ export default function PracticeQuizSession({ session, activity, module, journey
         failureInsight={summaryData.failureInsight}
         failureModeId={summaryData.failureModeId}
         contentSource={contentSource}
+        conceptResults={summaryData.conceptResults}
+        trapDebrief={summaryData.trapDebrief}
+        nextActivity={summaryData.nextActivity}
+        onLaunchNext={handleLaunchNext}
+        launchingNext={launchingNext}
+        onScheduleNext={handleScheduleNext}
+        schedulingNext={scheduleNext.isPending}
       />
     );
   }

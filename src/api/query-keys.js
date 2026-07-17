@@ -35,6 +35,15 @@ export const queryKeys = {
   failureProfile: (moduleId) => ['failureProfile', moduleId],
   journeyFailureRollup: (journeyId) => ['journeyFailureRollup', journeyId],
   aiQuota: ['aiQuota'],
+  planOverrides: {
+    all: ['planOverrides'],
+    byWeek: (weekKey) => (weekKey ? ['planOverrides', weekKey] : ['planOverrides']),
+  },
+  studyCommitments: {
+    all: ['studyCommitments'],
+    byWeek: (weekKey) => (weekKey ? ['studyCommitments', weekKey] : ['studyCommitments']),
+    open: ['studyCommitments', 'open'],
+  },
   catalog: {
     allModules: ['catalog', 'modules'],
     allActivities: ['catalog', 'activities'],

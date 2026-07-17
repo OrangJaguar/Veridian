@@ -80,6 +80,33 @@ export function useLaunchStudy() {
         },
       });
       const sid = session.sessionId ?? session.id;
+
+      // Link launched session to a commitment without double-counting later
+      try {
+        const { linkSessionToCommitment, listOpenCommitments } = await import(
+          '@/api/entities/studyCommitments'
+        );
+        if (sessionData?.commitmentId) {
+          await linkSessionToCommitment(sessionData.commitmentId, sid);
+        } else if (sessionData?.assignmentId || activity.activityId) {
+          const open = await listOpenCommitments();
+          const match = open.find((c) => (
+            (sessionData?.assignmentId && c.assignmentId === sessionData.assignmentId)
+            || (
+              c.journeyId === journeyId
+              && c.activityId === activity.activityId
+              && (!c.moduleId || c.moduleId === (moduleId ?? activity.moduleId))
+              && !c.sessionId
+            )
+          ));
+          if (match) {
+            await linkSessionToCommitment(match.commitmentId, sid);
+          }
+        }
+      } catch {
+        // commitment linking is best-effort
+      }
+
       queryClient.setQueryData(['sessions', 'detail', sid], {
         ...session,
         sessionData,

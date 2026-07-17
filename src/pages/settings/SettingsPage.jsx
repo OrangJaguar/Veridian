@@ -6,10 +6,12 @@ import SettingsStudySection from '@/components/settings/SettingsStudySection';
 import SettingsAiQuotaSection from '@/components/settings/SettingsAiQuotaSection';
 import SettingsJourneyDefaultsSection from '@/components/settings/SettingsJourneyDefaultsSection';
 import SettingsNotificationsSection from '@/components/settings/SettingsNotificationsSection';
+import SettingsAccountabilitySection from '@/components/settings/SettingsAccountabilitySection';
 import SettingsResearchSection from '@/components/settings/SettingsResearchSection';
 import SettingsDangerSection from '@/components/settings/SettingsDangerSection';
 import LoginPrompt from '@/components/stubs/LoginPrompt';
 import { useAuth } from '@/hooks/useAuth';
+
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -52,10 +54,12 @@ export default function SettingsPage() {
       <SettingsAccountSection />
       <SettingsAppearanceSection />
       <SettingsStudySection />
+      <SettingsAccountabilitySection />
       <SettingsAiQuotaSection />
       <SettingsJourneyDefaultsSection />
       <SettingsNotificationsSection />
       <SettingsResearchSection />
+
       <SettingsDangerSection />
 
       <nav className="settings-legal-links" aria-label="Legal">

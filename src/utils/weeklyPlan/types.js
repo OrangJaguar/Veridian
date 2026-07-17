@@ -1,5 +1,5 @@
 /**
- * @typedef {'normal' | 'examWeek' | 'cram'} PlanMode
+ * @typedef {'normal' | 'examWeek' | 'cram' | 'keepSharp'} PlanMode
  */
 
 /**
@@ -8,12 +8,16 @@
 
 /**
  * @typedef {Object} PlanAssignment
- * @property {string} moduleId
+ * @property {string} [journeyId]
+ * @property {string} [journeyTitle]
+ * @property {string|null} [moduleId]
  * @property {string} moduleName
- * @property {string} moduleAbbr
+ * @property {string} [moduleAbbr]
+ * @property {number|null} [moduleNumber]
  * @property {string} activityId
- * @property {ModuleActivityType} activityType
+ * @property {ModuleActivityType|string} activityType
  * @property {string} reasonCode
+ * @property {number} [estimatedMin]
  * @property {string} [prescriptionType]
  * @property {string|null} [primaryMode]
  * @property {string|null} [prescriptionSummary]
@@ -24,6 +28,7 @@
  * @property {boolean} [timed]
  * @property {boolean} [prescriptionDriven]
  * @property {boolean} [journeyLevel]
+ * @property {object} [rationale]
  */
 
 /**
@@ -34,6 +39,8 @@
  * @property {PlanAssignment[]} assignments
  * @property {number} fsrsCardCount
  * @property {boolean} isRestDay
+ * @property {number} [dayBudgetMin]
+ * @property {Record<string, number>} [fsrsByJourney]
  */
 
 /**
@@ -43,6 +50,16 @@
  * @property {string} priorityText
  * @property {number[]} assignedDayIndexes
  * @property {string[]} weakConceptLabels
+ * @property {string} [reasonCode]
+ */
+
+/**
+ * @typedef {Object} PlanTrustFactor
+ * @property {string} id
+ * @property {string} label
+ * @property {string} value
+ * @property {string} [detail]
+ * @property {'high'|'medium'|'low'} [weight]
  */
 
 /**
@@ -54,6 +71,11 @@
  * @property {number|null} daysUntilExam
  * @property {PlanDay[]} days
  * @property {ModuleSummary[]} moduleSummaries
+ * @property {string} [weekStrategy]
+ * @property {PlanTrustFactor[]} [trustFactors]
+ * @property {object} [studyBudgetTier]
+ * @property {string[]} [journeyIds]
+ * @property {Record<string, PlanMode>} [journeyModesById]
  */
 
 /**

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { formatDistanceToNow } from 'date-fns';
 import LatexRenderer from '@/components/shared/LatexRenderer';
 import VeridianLoading from '@/components/shared/VeridianLoading';
 import { Rating, scheduleCard } from '@/utils/fsrs';
@@ -31,6 +32,7 @@ export default function FlashcardReview({
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [reviews, setReviews] = useState([]);
+  const [lastRatedDue, setLastRatedDue] = useState(null);
   const cardStartRef = useRef(Date.now());
 
   const card = cards[index];
@@ -70,6 +72,7 @@ export default function FlashcardReview({
     const nextReviews = [...reviews, review];
 
     setReviews(nextReviews);
+    setLastRatedDue(newState.due);
     void onRate(card, newState, review);
 
     if (index + 1 >= cards.length) {
@@ -84,6 +87,7 @@ export default function FlashcardReview({
 
     setIndex(index + 1);
     setFlipped(false);
+    setTimeout(() => setLastRatedDue(null), 2000);
   }, [card, cards.length, index, masteryStatsRef, onComplete, onRate, reviews]);
 
   useEffect(() => {
@@ -173,6 +177,12 @@ export default function FlashcardReview({
             </button>
           ))}
         </div>
+      )}
+
+      {lastRatedDue && (
+        <p className="fsrs-next-review-hint">
+          Next review {formatDistanceToNow(new Date(lastRatedDue), { addSuffix: true })}
+        </p>
       )}
     </div>
   );

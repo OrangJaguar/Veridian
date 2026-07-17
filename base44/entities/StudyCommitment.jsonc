@@ -1,0 +1,84 @@
+{
+  "name": "StudyCommitment",
+  "type": "object",
+  "properties": {
+    "commitmentId": {
+      "type": "string",
+      "description": "Client-side stable ID"
+    },
+    "userEmail": {
+      "type": "string"
+    },
+    "assignmentId": {
+      "type": "string"
+    },
+    "weekKey": {
+      "type": "string"
+    },
+    "journeyId": {
+      "type": "string"
+    },
+    "moduleId": {
+      "type": "string"
+    },
+    "activityId": {
+      "type": "string"
+    },
+    "activityType": {
+      "type": "string"
+    },
+    "scheduledDateKey": {
+      "type": "string"
+    },
+    "estimatedMin": {
+      "type": "number"
+    },
+    "source": {
+      "type": "string",
+      "description": "plan | manual | schedule_next | recovery"
+    },
+    "status": {
+      "type": "string",
+      "description": "planned | started | completed | skipped | missed | cancelled"
+    },
+    "sessionId": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "createdAt": {
+      "type": "number"
+    },
+    "updatedAt": {
+      "type": "number"
+    },
+    "completedAt": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "commitmentId",
+    "userEmail",
+    "weekKey",
+    "journeyId",
+    "activityId",
+    "scheduledDateKey",
+    "status",
+    "createdAt"
+  ],
+  "rls": {
+    "create": {
+      "data.userEmail": "{{user.email}}"
+    },
+    "read": {
+      "data.userEmail": "{{user.email}}"
+    },
+    "update": {
+      "data.userEmail": "{{user.email}}"
+    },
+    "delete": {
+      "data.userEmail": "{{user.email}}"
+    }
+  }
+}

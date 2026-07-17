@@ -1,4 +1,5 @@
 import { useProfileStats } from '@/hooks/queries/useProfileStats';
+import { useStudyStreak } from '@/hooks/useStudyStreak';
 
 function formatDuration(ms) {
   if (!ms || ms <= 0) return '0 min';
@@ -11,6 +12,7 @@ function formatDuration(ms) {
 
 export default function ProfileStatsCard() {
   const { data: stats, isLoading } = useProfileStats();
+  const { currentStreak, longestStreak } = useStudyStreak();
 
   if (isLoading) {
     return <p className="profile-stats-loading">Loading stats…</p>;
@@ -33,6 +35,14 @@ export default function ProfileStatsCard() {
       <div className="profile-stat-card">
         <span className="profile-stat-value">{stats?.completedSessions ?? 0}</span>
         <span className="profile-stat-label">Sessions completed</span>
+      </div>
+      <div className="profile-stat-card">
+        <span className="profile-stat-value">{currentStreak}</span>
+        <span className="profile-stat-label">Current streak</span>
+      </div>
+      <div className="profile-stat-card">
+        <span className="profile-stat-value">{longestStreak}</span>
+        <span className="profile-stat-label">Longest streak</span>
       </div>
     </div>
   );

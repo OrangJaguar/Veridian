@@ -7,6 +7,43 @@ import { queryClient } from '@/lib/query-client';
 import { queryKeys } from '@/api/query-keys';
 import { buildTopicMaterial } from '@/utils/journey/topicMaterial';
 import { rebuildGlobalPlan } from '@/api/entities/globalPlan';
+import { normalizeConceptRelations } from '@/utils/schemas/ai/knowledgeMap';
+
+function buildSourceEntries(draft) {
+  const now = Date.now();
+  const mode = draft.sourceMode ?? 'paste';
+
+  if (mode === 'upload' && draft.uploadedFileNames?.length) {
+    return draft.uploadedFileNames.map((name, i) => ({
+      id: `file-${i}`, type: 'file', label: name, addedAt: now,
+    }));
+  }
+
+  if (mode === 'link' && draft.sourceUrl?.trim()) {
+    return [{
+      id: 'link-0', type: 'url', label: draft.sourceUrl.trim(),
+      content: draft.material?.slice(0, 200), addedAt: now,
+    }];
+  }
+
+  if (mode === 'image' && draft.uploadedFileNames?.length) {
+    return [{
+      id: 'image-0', type: 'image',
+      label: `${draft.uploadedFileNames.length} image${draft.uploadedFileNames.length > 1 ? 's' : ''}`,
+      addedAt: now,
+    }];
+  }
+
+  if (mode === 'paste') {
+    return [{ id: 'paste-0', type: 'paste', label: 'Pasted text', addedAt: now }];
+  }
+
+  if (mode === 'topic') {
+    return [{ id: 'topic-0', type: 'topic', label: draft.material?.trim()?.slice(0, 80), addedAt: now }];
+  }
+
+  return [];
+}
 
 async function persistProposal(journeyId, draft, proposal) {
   const now = Date.now();
@@ -32,7 +69,10 @@ async function persistProposal(journeyId, draft, proposal) {
       order: index,
       stage: 'A',
       masteryScore: 0,
-      knowledgeMap: { concepts: mod.concepts },
+      knowledgeMap: {
+        concepts: mod.concepts,
+        relations: normalizeConceptRelations(mod.relations, mod.concepts),
+      },
     })),
   );
 
@@ -86,6 +126,8 @@ export async function startAsyncJourneyGeneration(draft) {
     generationError: null,
     sourceMode: draft.sourceMode ?? 'paste',
     sourceTopic: draft.sourceMode === 'topic' ? draft.material.trim() : undefined,
+    sourceUrl: draft.sourceMode === 'link' ? draft.sourceUrl?.trim() : undefined,
+    sources: buildSourceEntries(draft),
     knowledgeMap: { summary: 'Generating…', extractedAt: now, moduleCount: 0 },
   });
 

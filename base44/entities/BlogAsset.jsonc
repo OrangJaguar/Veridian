@@ -1,0 +1,20 @@
+{
+  "name": "BlogAsset",
+  "type": "object",
+  "properties": {
+    "assetId": { "type": "string" },
+    "url": { "type": "string" },
+    "mimeType": { "type": "string" },
+    "sizeBytes": { "type": "number" },
+    "fileName": { "type": "string" },
+    "altText": { "type": "string" },
+    "caption": { "type": "string" },
+    "width": { "type": "number" },
+    "height": { "type": "number" },
+    "referenceCount": { "type": "number" },
+    "createdAt": { "type": "number" },
+    "updatedAt": { "type": "number" },
+    "ownerEmail": { "type": "string" }
+  },
+  "required": ["assetId", "url", "mimeType", "sizeBytes", "createdAt"]
+}

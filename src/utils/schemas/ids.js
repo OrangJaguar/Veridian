@@ -41,3 +41,19 @@ export function generateSnapshotId() {
 export function generateSurveyResponseId() {
   return generateId('srv');
 }
+
+export function generateOverrideId() {
+  return generateId('ovr');
+}
+
+export function generateCommitmentId() {
+  return generateId('cmt');
+}
+
+export function generateBlogPostId() {
+  return generateId('bpost');
+}
+
+export function generateBlogAssetId() {
+  return generateId('basset');
+}
