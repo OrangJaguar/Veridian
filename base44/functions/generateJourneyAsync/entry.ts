@@ -1,11 +1,12 @@
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
+import { createClientFromRequest } from "../_shared/supabaseBackend.ts";
+import { serveApp } from "../_shared/serveApp.ts";
 
 /**
  * Acknowledges async journey generation requests.
  * Client runs the full AI pipeline; this endpoint exists for future server-side migration
  * and deployment parity with the product spec.
  */
-Deno.serve(async (req) => {
+serveApp(async (req) => {
   if (req.method !== "POST") {
     return Response.json({ error: { message: "Method not allowed." } }, { status: 405 });
   }

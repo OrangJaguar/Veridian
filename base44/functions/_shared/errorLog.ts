@@ -89,7 +89,7 @@ export type ErrorGroupRow = {
 };
 
 export async function upsertErrorLog(
-  base44: ReturnType<typeof import("npm:@base44/sdk@0.8.31").createClientFromRequest>,
+  base44: import("./backendTypes.ts").BackendClient,
   payload: {
     message: string;
     stack?: string;

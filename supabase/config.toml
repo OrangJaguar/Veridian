@@ -1,0 +1,77 @@
+# Supabase project config. Link with: supabase link --project-ref <ref>
+project_id = "veridian"
+
+# Functions authorize themselves (user JWT, admin role, or cron secret).
+# verify_jwt is off so public blog, health, and cron calls are not rejected at the gateway.
+[functions.adminBlogAsset]
+verify_jwt = false
+
+[functions.adminBlogPost]
+verify_jwt = false
+
+[functions.adminPublishCertifiedJourney]
+verify_jwt = false
+
+[functions.aiJourney]
+verify_jwt = false
+
+[functions.aiStudy]
+verify_jwt = false
+
+[functions.createPlatformBackup]
+verify_jwt = false
+
+[functions.deleteUserAccount]
+verify_jwt = false
+
+[functions.exportAdminData]
+verify_jwt = false
+
+[functions.exportResearchData]
+verify_jwt = false
+
+[functions.fetchUrlContent]
+verify_jwt = false
+
+[functions.generateJourneyAsync]
+verify_jwt = false
+
+[functions.getAdminAnalytics]
+verify_jwt = false
+
+[functions.getAiQuotaStatus]
+verify_jwt = false
+
+[functions.getErrorDashboard]
+verify_jwt = false
+
+[functions.getPublishedBlogPost]
+verify_jwt = false
+
+[functions.getResearchAnalytics]
+verify_jwt = false
+
+[functions.listPublishedBlogPosts]
+verify_jwt = false
+
+[functions.logAppError]
+verify_jwt = false
+
+[functions.logProductEvent]
+verify_jwt = false
+
+[functions.migrateStaticBlogPosts]
+verify_jwt = false
+
+[functions.platformHealthCheck]
+verify_jwt = false
+
+[functions.providerKey]
+verify_jwt = false
+
+[functions.studyReminderEmail]
+verify_jwt = false
+
+[functions.submitFeedback]
+verify_jwt = false
+

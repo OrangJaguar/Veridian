@@ -4,10 +4,10 @@ import { logClientError } from '@/api/errors/logClientError';
 import { notifyAiQuotaChanged } from '@/api/ai/quota';
 
 const FUNCTION_NOT_DEPLOYED_MSG =
-  'The AI backend (aiJourney) is not deployed yet. Push functions/aiJourney/ to GitHub and Publish on Base44 (CLI deploy only works on Backend Platform apps).';
+  'The AI backend is not deployed yet. Deploy the Supabase function aiJourney (see the setup guide).';
 
 const KEY_NOT_CONFIGURED_MSG =
-  'NVIDIA_API_KEY is not configured on the server. Run: base44 secrets set NVIDIA_API_KEY=nvapi-...';
+  'Add your NVIDIA API key in Settings before using AI features.';
 
 function extractServerMessage(err) {
   const payload = err?.data ?? err?.response?.data ?? err?.body;
@@ -33,7 +33,7 @@ function normalizeInvokeError(err) {
   if (status === 404 || message.includes('status code 404')) {
     return new Error(FUNCTION_NOT_DEPLOYED_MSG);
   }
-  if (status === 503 || message.includes('NVIDIA_API_KEY')) {
+  if (status === 503 || message.includes('NVIDIA API key') || message.includes('NVIDIA_API_KEY')) {
     return new Error(KEY_NOT_CONFIGURED_MSG);
   }
   if (status === 429) {

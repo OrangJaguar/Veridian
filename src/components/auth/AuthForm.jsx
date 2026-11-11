@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
+import { base44, PENDING_USERNAME_KEY } from '@/api/base44Client';
 import { createUserPreferencesOnSignup } from '@/api/entities/preferences';
 import { queryClient } from '@/lib/query-client';
 import { clearInMemoryUserQueries, clearLegacyPersistedCache } from '@/lib/query-persist';
@@ -60,6 +60,7 @@ export default function AuthForm({
   const [info, setInfo] = useState('');
   const inputRefs = useRef([]);
   const pendingUsernameRef = useRef('');
+  const finishingRef = useRef(false);
 
   const activeTab = allowTabSwitch ? tab : defaultTab;
   const isSignup = activeTab === 'signup';
@@ -106,6 +107,72 @@ export default function AuthForm({
 
   const otpCode = digits.join('');
 
+  async function finishAuthenticatedSignup(user) {
+    if (finishingRef.current) return;
+    finishingRef.current = true;
+    const chosenUsername = pendingUsernameRef.current
+      || sessionStorage.getItem(PENDING_USERNAME_KEY)
+      || normalizeUsername(username);
+    if (chosenUsername) {
+      await createUserPreferencesOnSignup({
+        username: chosenUsername,
+        userEmail: user.email,
+      });
+      try {
+        await syncAuthUserFullName(chosenUsername);
+      } catch {
+        // UserPreferences.username still saved; SyncUserDisplayName repairs on next load
+      }
+    }
+    sessionStorage.removeItem(PENDING_USERNAME_KEY);
+    clearOnboardingDoneLocally(user.email);
+    clearInMemoryUserQueries(queryClient);
+    clearLegacyPersistedCache();
+    const refreshedUser = await refreshAuthUser();
+    if (activeTab === 'signup') {
+      trackProductEvent('signup_complete');
+    }
+    onSuccess(refreshedUser ?? user);
+  }
+
+  useEffect(() => {
+    if (!isSignup) return undefined;
+    const pending = sessionStorage.getItem(PENDING_USERNAME_KEY);
+    if (!pending) return undefined;
+    pendingUsernameRef.current = pending;
+
+    let cancelled = false;
+    async function completeFromSession() {
+      if (cancelled || finishingRef.current) return;
+      const session = await base44.auth.getSession();
+      if (!session?.user || cancelled) return;
+      setStep('verify');
+      setInfo('Email confirmed. Finishing your account…');
+      setLoading(true);
+      try {
+        const user = await base44.auth.me();
+        if (user) await finishAuthenticatedSignup(user);
+      } catch (err) {
+        finishingRef.current = false;
+        const msg = err?.message || 'Could not finish signup.';
+        setError(typeof msg === 'string' ? msg : 'Could not finish signup.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    completeFromSession();
+    const { data } = base44.auth.onAuthStateChange((event, session) => {
+      if (session?.user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED')) {
+        completeFromSession();
+      }
+    });
+    return () => {
+      cancelled = true;
+      data.subscription.unsubscribe();
+    };
+  }, [isSignup]);
+
   const signupReady = isSignup
     && allRulesPass(usernameRules)
     && isValidUsernameFormat(username)
@@ -133,9 +200,15 @@ export default function AuthForm({
         }
         const normalized = normalizeUsername(username);
         pendingUsernameRef.current = normalized;
-        await base44.auth.register({ email, password, full_name: normalized });
-        setInfo('Code sent! Check your email.');
-        setStep('verify');
+        sessionStorage.setItem(PENDING_USERNAME_KEY, normalized);
+        const result = await base44.auth.register({ email, password, full_name: normalized });
+        if (result?.session) {
+          const user = await base44.auth.me();
+          await finishAuthenticatedSignup(user);
+        } else {
+          setInfo('Check your email and click Confirm email address. Open it in this browser.');
+          setStep('verify');
+        }
       }
     } catch (err) {
       const msg = err?.response?.data?.message || err?.data?.message || err?.message || 'Something went wrong.';
@@ -157,33 +230,9 @@ export default function AuthForm({
     resetMessages();
     setLoading(true);
     try {
-      const response = await base44.auth.verifyOtp({ email, otpCode });
-      const token = typeof response?.access_token === 'string' ? response.access_token : '';
-      if (!token) {
-        throw new Error('Verification failed — no session token returned. Please try again.');
-      }
-      base44.auth.setToken(token);
+      await base44.auth.verifyOtp({ email, otpCode });
       const user = await base44.auth.me();
-      const chosenUsername = pendingUsernameRef.current || normalizeUsername(username);
-      if (chosenUsername) {
-        await createUserPreferencesOnSignup({
-          username: chosenUsername,
-          userEmail: user.email,
-        });
-        try {
-          await syncAuthUserFullName(chosenUsername);
-        } catch {
-          // UserPreferences.username still saved; SyncUserDisplayName repairs on next load
-        }
-      }
-      clearOnboardingDoneLocally(user.email);
-      clearInMemoryUserQueries(queryClient);
-      clearLegacyPersistedCache();
-      const refreshedUser = await refreshAuthUser();
-      if (activeTab === 'signup') {
-        trackProductEvent('signup_complete');
-      }
-      onSuccess(refreshedUser ?? user);
+      await finishAuthenticatedSignup(user);
     } catch (err) {
       const msg = err?.response?.data?.message || err?.data?.message || err?.message || 'Invalid code. Try again.';
       setError(typeof msg === 'string' ? msg : 'Invalid code. Try again.');
@@ -226,7 +275,9 @@ export default function AuthForm({
       {step === 'verify' ? (
         <>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
-            A 6-digit code was sent to <strong style={{ color: 'var(--text-main)' }}>{email}</strong>.
+            We sent a confirmation link to <strong style={{ color: 'var(--text-main)' }}>{email}</strong>.
+            Click <strong style={{ color: 'var(--text-main)' }}>Confirm email address</strong> in that email.
+            If the message also shows a 6-digit code, you can enter it here instead.
           </p>
           <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
@@ -258,7 +309,7 @@ export default function AuthForm({
           </form>
           <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', justifyContent: 'center' }}>
             <button type="button" onClick={handleResend} disabled={loading} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.78rem', textDecoration: 'underline' }}>
-              Resend code
+              Resend email
             </button>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>·</span>
             <button type="button" onClick={() => { setStep('form'); resetMessages(); setDigits(['', '', '', '', '', '']); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.78rem', textDecoration: 'underline' }}>

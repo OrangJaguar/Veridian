@@ -10,7 +10,11 @@ export default function SignUpPage() {
   const { setUser } = useAuth();
 
   useEffect(() => {
-    if (!getBaselineUnlocked()) {
+    const params = new URLSearchParams(window.location.search);
+    const returningFromEmail = params.has('code')
+      || window.location.hash.includes('access_token')
+      || window.location.hash.includes('type=signup');
+    if (!getBaselineUnlocked() && !returningFromEmail) {
       navigate('/', { replace: true });
     }
   }, [navigate]);

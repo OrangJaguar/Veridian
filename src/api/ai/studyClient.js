@@ -11,10 +11,10 @@ import {
 } from '@/utils/study/studyAiTrace';
 
 const FUNCTION_NOT_DEPLOYED_MSG =
-  'The AI backend (aiStudy) is not deployed yet. Push functions/aiStudy/ to GitHub and Publish on Base44.';
+  'The AI backend is not deployed yet. Deploy the Supabase function aiStudy (see the setup guide).';
 
 const KEY_NOT_CONFIGURED_MSG =
-  'NVIDIA_API_KEY is not configured on the server. Run: base44 secrets set NVIDIA_API_KEY=nvapi-...';
+  'Add your NVIDIA API key in Settings before using AI features.';
 
 function extractErrorPayload(err) {
   return err?.data ?? err?.response?.data ?? err?.body ?? err?.response?.body ?? null;
@@ -72,7 +72,7 @@ function normalizeInvokeError(err) {
 
   if (status === 404 || message.includes('status code 404')) {
     normalized.message = FUNCTION_NOT_DEPLOYED_MSG;
-  } else if (status === 503 || message.includes('NVIDIA_API_KEY')) {
+  } else if (status === 503 || message.includes('NVIDIA API key') || message.includes('NVIDIA_API_KEY')) {
     normalized.message = KEY_NOT_CONFIGURED_MSG;
   } else if (status === 429) {
     if (/rate limited|too many requests/i.test(message) && !message.includes('Daily AI')) {

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useEffect, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
+import { base44, PENDING_USERNAME_KEY } from '@/api/base44Client';
+import { createUserPreferencesOnSignup } from '@/api/entities/preferences';
 import { queryClient } from '@/lib/query-client';
 import { clearAuthCache } from '@/api/requireAuth';
 import { touchLastActive } from '@/api/entities/preferences';
@@ -34,6 +35,21 @@ export default function AuthProvider({ children }) {
     }
   }, [user?.email]);
 
+  useEffect(() => {
+    if (!user?.email) return undefined;
+    const pending = sessionStorage.getItem(PENDING_USERNAME_KEY);
+    if (!pending) return undefined;
+    let cancelled = false;
+    createUserPreferencesOnSignup({ username: pending, userEmail: user.email })
+      .then(() => {
+        if (!cancelled) sessionStorage.removeItem(PENDING_USERNAME_KEY);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.email]);
+
   const setUser = useCallback((nextUser) => {
     queryClient.setQueryData(['auth', 'me'], nextUser ?? null);
   }, []);
@@ -42,7 +58,11 @@ export default function AuthProvider({ children }) {
 
   const signOut = useCallback(async () => {
     stopActivePersistSubscription();
-    await base44.auth.logout();
+    try {
+      await base44.auth.logout();
+    } catch {
+      // The session is already gone after account deletion.
+    }
     clearAuthCache();
     clearInMemoryUserQueries(queryClient);
     clearLegacyPersistedCache();

@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import PublicOnly from '@/components/routing/PublicOnly';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { base44 } from '@/api/base44Client';
 import { completePasswordReset } from '@/api/auth/password';
 import { isValidSignupPassword, passwordsMatch } from '@/utils/schemas/password';
 import {
@@ -12,9 +12,7 @@ import {
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const resetToken = searchParams.get('reset_token') || searchParams.get('token') || '';
-
+  const [phase, setPhase] = useState('checking');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordFocused, setPasswordFocused] = useState(false);
@@ -22,9 +20,42 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    let settled = false;
+    const ready = () => {
+      if (!settled) {
+        settled = true;
+        setPhase('ready');
+      }
+    };
+    const invalid = () => {
+      if (!settled) {
+        settled = true;
+        setPhase('invalid');
+      }
+    };
+    const hasLink = window.location.hash.includes('access_token')
+      || window.location.search.includes('code=')
+      || window.location.hash.includes('type=recovery');
+    const { data } = base44.auth.onAuthStateChange((event, session) => {
+      if (session && (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+        ready();
+      }
+    });
+    base44.auth.getSession().then((session) => {
+      if (session) ready();
+      else if (!hasLink) invalid();
+    });
+    const timeout = window.setTimeout(() => invalid(), hasLink ? 8000 : 1500);
+    return () => {
+      data.subscription.unsubscribe();
+      window.clearTimeout(timeout);
+    };
+  }, []);
+
   const passwordRules = buildPasswordRules(password, passwordFocused);
   const confirmRules = buildConfirmPasswordRules(password, confirmPassword, confirmFocused);
-  const ready = resetToken
+  const ready = phase === 'ready'
     && allRulesPass(passwordRules)
     && isValidSignupPassword(password)
     && allRulesPass(confirmRules)
@@ -36,7 +67,7 @@ export default function ResetPasswordPage() {
     setError('');
     setLoading(true);
     try {
-      await completePasswordReset({ resetToken, newPassword: password });
+      await completePasswordReset({ newPassword: password });
       navigate('/signin', { replace: true, state: { message: 'Password updated. Sign in with your new password.' } });
     } catch (err) {
       const msg = err?.response?.data?.message || err?.data?.message || err?.message;
@@ -46,22 +77,25 @@ export default function ResetPasswordPage() {
     }
   }
 
-  if (!resetToken) {
+  if (phase !== 'ready') {
     return (
-      <PublicOnly>
-        <div className="reset-password-page">
-          <h1 className="reset-password-title">Invalid reset link</h1>
-          <p className="reset-password-lead">
-            This password reset link is missing or invalid. Request a new one.
-          </p>
-          <Link to="/forgot-password" className="btn btn-primary">Request new link</Link>
-        </div>
-      </PublicOnly>
+      <div className="reset-password-page">
+        <h1 className="reset-password-title">
+          {phase === 'checking' ? 'Checking reset link…' : 'Invalid reset link'}
+        </h1>
+        {phase === 'invalid' && (
+          <>
+            <p className="reset-password-lead">
+              This password reset link is missing or invalid. Request a new one.
+            </p>
+            <Link to="/forgot-password" className="btn btn-primary">Request new link</Link>
+          </>
+        )}
+      </div>
     );
   }
 
   return (
-    <PublicOnly>
       <div className="reset-password-page">
         <h1 className="reset-password-title">Choose a new password</h1>
         <p className="reset-password-lead">Enter a new password for your account.</p>
@@ -109,6 +143,5 @@ export default function ResetPasswordPage() {
           <Link to="/signin">← Back to sign in</Link>
         </p>
       </div>
-    </PublicOnly>
   );
 }

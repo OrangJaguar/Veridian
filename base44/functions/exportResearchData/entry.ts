@@ -1,4 +1,5 @@
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
+import { createClientFromRequest } from "../_shared/supabaseBackend.ts";
+import { serveApp } from "../_shared/serveApp.ts";
 
 type Base44Client = ReturnType<typeof createClientFromRequest>;
 
@@ -103,7 +104,7 @@ function meanBrier(sessions: Array<Record<string, unknown>>) {
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 
-Deno.serve(async (req) => {
+serveApp(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const auth = await requireAdmin(base44);

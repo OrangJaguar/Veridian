@@ -1,4 +1,5 @@
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
+import { createClientFromRequest } from "../_shared/supabaseBackend.ts";
+import { serveApp } from "../_shared/serveApp.ts";
 import { z } from "npm:zod";
 
 const MAX_HTML_BYTES = 500_000;
@@ -201,7 +202,7 @@ async function checkUrlFetchQuota(
 
 // --- Handler ---
 
-Deno.serve(async (req) => {
+serveApp(async (req) => {
   if (req.method !== "POST") {
     return errorResponse("Method not allowed.", 405);
   }

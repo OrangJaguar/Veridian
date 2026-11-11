@@ -1,4 +1,5 @@
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
+import { createClientFromRequest } from "../_shared/supabaseBackend.ts";
+import { serveApp } from "../_shared/serveApp.ts";
 
 type Base44Client = ReturnType<typeof createClientFromRequest>;
 
@@ -21,7 +22,7 @@ async function requireAdmin(base44: Base44Client) {
   return { user };
 }
 
-Deno.serve(async (req) => {
+serveApp(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const auth = await requireAdmin(base44);

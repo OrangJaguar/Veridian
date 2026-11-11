@@ -1,4 +1,4 @@
-import { base44 } from '@/api/base44Client';
+import { base44, isUsernameTaken } from '@/api/base44Client';
 import { requireAuth } from '@/api/requireAuth';
 import { markOnboardingDoneLocally } from '@/lib/onboardingStorage';
 import { normalizeUsername, isValidUsernameFormat } from '@/utils/schemas/preferences';
@@ -49,9 +49,14 @@ export async function checkUsernameAvailable(username, { excludeEmail } = {}) {
   }
 
   try {
-    const rows = await base44.entities.UserPreferences.filter({ username: normalized });
-    const taken = rows.some((row) => row.username === normalized && row.userEmail !== excludeEmail);
-    return { available: !taken, reason: taken ? 'taken' : null };
+    const taken = await isUsernameTaken(normalized);
+    if (!taken) return { available: true, reason: null };
+    if (excludeEmail) {
+      const rows = await base44.entities.UserPreferences.list();
+      const ownedByMe = rows.some((row) => row.username === normalized && row.userEmail === excludeEmail);
+      return { available: ownedByMe, reason: ownedByMe ? null : 'taken' };
+    }
+    return { available: false, reason: 'taken' };
   } catch {
     return { available: true, reason: null };
   }

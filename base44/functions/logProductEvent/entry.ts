@@ -1,4 +1,5 @@
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
+import { createClientFromRequest } from "../_shared/supabaseBackend.ts";
+import { serveApp } from "../_shared/serveApp.ts";
 import { serviceEntities } from "../_shared/serviceRole.ts";
 import { checkRequestRateLimit, rateLimitKey } from "../_shared/requestRateLimit.ts";
 
@@ -45,7 +46,7 @@ const MINUTE_MS = 60_000;
 const MAX_EVENTS_PER_IP_MINUTE = 30;
 const MAX_EVENTS_PER_ANON_MINUTE = 20;
 
-Deno.serve(async (req) => {
+serveApp(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 

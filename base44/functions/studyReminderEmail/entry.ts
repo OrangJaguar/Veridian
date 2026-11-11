@@ -1,4 +1,5 @@
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
+import { createClientFromRequest } from "../_shared/supabaseBackend.ts";
+import { serveApp } from "../_shared/serveApp.ts";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
@@ -80,7 +81,7 @@ async function sendEmail(
   return false;
 }
 
-Deno.serve(async (req) => {
+serveApp(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const cronSecret = Deno.env.get("CRON_SECRET");

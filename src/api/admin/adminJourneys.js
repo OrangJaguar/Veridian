@@ -8,7 +8,7 @@ import { generateJourneyId, generateModuleId } from '@/utils/schemas/ids';
 export async function listAdminJourneys() {
   const user = await requireAuth();
   if (user.role !== 'admin') throw new Error('Forbidden');
-  const rows = await base44.entities.Journey.list();
+  const rows = await base44.entities.Journey.filter({ isAdminAuthored: true });
   return rows
     .filter((j) => j.isAdminAuthored === true)
     .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));

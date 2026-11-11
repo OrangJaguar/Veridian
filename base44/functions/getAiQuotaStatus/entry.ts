@@ -1,4 +1,5 @@
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
+import { createClientFromRequest } from "../_shared/supabaseBackend.ts";
+import { serveApp } from "../_shared/serveApp.ts";
 
 const STUDY_LIMITS = {
   quizGenerationsPerDay: 20,
@@ -136,7 +137,7 @@ async function getOrCreateQuota(base44: ReturnType<typeof createClientFromReques
   });
 }
 
-Deno.serve(async (req) => {
+serveApp(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();

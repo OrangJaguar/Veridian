@@ -1,6 +1,6 @@
 # Platform portability and migration readiness
 
-Veridian remains on Base44. This document defines boundaries so a future backend move is possible without rewriting product UI.
+Veridian now runs on Vercel with Supabase Auth, Postgres, and Edge Functions. The UI still talks to provider-neutral adapters. `src/api/base44Client.js` is the Supabase implementation of the old entity and auth surface, kept so feature code did not have to be rewritten.
 
 ## Adapter boundaries
 
@@ -13,11 +13,11 @@ UI and feature code must depend on provider-neutral adapters under `src/api/adap
 | `blogAdapter` | Public and admin blog operations |
 | `storageAdapter` | Blog media upload / list / delete |
 
-Do **not** import `@base44/sdk` or `@/api/base44Client` from pages or presentational components. Entity CRUD that still uses the SDK lives under `src/api/entities/` and should be treated as a temporary Base44-backed implementation of a domain API.
+Do **not** import `@/api/base44Client` from pages or presentational components. Entity helpers under `src/api/entities/` are the domain API. That module name is historical: it talks to Supabase, not Base44.
 
 ## Data mapping (high level)
 
-| Domain concept | Base44 today | Portable shape |
+| Domain concept | Stored as | Portable shape |
 |----------------|--------------|----------------|
 | Blog article | `BlogPost` entity | `{ postId, slug, status, blocks[], ... }` |
 | Blog media | `BlogAsset` entity | `{ assetId, url, mimeType, altText, ... }` |
@@ -47,7 +47,7 @@ Consider a backend migration only when one or more of these are true:
 - Required capabilities (e.g. transactional multi-entity writes, fine-grained RLS) are unavailable and block a committed roadmap item.
 - Vendor lock-in risk is accepted by stakeholders and a funded migration project exists.
 
-This plan does **not** start a migration. Adapters and backups are readiness work only.
+The Base44 migration is in place. Adapters remain the boundary if the database moves again.
 
 ## Blog CMS admin
 

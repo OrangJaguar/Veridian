@@ -100,8 +100,9 @@ what you publish.
 |---|---|
 | Frontend | React, Vite, Tailwind CSS |
 | State | Zustand, TanStack Query |
-| Backend | Base44 |
-| AI | Google Gemma |
+| Hosting | Vercel |
+| Accounts and data | Supabase Auth and Postgres |
+| AI | NVIDIA Build, with each account's own API key |
 | Scheduling | FSRS |
 | Math Rendering | KaTeX |
 | Privacy Mode | WebGPU (on-device inference) |
@@ -115,11 +116,11 @@ git clone https://github.com/OrangJaguar/Veridian.git
 cd Veridian
 npm install
 cp .env.example .env
-# Add your API keys to .env
+# Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY
 npm run dev
 ```
 
-Required environment variables are documented in `.env.example`.
+The browser only needs the project URL and the publishable key (`sb_publishable_...`). Supabase injects that URL and its secret key into Edge Functions. Database SQL and the secrets you set yourself are documented in `.env.example` and `.env.secrets.example`. Each student adds their own NVIDIA key in Settings after signing in.
 
 ---
 

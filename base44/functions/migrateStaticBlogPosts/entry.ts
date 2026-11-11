@@ -1,4 +1,5 @@
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
+import { createClientFromRequest } from "../_shared/supabaseBackend.ts";
+import { serveApp } from "../_shared/serveApp.ts";
 import { requireAdmin } from "../_shared/requireAdmin.ts";
 import { logServerError } from "../_shared/logServerError.ts";
 import {
@@ -7,7 +8,7 @@ import {
   writeAudit,
 } from "../_shared/blogValidation.ts";
 
-Deno.serve(async (req) => {
+serveApp(async (req) => {
   const base44 = createClientFromRequest(req);
   try {
     const auth = await requireAdmin(base44);

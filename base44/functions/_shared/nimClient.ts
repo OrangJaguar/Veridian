@@ -5,10 +5,11 @@
  *   heavy → AI_HEAVY_MODEL (default deepseek-ai/deepseek-v4-pro)
  *   light → AI_LIGHT_MODEL (default deepseek-ai/deepseek-v4-flash)
  *
- * Secrets (base44 secrets set --env-file .env.secrets):
- *   NVIDIA_API_KEY        — required (same key for both tiers)
- *   NVIDIA_NIM_BASE_URL   — optional, defaults to https://integrate.api.nvidia.com/v1
+ * The API key is the signed-in user's NVIDIA key, loaded for this request.
+ * NVIDIA_NIM_BASE_URL is an optional server override.
  */
+
+import { getRequestAiKey } from "./requestAiKey.ts";
 
 export type ModelTier = "heavy" | "light";
 
@@ -37,13 +38,11 @@ export function resolveModelForTier(tier: ModelTier): string {
 }
 
 function resolveApiKey(): string {
-  const key = Deno.env.get("NVIDIA_API_KEY")?.trim();
-  if (!key) {
-    throw new NimConfigError(
-      "NVIDIA_API_KEY is not configured on the server. Run: base44 secrets set NVIDIA_API_KEY=nvapi-...",
-    );
+  try {
+    return getRequestAiKey();
+  } catch (err) {
+    throw new NimConfigError(err instanceof Error ? err.message : "Add your NVIDIA API key in Settings.");
   }
-  return key;
 }
 
 function resolveBaseUrl(): string {

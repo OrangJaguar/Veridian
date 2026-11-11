@@ -1,4 +1,5 @@
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
+import { createClientFromRequest } from "../_shared/supabaseBackend.ts";
+import { serveApp } from "../_shared/serveApp.ts";
 
 type Base44Client = ReturnType<typeof createClientFromRequest>;
 
@@ -63,7 +64,7 @@ const HOUR_MS = 60 * 60 * 1000;
 const MAX_FEEDBACK_PER_IP_HOUR = 5;
 const MAX_FEEDBACK_PER_USER_HOUR = 8;
 
-Deno.serve(async (req) => {
+serveApp(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
 

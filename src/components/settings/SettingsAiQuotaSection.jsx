@@ -20,9 +20,9 @@ export default function SettingsAiQuotaSection() {
     <section className="settings-section detail-section-box">
       <h2 className="settings-section-title">Daily AI usage</h2>
       <p className="settings-section-lead">
-        Veridian is free — daily limits keep AI costs sustainable for everyone.
-        Limits are counted by generation type (quizzes, guides, flashcards, etc.).
-        A token budget on our side prevents runaway usage without affecting what you see here.
+        Your NVIDIA key pays the model. Veridian still counts generations per account
+        so one session cannot run away. Limits reset at midnight UTC and are split
+        by type (quizzes, guides, flashcards, and the rest).
       </p>
 
       {isPending && !quota ? (

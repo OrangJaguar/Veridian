@@ -1,6 +1,7 @@
 import { upsertErrorLog, clipString } from "../_shared/errorLog.ts";
+import type { BackendClient } from "../_shared/backendTypes.ts";
 
-type Base44Client = ReturnType<typeof import("npm:@base44/sdk@0.8.31").createClientFromRequest>;
+type Base44Client = BackendClient;
 
 export async function logServerError(
   base44: Base44Client,

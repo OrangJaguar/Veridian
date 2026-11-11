@@ -9,9 +9,10 @@ export default function SettingsDangerSection() {
     <section className="settings-section settings-danger-zone detail-section-box">
       <h2 className="settings-section-title">Danger zone</h2>
       <p className="settings-section-lead">
-        Deleting your account removes all journeys, study data, and preferences.
-        Your login record may remain until removed by support — email{' '}
-        <a href={`mailto:${LEGAL_CONTACT_EMAIL}`}>{LEGAL_CONTACT_EMAIL}</a> if needed.
+        Deleting your account removes your login, journeys, study data, preferences,
+        and saved AI key. This cannot be undone. Email{' '}
+        <a href={`mailto:${LEGAL_CONTACT_EMAIL}`}>{LEGAL_CONTACT_EMAIL}</a> if something
+        still looks attached to your address afterward.
       </p>
       <button
         type="button"

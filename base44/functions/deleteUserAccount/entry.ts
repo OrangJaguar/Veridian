@@ -1,4 +1,5 @@
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
+import { createClientFromRequest } from "../_shared/supabaseBackend.ts";
+import { serveApp } from "../_shared/serveApp.ts";
 
 async function deleteAllForUser(base44: ReturnType<typeof createClientFromRequest>, userEmail: string) {
   const entities = [
@@ -23,7 +24,7 @@ async function deleteAllForUser(base44: ReturnType<typeof createClientFromReques
   }
 }
 
-Deno.serve(async (req) => {
+serveApp(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
@@ -32,8 +33,9 @@ Deno.serve(async (req) => {
     }
 
     await deleteAllForUser(base44, user.email);
+    await base44.auth.deleteCurrentUser();
 
-    return Response.json({ ok: true });
+    return Response.json({ data: { ok: true } });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Delete failed";
     return Response.json({ error: { message } }, { status: 500 });

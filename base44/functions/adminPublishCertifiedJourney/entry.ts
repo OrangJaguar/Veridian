@@ -1,4 +1,5 @@
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
+import { createClientFromRequest } from "../_shared/supabaseBackend.ts";
+import { serveApp } from "../_shared/serveApp.ts";
 
 function validateBankQuestion(q: Record<string, unknown>, index: number): string | null {
   if (!String(q.stem ?? "").trim()) return `Question ${index + 1} missing stem.`;
@@ -46,7 +47,7 @@ async function requireAdmin(base44: ReturnType<typeof createClientFromRequest>) 
   return { user };
 }
 
-Deno.serve(async (req) => {
+serveApp(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const auth = await requireAdmin(base44);

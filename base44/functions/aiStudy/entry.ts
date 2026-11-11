@@ -1,4 +1,6 @@
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.31";
+import { createClientFromRequest } from "../_shared/supabaseBackend.ts";
+import { serveApp } from "../_shared/serveApp.ts";
+import { getRequestAiKey } from "../_shared/requestAiKey.ts";
 import { z } from "npm:zod";
 
 // --- Inlined NIM client (Base44 functions deploy independently — no local imports) ---
@@ -64,8 +66,12 @@ interface ChatCompletionResult {
 
 async function chatCompletion(params: ChatCompletionParams): Promise<ChatCompletionResult> {
   const { tier, system, user, maxTokens = 4096, temperature = 0.1, jsonMode = true, history = [] } = params;
-  const apiKey = Deno.env.get("NVIDIA_API_KEY")?.trim();
-  if (!apiKey) throw new NimConfigError("NVIDIA_API_KEY is not configured on the server.");
+  let apiKey: string;
+  try {
+    apiKey = getRequestAiKey();
+  } catch (err) {
+    throw new NimConfigError(err instanceof Error ? err.message : "Add your NVIDIA API key in Settings.");
+  }
   const model = resolveModelForTier(tier);
   const baseUrl = Deno.env.get("NVIDIA_NIM_BASE_URL")?.trim() || NIM_BASE_URL;
   const messages: Array<{ role: string; content: string }> = [
@@ -2016,7 +2022,7 @@ function retrySuffixForAction(action: string, payload: Record<string, unknown>) 
   return undefined;
 }
 
-Deno.serve(async (req) => {
+serveApp(async (req) => {
   if (req.method !== "POST") {
     return errorResponse("Method not allowed.", 405);
   }

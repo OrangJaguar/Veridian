@@ -1,7 +1,7 @@
 /**
  * Barrel for provider-neutral adapters.
  * New feature UI must depend on these adapters (or domain API wrappers),
- * not on `@/api/base44Client` or `@base44/sdk`.
+ * not on `@/api/base44Client`.
  */
 export * from '@/api/adapters/authAdapter';
 export * from '@/api/adapters/functionAdapter';
